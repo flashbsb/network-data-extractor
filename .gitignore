@@ -1,4 +1,6 @@
 *cache*/
+__pycache__/*
+__pycache__
 *.log
 *.csv
 elementos.cfg
