@@ -22,7 +22,11 @@ def parse_show_version(filename):
     }
 
 if __name__ == '__main__':
-    out = 'version_all.csv'
+    import argparse, os
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--outdir', default='.')
+    args = parser.parse_args()
+    out = os.path.join(args.outdir, 'version_all.csv')
     hdr = ['elemento','id','software_version','uptime']
     with open(out, 'w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=hdr, delimiter=';')

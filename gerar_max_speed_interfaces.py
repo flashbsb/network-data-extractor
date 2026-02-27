@@ -110,7 +110,12 @@ def generate_max_speed_csv():
     transceivers.update(load_transceivers_datacom(['transceiver_simple_all.csv', 'transceivers_detail_all.csv']))
     transceivers.update(load_transceivers_cisco(['inventory_all.csv', 'inventory_details_all.csv']))
 
-    with open('interfaces_max_speed.csv', 'w', newline='') as f:
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--outdir', default='.')
+    args = parser.parse_args()
+    import os
+    with open(os.path.join(args.outdir, 'interfaces_max_speed.csv'), 'w', newline='') as f:
         writer = csv.writer(f, delimiter=';')
         writer.writerow(['elemento', 'id', 'interface', 'media', 'eth_std', 'connector', 'max_speed', 'status'])
 

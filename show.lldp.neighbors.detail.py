@@ -136,7 +136,11 @@ def parse_show_lldp_neighbors_detail(filename):
     return data
 
 if __name__ == '__main__':
-    out_file = 'show_lldp_neighbors_detail_all.csv'
+    import argparse, os
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--outdir', default='.')
+    args = parser.parse_args()
+    out_file = os.path.join(args.outdir, 'show_lldp_neighbors_detail_all.csv')
     headers = [
         'elemento',
         'id',

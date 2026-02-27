@@ -31,7 +31,11 @@ def parse_show_system(filename):
     }
 
 if __name__ == '__main__':
-    out = 'system_all.csv'
+    import argparse, os
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--outdir', default='.')
+    args = parser.parse_args()
+    out = os.path.join(args.outdir, 'system_all.csv')
     hdr = [
         'elemento','id','model','oid','mainboard_id','mac_address',
         'bridge','router','mpls','name','location','contact'

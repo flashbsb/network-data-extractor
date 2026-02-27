@@ -46,7 +46,11 @@ def parse_inventory_details(file_path):
     return results
 
 if __name__ == '__main__':
-    output_file = 'inventory_details_all.csv'
+    import argparse, os
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--outdir', default='.')
+    args = parser.parse_args()
+    output_file = os.path.join(args.outdir, 'inventory_details_all.csv')
     header = ['elemento', 'id', 'name', 'descr', 'pid', 'vid', 'sn', 'mfg_name', 'snmp_idx', 'pn']
 
     with open(output_file, 'w', newline='') as f:

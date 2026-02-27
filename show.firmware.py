@@ -28,7 +28,11 @@ def parse_show_firmware(filename):
     }
 
 if __name__ == '__main__':
-    out = 'firmware_all.csv'
+    import argparse, os
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--outdir', default='.')
+    args = parser.parse_args()
+    out = os.path.join(args.outdir, 'firmware_all.csv')
     hdr = [
         'elemento','id','running_version','stack_version',
         'compile_date','bootloader_version','flashes'

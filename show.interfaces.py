@@ -45,7 +45,11 @@ def parse_show_interfaces(filename):
     return data
 
 if __name__ == '__main__':
-    out_file = 'interfaces_all.csv'
+    import argparse, os
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--outdir', default='.')
+    args = parser.parse_args()
+    out_file = os.path.join(args.outdir, 'interfaces_all.csv')
     headers = ['elemento','id','interface','admin_status','line_protocol','description',
                'ip_address','mtu','bandwidth_kbit','reliability','txload','rxload','last_flapped']
     with open(out_file, 'w', newline='') as csvf:

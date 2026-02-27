@@ -85,7 +85,12 @@ def execute_commands_shell(client, cmds):
     return output_map
 
 
+import argparse
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--outdir", default=".")
+    args = parser.parse_args()
+
     elementos = read_elementos('elementos.cfg')
     comandos_map = read_comandos('comandos.cfg')
 
@@ -123,7 +128,7 @@ def main():
         for cmd, out in outputs.items():
             fname = f"{host}.{timestamp}.{sanitize_filename(cmd)}.txt"
             try:
-                with open(fname, 'w') as f:
+                with open(os.path.join(args.outdir, fname), 'w') as f:
                     f.write(f"# Host: {host}\n# IP: {ip}\n# Comando: {cmd}\n# Data: {timestamp}\n\n")
                     f.write(out)
                 logging.info(f"Arquivo gerado: {fname}")

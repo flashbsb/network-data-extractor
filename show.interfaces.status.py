@@ -31,7 +31,11 @@ def parse_show_int_status(filename):
     return data
 
 if __name__ == '__main__':
-    out = 'int_status_all.csv'
+    import argparse, os
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--outdir', default='.')
+    args = parser.parse_args()
+    out = os.path.join(args.outdir, 'int_status_all.csv')
     hdr = ['elemento','id','port','mac_address','port_admin','speed_duplex','link_status','name']
     with open(out, 'w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=hdr, delimiter=';')

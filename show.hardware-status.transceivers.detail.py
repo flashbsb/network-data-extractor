@@ -39,7 +39,11 @@ def parse_transceivers_detail(file_path):
     return results
 
 if __name__ == '__main__':
-    output_file = 'transceivers_detail_all.csv'
+    import argparse, os
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--outdir', default='.')
+    args = parser.parse_args()
+    output_file = os.path.join(args.outdir, 'transceivers_detail_all.csv')
     header = [
         'elemento', 'id', 'port', 'manufacturer', 'part_number',
         'serial_number', 'media', 'eth_std', 'connector', 'wavelength'

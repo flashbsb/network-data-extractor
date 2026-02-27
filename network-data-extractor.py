@@ -108,6 +108,7 @@ for script in SCRIPTS:
 
     # Se for comandos.py -> executar INTERATIVAMENTE (stdin/tty conectado)
     if script == "comandos.py":
+        cmd.extend(["--outdir", COLLECT_DIR])
         print(">>> comandos.py sera executado de forma INTERATIVA. Digite usuario/senha quando solicitado.")
         try:
             # Não capturamos aqui; deixamos a interação no terminal para o usuario
@@ -119,6 +120,7 @@ for script in SCRIPTS:
         except Exception as e:
             print("Erro ao executar comandos.py interativamente:", e)
     else:
+        cmd.extend(["--outdir", RESUME_DIR])
         # Para scripts nao interativos, executa e grava saida em <script>.log enquanto mostra na tela
         safe_name = script.replace(".py", "")
         out_file_name = os.path.join(LOG_DIR, f"{safe_name}.log")
@@ -144,25 +146,6 @@ for script in SCRIPTS:
 
         print(f"{script} finalizado com codigo {rc}")
 
-# Depois de executar tudo, mover arquivos .txt e .csv
-print("\n" + "=" * 60)
-print("Movendo arquivos .txt para", COLLECT_DIR)
-for txt in glob("*.txt"):
-    try:
-        dest = os.path.join(COLLECT_DIR, os.path.basename(txt))
-        shutil.move(txt, dest)
-        print("Movido:", txt, "->", dest)
-    except Exception as e:
-        print("Erro ao mover", txt, ":", e)
-
-print("\nMovendo arquivos .csv para", RESUME_DIR)
-for csv in glob("*.csv"):
-    try:
-        dest = os.path.join(RESUME_DIR, os.path.basename(csv))
-        shutil.move(csv, dest)
-        print("Movido:", csv, "->", dest)
-    except Exception as e:
-        print("Erro ao mover", csv, ":", e)
 
 print("\n" + "=" * 60)
 print("Gerando conexoes a partir dos arquivos resume...")
