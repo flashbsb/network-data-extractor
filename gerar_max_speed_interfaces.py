@@ -104,17 +104,18 @@ def load_transceivers_cisco(files):
     return transceivers
 
 def generate_max_speed_csv():
-    interfaces = load_interfaces(['interfaces_all.csv', 'int_status_all.csv'])
-
-    transceivers = {}
-    transceivers.update(load_transceivers_datacom(['transceiver_simple_all.csv', 'transceivers_detail_all.csv']))
-    transceivers.update(load_transceivers_cisco(['inventory_all.csv', 'inventory_details_all.csv']))
-
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--outdir', default='.')
     args = parser.parse_args()
+
     import os
+    interfaces = load_interfaces([os.path.join(args.outdir, 'interfaces_all.csv'), os.path.join(args.outdir, 'int_status_all.csv')])
+
+    transceivers = {}
+    transceivers.update(load_transceivers_datacom([os.path.join(args.outdir, 'transceiver_simple_all.csv'), os.path.join(args.outdir, 'transceivers_detail_all.csv')]))
+    transceivers.update(load_transceivers_cisco([os.path.join(args.outdir, 'inventory_all.csv'), os.path.join(args.outdir, 'inventory_details_all.csv')]))
+
     with open(os.path.join(args.outdir, 'interfaces_max_speed.csv'), 'w', newline='') as f:
         writer = csv.writer(f, delimiter=';')
         writer.writerow(['elemento', 'id', 'interface', 'media', 'eth_std', 'connector', 'max_speed', 'status'])

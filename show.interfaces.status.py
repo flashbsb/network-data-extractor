@@ -34,6 +34,7 @@ if __name__ == '__main__':
     import argparse, os
     parser = argparse.ArgumentParser()
     parser.add_argument('--outdir', default='.')
+    parser.add_argument('--indir', default='.')
     args = parser.parse_args()
     out = os.path.join(args.outdir, 'int_status_all.csv')
     hdr = ['elemento','id','port','mac_address','port_admin','speed_duplex','link_status','name']

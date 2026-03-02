@@ -48,6 +48,7 @@ if __name__ == '__main__':
     import argparse, os
     parser = argparse.ArgumentParser()
     parser.add_argument('--outdir', default='.')
+    parser.add_argument('--indir', default='.')
     args = parser.parse_args()
     out_file = os.path.join(args.outdir, 'interfaces_all.csv')
     headers = ['elemento','id','interface','admin_status','line_protocol','description',

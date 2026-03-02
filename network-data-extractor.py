@@ -16,6 +16,7 @@ import subprocess
 import sys
 import os
 import shutil
+import argparse
 from datetime import datetime
 from glob import glob
 
@@ -35,8 +36,13 @@ SCRIPTS = [
     "show.lldp.neighbors.detail.py",
 ]
 
+parser = argparse.ArgumentParser(description="Principal extrator")
+parser.add_argument("--threads", type=int, default=10, help="Numero de conexoes simultaneas para comandos.py")
+parser.add_argument("--outbase", type=str, default="infos", help="Pasta raiz base para o timestamp (default: infos/)")
+args = parser.parse_args()
+
 DIR_SUFFIX = datetime.now().strftime("%Y%m%d_%H%M%S")
-TIMESTAMP_DIR = os.path.abspath(DIR_SUFFIX)
+TIMESTAMP_DIR = os.path.abspath(os.path.join(args.outbase, DIR_SUFFIX))
 LOG_DIR = os.path.join(TIMESTAMP_DIR, "log")
 COLLECT_DIR = os.path.join(TIMESTAMP_DIR, "collect")
 RESUME_DIR = os.path.join(TIMESTAMP_DIR, "resume")
@@ -70,15 +76,17 @@ def run_and_stream_capture(cmd, env=None, out_path=None):
 
     try:
         # Le e escreve linha a linha para ter saida em tempo real
-        for line in proc.stdout:
-            # line já inclui newline
-            # imprime na tela
-            sys.stdout.write(line)
-            sys.stdout.flush()
-            # grava no arquivo
-            if out_file:
-                out_file.write(line)
-                out_file.flush()
+        while True:
+            line = proc.stdout.readline()
+            if not line and proc.poll() is not None:
+                break
+            if line:
+                sys.stdout.write(line)
+                sys.stdout.flush()
+                # grava no arquivo
+                if out_file:
+                    out_file.write(line)
+                    out_file.flush()
     except KeyboardInterrupt:
         print("\nInterrompido pelo usuario. Matando processo filho.")
         proc.kill()
@@ -98,29 +106,31 @@ def run_and_stream_capture(cmd, env=None, out_path=None):
 
 for script in SCRIPTS:
     print("\n" + "=" * 60)
-    print("Executando:", script)
+    print(f"Executando processo: {script}")
     script_path = os.path.join(cwd, script)
     if not os.path.isfile(script_path):
-        print("Aviso:", script, "nao encontrado no diretorio atual. Pulando.")
+        print(f"Aviso: Opcional extra {script} nao econtrado. Pulando etapa.")
         continue
 
     cmd = [sys.executable, script_path]
 
     # Se for comandos.py -> executar INTERATIVAMENTE (stdin/tty conectado)
     if script == "comandos.py":
-        cmd.extend(["--outdir", COLLECT_DIR])
-        print(">>> comandos.py sera executado de forma INTERATIVA. Digite usuario/senha quando solicitado.")
+        cmd.extend(["--outdir", COLLECT_DIR, "--threads", str(args.threads)])
+        print(f"    --> Coletando dados crus e enviando para: {COLLECT_DIR}")
+        print(">>> comandos.py sera executado de forma INTERATIVA. Pressione Ctrl+C para pular ou digite credenciais.")
         try:
             # Não capturamos aqui; deixamos a interação no terminal para o usuario
             rc = subprocess.run(cmd)
             # se o comando gerar arquivos por host, eles ja ficaram no cwd
-            print(f"comandos.py finalizado com returncode {rc.returncode}")
+            print(f"[{script}] Finalizado com codigo de retorno: {rc.returncode}")
         except KeyboardInterrupt:
-            print("\nExecucao de comandos.py interrompida pelo usuario.")
+            print(f"\n[{script}] Interrompido pelo usuario.")
         except Exception as e:
-            print("Erro ao executar comandos.py interativamente:", e)
+            print(f"Erro ao executar {script} interativamente: {e}")
     else:
-        cmd.extend(["--outdir", RESUME_DIR])
+        cmd.extend(["--outdir", RESUME_DIR, "--indir", COLLECT_DIR])
+        print(f"    --> Analisando de: {COLLECT_DIR}  |  Enviando para: {RESUME_DIR}")
         # Para scripts nao interativos, executa e grava saida em <script>.log enquanto mostra na tela
         safe_name = script.replace(".py", "")
         out_file_name = os.path.join(LOG_DIR, f"{safe_name}.log")
@@ -148,17 +158,26 @@ for script in SCRIPTS:
 
 
 print("\n" + "=" * 60)
-print("Gerando conexoes a partir dos arquivos resume...")
+print(f"Gerando conexoes consolidadas...")
+print(f"    --> Analisando de: {RESUME_DIR}  |  Enviando para: {CONNECTIONS_DIR}/connections.log")
 script_interface2conn = os.path.join(cwd, "interface2connection.py")
+
+orchestrator_log = os.path.join(LOG_DIR, "orchestrator.log")
+
 if os.path.isfile(script_interface2conn):
     try:
         cmd_conn = [sys.executable, script_interface2conn, "--input", RESUME_DIR, "--output", CONNECTIONS_DIR]
-        rc_conn = subprocess.run(cmd_conn)
-        print(f"interface2connection.py finalizou com codigo {rc_conn.returncode}")
+        conn_log = os.path.join(LOG_DIR, "interface2connection.log")
+        rc_conn = run_and_stream_capture(cmd_conn, env=None, out_path=conn_log)
+        print(f"[interface2connection.py] Finalizou com codigo {rc_conn}")
     except Exception as e:
-        print("Erro ao executar interface2connection.py:", e)
+        print(f"Erro GRAVE ao executar interface2connection.py. Causa: {e}")
+        with open(orchestrator_log, "a", encoding="utf-8") as f:
+            f.write(f"[{datetime.now()}] ERRO FATAL: Falha ao rodar interface2connecion: {e}\n")
 else:
     print("Aviso: interface2connection.py nao encontrado. Pulando etapa de conexoes.")
+    with open(orchestrator_log, "a", encoding="utf-8") as f:
+        f.write(f"[{datetime.now()}] AVISO: {script_interface2conn} nao encontrado, skippando loop.\n")
 
 end_time = datetime.now()
 print("\n" + "=" * 60)

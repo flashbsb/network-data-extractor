@@ -34,6 +34,7 @@ if __name__ == '__main__':
     import argparse, os
     parser = argparse.ArgumentParser()
     parser.add_argument('--outdir', default='.')
+    parser.add_argument('--indir', default='.')
     args = parser.parse_args()
     out = os.path.join(args.outdir, 'system_all.csv')
     hdr = [

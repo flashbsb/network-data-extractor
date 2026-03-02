@@ -5,6 +5,7 @@ import datetime
 import os
 import sys
 import time
+import concurrent.futures
 
 # v1.1
 
@@ -89,6 +90,7 @@ import argparse
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--outdir", default=".")
+    parser.add_argument("--threads", type=int, default=10, help="Numero de conexoes simultaneas")
     args = parser.parse_args()
 
     elementos = read_elementos('elementos.cfg')
@@ -101,14 +103,14 @@ def main():
         logging.error('Nenhum elemento valido  encontrado.')
         sys.exit(1)
 
-    for elem in elementos:
+    def process_element(elem):
         host = elem['hostname']
         ip = elem['ip']
         key = elem['cmd_key']
         cmds = comandos_map.get(key)
         if not cmds:
             logging.warning(f"Nenhum comando para chave '{key}' no elemento '{host}'")
-            continue
+            return
 
         timestamp = datetime.datetime.now().strftime('%d%m%y%H%M%S')
         logging.info(f"Conectando em {host} ({ip}) chave '{key}'")
@@ -119,7 +121,7 @@ def main():
             client.connect(ip, username=user, password=password, timeout=10, look_for_keys=False)
         except Exception as e:
             logging.error(f"Falha na conexao do {host}: {e}")
-            continue
+            return
 
         outputs = execute_commands_shell(client, cmds)
         client.close()
@@ -136,6 +138,10 @@ def main():
                 logging.error(f"Erro ao gravar '{fname}': {e}")
 
         logging.info(f"Sessao finnalizada em {host}\n")
+
+    # Inicia a thread pool com o numero de threads especificado
+    with concurrent.futures.ThreadPoolExecutor(max_workers=args.threads) as executor:
+        executor.map(process_element, elementos)
 
 if __name__ == '__main__':
     main()

@@ -32,6 +32,7 @@ if __name__ == '__main__':
     import argparse, os
     parser = argparse.ArgumentParser()
     parser.add_argument('--outdir', default='.')
+    parser.add_argument('--indir', default='.')
     args = parser.parse_args()
     out = os.path.join(args.outdir, 'platform_all.csv')
     hdr = ['elemento','id','node','type','state','config_state']

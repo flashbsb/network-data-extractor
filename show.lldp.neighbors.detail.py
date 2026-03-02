@@ -139,6 +139,7 @@ if __name__ == '__main__':
     import argparse, os
     parser = argparse.ArgumentParser()
     parser.add_argument('--outdir', default='.')
+    parser.add_argument('--indir', default='.')
     args = parser.parse_args()
     out_file = os.path.join(args.outdir, 'show_lldp_neighbors_detail_all.csv')
     headers = [

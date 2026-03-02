@@ -37,6 +37,7 @@ def parse_transceiver_simple(file_path):
 import argparse, os
 parser = argparse.ArgumentParser()
 parser.add_argument('--outdir', default='.')
+parser.add_argument('--indir', default='.')
 args = parser.parse_args()
 output_file = os.path.join(args.outdir, 'transceiver_simple_all.csv')
 header = ['elemento', 'id', 'port', 'manufacturer', 'part_number',
