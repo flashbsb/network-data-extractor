@@ -56,7 +56,7 @@ if __name__ == '__main__':
     with open(out_file, 'w', newline='') as csvf:
         writer = csv.DictWriter(csvf, fieldnames=headers, delimiter=';')
         writer.writeheader()
-        for fn in glob.glob('*.show.interfaces.txt'):
+        for fn in glob.glob(os.path.join(args.indir, '*.show.interfaces.txt')):
             for row in parse_show_interfaces(fn):
                 writer.writerow(row)
     print(f'CSV gerado: {out_file}')

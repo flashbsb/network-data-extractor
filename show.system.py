@@ -44,6 +44,6 @@ if __name__ == '__main__':
     with open(out, 'w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=hdr, delimiter=';')
         writer.writeheader()
-        for fn in glob.glob('*.show.system.txt'):
+        for fn in glob.glob(os.path.join(args.indir, '*.show.system.txt')):
             writer.writerow(parse_show_system(fn))
     print('CSV gerado:', out)

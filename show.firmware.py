@@ -41,6 +41,6 @@ if __name__ == '__main__':
     with open(out, 'w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=hdr, delimiter=';')
         writer.writeheader()
-        for fn in glob.glob('*.show.firmware.txt'):
+        for fn in glob.glob(os.path.join(args.indir, '*.show.firmware.txt')):
             writer.writerow(parse_show_firmware(fn))
     print('CSV gerado:', out)

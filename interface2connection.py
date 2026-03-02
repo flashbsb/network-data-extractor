@@ -115,7 +115,7 @@ def process_file(filepath, output_dir):
     df_detailed = df_detailed[cols]
     
     filename = os.path.basename(filepath)
-    output_detailed = os.path.join(output_dir, filename.replace('.interfaces_all.csv', '.conexoes.csv'))
+    output_detailed = os.path.join(output_dir, filename.replace('interfaces_all.csv', 'conexoes.csv'))
     df_detailed.to_csv(output_detailed, sep=';', index=False)
     print(f" -> Gerado: {output_detailed} ({len(df_detailed)} linhas)")
 
@@ -127,7 +127,7 @@ def process_file(filepath, output_dir):
     df_sum['fontSize'] = ''
     df_sum = df_sum[cols]
     
-    output_sum = os.path.join(output_dir, filename.replace('.interfaces_all.csv', '.conexoes.SUM.csv'))
+    output_sum = os.path.join(output_dir, filename.replace('interfaces_all.csv', 'conexoes.SUM.csv'))
     df_sum.to_csv(output_sum, sep=';', index=False)
     print(f" -> Gerado: {output_sum} ({len(df_sum)} linhas)")
 
@@ -139,7 +139,7 @@ def main():
 
     os.makedirs(args.output, exist_ok=True)
     
-    files = glob.glob(os.path.join(args.input, '*.interfaces_all.csv'))
+    files = glob.glob(os.path.join(args.input, '*interfaces_all.csv'))
     
     if not files:
         print(f"Nenhum arquivo *.interfaces_all.csv encontrado em {args.input}.")

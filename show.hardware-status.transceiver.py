@@ -46,7 +46,7 @@ header = ['elemento', 'id', 'port', 'manufacturer', 'part_number',
 with open(output_file, 'w', newline='') as f:
     writer = csv.DictWriter(f, fieldnames=header, delimiter=';')
     writer.writeheader()
-    for file in glob('*.show.hardware-status.transceiver.txt'):
+    for file in glob(os.path.join(args.indir, '*.show.hardware-status.transceiver.txt')):
         for row in parse_transceiver_simple(file):
             writer.writerow(row)
 

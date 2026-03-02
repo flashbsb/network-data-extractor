@@ -41,7 +41,7 @@ if __name__ == '__main__':
     with open(out, 'w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=hdr, delimiter=';')
         writer.writeheader()
-        for fn in glob.glob('*.show.interfaces.status.txt'):
+        for fn in glob.glob(os.path.join(args.indir, '*.show.interfaces.status.txt')):
             for row in parse_show_int_status(fn):
                 writer.writerow(row)
     print('CSV gerado:', out)

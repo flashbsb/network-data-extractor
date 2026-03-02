@@ -39,7 +39,7 @@ if __name__ == '__main__':
     with open(out, 'w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=hdr, delimiter=';')
         writer.writeheader()
-        for fn in glob.glob('*.show.platform.txt'):
+        for fn in glob.glob(os.path.join(args.indir, '*.show.platform.txt')):
             for row in parse_show_platform(fn):
                 writer.writerow(row)
     print('CSV gerado:', out)

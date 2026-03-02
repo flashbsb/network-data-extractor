@@ -57,7 +57,7 @@ if __name__ == '__main__':
     with open(output_file, 'w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=header, delimiter=';')
         writer.writeheader()
-        for file in glob('*.show.inventory.details.txt'):
+        for file in glob(os.path.join(args.indir, '*.show.inventory.details.txt')):
             for row in parse_inventory_details(file):
                 writer.writerow(row)
 

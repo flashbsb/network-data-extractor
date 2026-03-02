@@ -164,7 +164,7 @@ if __name__ == '__main__':
     with open(out_file, 'w', newline='') as csvf:
         writer = csv.DictWriter(csvf, fieldnames=headers, delimiter=';')
         writer.writeheader()
-        for fn in glob.glob('*.show.lldp.neighbors.detail.txt'):
+        for fn in glob.glob(os.path.join(args.indir, '*.show.lldp.neighbors.detail.txt')):
             for row in parse_show_lldp_neighbors_detail(fn):
                 writer.writerow(row)
     print('CSV generated:', out_file)

@@ -32,6 +32,6 @@ if __name__ == '__main__':
     with open(out, 'w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=hdr, delimiter=';')
         writer.writeheader()
-        for fn in glob.glob('*.show.version.txt'):
+        for fn in glob.glob(os.path.join(args.indir, '*.show.version.txt')):
             writer.writerow(parse_show_version(fn))
     print('CSV gerado:', out)
