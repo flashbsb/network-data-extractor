@@ -2,4 +2,5 @@
 infos*/
 *.log
 *.csv
-elementos.*
+config/elements.cfg
+elements.*
