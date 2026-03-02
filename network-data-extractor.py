@@ -26,34 +26,23 @@ C_RED = '\033[91m'
 C_CYAN = '\033[96m'
 C_RESET = '\033[0m'
 
-SCRIPTS = [
-    "commands.py",
-    "show.interfaces.py",
-    "show.interfaces.status.py",
-    "show.inventory.details.py",
-    "show.inventory.py",
-    "show.platform.py",
-    "show.system.py",
-    "show.version.py",
-    "show.firmware.py",
-    "show.hardware-status.transceiver.py",
-    "show.hardware-status.transceivers.detail.py",
-    "generate_max_speed_interfaces.py",
-    "show.lldp.neighbors.detail.py",
-]
+# Auto-discover parsers
+parsers_avail = sorted(glob("parsers/*.py"))
+
+SCRIPTS = ["core/commands.py"] + parsers_avail
 
 description = """
 Main Extractor Orchestrator
 
 This script automates the execution of multiple data collection and parsing
-scripts against network elements defined in 'elements.cfg', using the
-commands outlined in 'commands.cfg'.
+scripts against network elements defined in 'config/elements.cfg', using the
+commands outlined in 'config/commands.cfg'.
 
 Workflow:
   1. Prompts for SSH credentials interactively.
-  2. Executes 'commands.py' concurrently to gather raw CLI outputs into '<outbase>/YYYYMMDD_HHMMSS/collect/'.
-  3. Sequentially process all parsing scripts (show.*.py) to generate CSV structures into '<outbase>/YYYYMMDD_HHMMSS/resume/'.
-  4. Finally runs 'interface2connection.py' to map the physical topology connections.
+  2. Executes 'core/commands.py' concurrently to gather raw CLI outputs into '<outbase>/YYYYMMDD_HHMMSS/collect/'.
+  3. Sequentially process all parsing scripts (parsers/*.py) to generate CSV structures into '<outbase>/YYYYMMDD_HHMMSS/resume/'.
+  4. Finally runs 'core/interface2connection.py' to map the physical topology connections.
   5. All execution logs are silently stored in '<outbase>/YYYYMMDD_HHMMSS/log/'.
 """
 
@@ -63,7 +52,7 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument("--threads", type=int, default=10, help="Number of concurrent SSH sessions for commands.py (default: 10)")
 parser.add_argument("--outbase", type=str, default="infos", help="Root directory base to save timestamps/logs/CSVs folders (default: infos/)")
-parser.add_argument("--elements", type=str, default="elements.cfg", help="Input file containing the list of elements (default: elements.cfg)")
+parser.add_argument("--elements", type=str, default="config/elements.cfg", help="Input file containing the list of elements (default: config/elements.cfg)")
 args = parser.parse_args()
 
 DIR_SUFFIX = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -136,19 +125,22 @@ def run_and_stream_capture(cmd, env=None, out_path=None):
 total_scripts = len(SCRIPTS)
 for i, script in enumerate(SCRIPTS, start=1):
     step_prefix = f"[{i:2d}/{total_scripts:2d}] {script:40s}"
+    # Determine script display name and path
+    script_name = os.path.basename(script)
     script_path = os.path.join(cwd, script)
+    
     if not os.path.isfile(script_path):
         print(f"{step_prefix} {C_RED}[SKIPPED - NOT FOUND]{C_RESET}")
-        log_orchestrator(f"Skipped {script}: File not found")
+        log_orchestrator(f"Skipped {script_name}: File not found at {script_path}")
         continue
 
-    log_orchestrator(f"Executing {script}...")
+    log_orchestrator(f"Executing {script_name}...")
 
     cmd = [sys.executable, script_path]
 
-    if script == "commands.py":
+    if script_name == "commands.py":
         cmd.extend(["--outdir", COLLECT_DIR, "--logdir", LOG_DIR, "--threads", str(args.threads), "--elements", args.elements])
-        print(f">>> {C_CYAN}commands.py{C_RESET} is running. Extracted data goes to: collect/")
+        print(f">>> {C_CYAN}core/commands.py{C_RESET} is running. Extracted data goes to: collect/")
         try:
             # Let standard bounds stay active for user password inputs
             script_start_time = datetime.now()
@@ -156,17 +148,17 @@ for i, script in enumerate(SCRIPTS, start=1):
             script_duration = (datetime.now() - script_start_time).total_seconds()
             
             status_text = f"{C_GREEN}[SUCCESS]{C_RESET}" if rc.returncode == 0 else f"{C_RED}[FAILED ]{C_RESET}"
-            log_orchestrator(f"{script} Finished. Return Code: {rc.returncode}")
+            log_orchestrator(f"{script_name} Finished. Return Code: {rc.returncode}")
             print(f"{step_prefix} {status_text} ({script_duration:5.1f}s)")
         except KeyboardInterrupt:
             print(f"{step_prefix} {C_RED}[INTERRUPTED]{C_RESET}")
         except Exception as e:
-            log_orchestrator(f"{script} Error: {e}")
+            log_orchestrator(f"{script_name} Error: {e}")
             print(f"{step_prefix} {C_RED}[ERROR]{C_RESET}")
     else:
         cmd.extend(["--outdir", RESUME_DIR, "--indir", COLLECT_DIR])
         # Scripts output real-time to std and file automatically
-        safe_name = script.replace(".py", "")
+        safe_name = script_name.replace(".py", "")
         out_file_name = os.path.join(LOG_DIR, f"{safe_name}.log")
         # Initialize execution header
         try:
@@ -174,14 +166,14 @@ for i, script in enumerate(SCRIPTS, start=1):
                 fh.write(f"COMMAND: {' '.join(cmd)}\n")
                 fh.write("START: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n\n")
         except Exception as e:
-            log_orchestrator(f"Warning: unable to create log for {script}: {e}")
+            log_orchestrator(f"Warning: unable to create log for {script_name}: {e}")
             out_file_name = None
 
         script_start_time = datetime.now()
         rc = run_and_stream_capture(cmd, env=None, out_path=out_file_name)
         script_end_time = datetime.now()
         script_duration = (script_end_time - script_start_time).total_seconds()
-        log_orchestrator(f"{script} Finished. Return Code: {rc}. Duration: {script_duration:.2f}s")
+        log_orchestrator(f"{script_name} Finished. Return Code: {rc}. Duration: {script_duration:.2f}s")
         
         status = "SUCCESS" if rc == 0 else "FAILURE/WARNING"
         status_text = f"{C_GREEN}[SUCCESS]{C_RESET}" if rc == 0 else f"{C_RED}[FAILED ]{C_RESET}"
@@ -202,10 +194,10 @@ for i, script in enumerate(SCRIPTS, start=1):
              print(f"    └─> {C_RED}Check log/orchestrator.log or log/{safe_name}.log for details.{C_RESET}")
 
 print("\n" + "-" * 60)
-step_prefix_conn = f"[**/**] {'interface2connection.py':40s}"
-script_interface2conn = os.path.join(cwd, "interface2connection.py")
+step_prefix_conn = f"[**/**] {'core/interface2connection.py':40s}"
+script_interface2conn = os.path.join(cwd, "core", "interface2connection.py")
 
-log_orchestrator(f"Executing interface2connection.py...")
+log_orchestrator(f"Executing core/interface2connection.py...")
 
 if os.path.isfile(script_interface2conn):
     try:
