@@ -27,9 +27,10 @@ C_CYAN = '\033[96m'
 C_RESET = '\033[0m'
 
 # Auto-discover parsers
-parsers_avail = sorted(glob("parsers/*.py"))
+parsers_show = sorted(glob("parsers/show.*.py"))
+parsers_others = sorted([p for p in glob("parsers/*.py") if p not in parsers_show])
 
-SCRIPTS = ["core/commands.py"] + parsers_avail
+SCRIPTS = ["core/commands.py"] + parsers_show + parsers_others
 
 description = """
 Main Extractor Orchestrator
