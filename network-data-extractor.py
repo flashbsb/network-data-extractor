@@ -27,7 +27,7 @@ C_CYAN = '\033[96m'
 C_RESET = '\033[0m'
 
 SCRIPTS = [
-    "comandos.py",
+    "commands.py",
     "show.interfaces.py",
     "show.interfaces.status.py",
     "show.inventory.details.py",
@@ -42,9 +42,28 @@ SCRIPTS = [
     "show.lldp.neighbors.detail.py",
 ]
 
-parser = argparse.ArgumentParser(description="Main Extractor orchestrator")
-parser.add_argument("--threads", type=int, default=10, help="Number of concurrent sessions for comandos.py")
-parser.add_argument("--outbase", type=str, default="infos", help="Root directory base for timestamp (default: infos/)")
+description = """
+Main Extractor Orchestrator
+
+This script automates the execution of multiple data collection and parsing
+scripts against network elements defined in 'elements.cfg', using the
+commands outlined in 'commands.cfg'.
+
+Workflow:
+  1. Prompts for SSH credentials interactively.
+  2. Executes 'commands.py' concurrently to gather raw CLI outputs into '<outbase>/YYYYMMDD_HHMMSS/collect/'.
+  3. Sequentially process all parsing scripts (show.*.py) to generate CSV structures into '<outbase>/YYYYMMDD_HHMMSS/resume/'.
+  4. Finally runs 'interface2connection.py' to map the physical topology connections.
+  5. All execution logs are silently stored in '<outbase>/YYYYMMDD_HHMMSS/log/'.
+"""
+
+parser = argparse.ArgumentParser(
+    description=description,
+    formatter_class=argparse.RawTextHelpFormatter
+)
+parser.add_argument("--threads", type=int, default=10, help="Number of concurrent SSH sessions for commands.py (default: 10)")
+parser.add_argument("--outbase", type=str, default="infos", help="Root directory base to save timestamps/logs/CSVs folders (default: infos/)")
+parser.add_argument("--elements", type=str, default="elements.cfg", help="Input file containing the list of elements (default: elements.cfg)")
 args = parser.parse_args()
 
 DIR_SUFFIX = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -127,10 +146,9 @@ for i, script in enumerate(SCRIPTS, start=1):
 
     cmd = [sys.executable, script_path]
 
-    # If comandos.py -> execute INTERACTIVELY
-    if script == "comandos.py":
-        cmd.extend(["--outdir", COLLECT_DIR, "--logdir", LOG_DIR, "--threads", str(args.threads)])
-        print(f">>> {C_CYAN}comandos.py{C_RESET} is running. Extracted data goes to: collect/")
+    if script == "commands.py":
+        cmd.extend(["--outdir", COLLECT_DIR, "--logdir", LOG_DIR, "--threads", str(args.threads), "--elements", args.elements])
+        print(f">>> {C_CYAN}commands.py{C_RESET} is running. Extracted data goes to: collect/")
         try:
             # Let standard bounds stay active for user password inputs
             script_start_time = datetime.now()
