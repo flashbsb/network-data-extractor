@@ -6,19 +6,19 @@ import argparse
 
 def get_style(bandwidth_kbit, admin_status, line_protocol):
     """
-    Define o estilo visual baseado na velocidade e status.
+    Defines visual style based on speed and status.
     """
     try:
         bw = int(bandwidth_kbit)
     except:
         bw = 0
     
-    # Lógica de Status (Up/Down)
+    # Status Logic (Up/Down)
     dashed = ''
     if str(line_protocol).lower() != 'up':
         dashed = 1
         
-    # Lógica de Cores e Largura
+    # Color and Width Logic
     if bw == 1000000:
         return "1Gbps", 1, "#800080", dashed
     elif bw == 10000000:
@@ -26,7 +26,7 @@ def get_style(bandwidth_kbit, admin_status, line_protocol):
     elif bw == 100000000:
         return "100Gbps", 3, "#006400", dashed
     else:
-        # Fallback para velocidades exóticas
+        # Fallback for exotic speeds
         if bw >= 1000000:
             label = f"{int(bw/1000000)}Gbps"
         else:
@@ -35,7 +35,7 @@ def get_style(bandwidth_kbit, admin_status, line_protocol):
 
 def parse_neighbor(description):
     """
-    Tenta encontrar o vizinho (RT* ou PTT*) na descrição.
+    Tries to find the neighbor (RT* or PTT*) in the description.
     """
     if pd.isna(description):
         return None
@@ -53,16 +53,16 @@ def parse_neighbor(description):
 
 def is_virtual(interface_name):
     """
-    Verifica se a interface é virtual para ser ignorada.
-    Retorna True se deve ser ignorada.
+    Checks if the interface is virtual to be ignored.
+    Returns True if it should be ignored.
     """
     if pd.isna(interface_name):
         return False
         
     name = str(interface_name).strip()
     
-    # Lista de prefixos proibidos (Case Insensitive logic aplicada abaixo)
-    # Adicionei Loopback e Tunnel por precaução, já que são virtuais clássicas.
+    # List of forbidden prefixes (Case Insensitive logic applied below)
+    # Added Loopback and Tunnel as a precaution, since they are classic virtuals.
     virtual_prefixes = ('Bundle', 'PW', 'NULL', 'Null', 'Loopback', 'Tunnel')
     
     if name.startswith(virtual_prefixes):
@@ -83,17 +83,17 @@ def process_file(filepath, output_dir):
     ignored_virtual = 0
 
     for _, row in df.iterrows():
-        # --- NOVO FILTRO AQUI ---
-        # Se for virtual, pula para o próximo
+        # --- NEW FILTER HERE ---
+        # If it's virtual, skip to the next
         if is_virtual(row['interface']):
             ignored_virtual += 1
             continue
             
-        # Identifica vizinho
+        # Identify neighbor
         neighbor = parse_neighbor(row['description'])
         
         if neighbor:
-            # Identifica estilo
+            # Identify style
             label, width, color, dashed = get_style(row['bandwidth_kbit'], row['admin_status'], row['line_protocol'])
             
             detailed_rows.append({
@@ -148,17 +148,17 @@ def main():
         print(f"No *.interfaces_all.csv file found in {args.input}.")
         return
 
-    total_conexoes = 0
-    total_virtuais = 0
+    total_connections = 0
+    total_virtuals = 0
     for f in files:
         conns_ok, conns_ignored = process_file(f, args.output)
-        total_conexoes += conns_ok
-        total_virtuais += conns_ignored
+        total_connections += conns_ok
+        total_virtuals += conns_ignored
         
     print(f"\n--- Final Connection Summary ---")
     print(f"Completed Successfully.")
-    print(f"Total resolved connections: {total_conexoes}")
-    print(f"Total ignored virtual interfaces: {total_virtuais}")
+    print(f"Total resolved connections: {total_connections}")
+    print(f"Total ignored virtual interfaces: {total_virtuals}")
 
 if __name__ == "__main__":
     main()

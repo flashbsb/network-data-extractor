@@ -20,10 +20,10 @@ ETH_STD_SPEED = {
     '': ''
 }
 
-IGNORAR = ('Loopback', 'Bundle', 'Null', 'BVI', 'Vlan', 'Tunnel', 'Port-channel', 'Mgmt', 'NVI')
+IGNORE = ('Loopback', 'Bundle', 'Null', 'BVI', 'Vlan', 'Tunnel', 'Port-channel', 'Mgmt', 'NVI')
 
 def is_physical(iface):
-    return not iface.startswith(IGNORAR)
+    return not iface.startswith(IGNORE)
 
 def normalize(name):
     name = re.sub(r'^(GigabitEthernet|TenGigE|FastEthernet|Eth|Port-channel)', '', name).strip()
@@ -54,7 +54,7 @@ def load_interfaces(files):
                     continue
                 element_val = row.get('element', row.get('elemento', ''))
                 interfaces.append({
-                    'elemento': element_val.strip(),
+                    'element': element_val.strip(),
                     'id': row['id'].strip(),
                     'interface': iface.strip(),
                     'normalized': normalize(iface.strip())
@@ -125,25 +125,25 @@ def generate_max_speed_csv():
         writer.writerow(['element', 'id', 'interface', 'media', 'eth_std', 'connector', 'max_speed', 'status'])
 
         for iface in interfaces:
-            key = (iface['elemento'], iface['id'], iface['normalized'])
+            key = (iface['element'], iface['id'], iface['normalized'])
             trans = transceivers.get(key)
 
             if trans:
                 eth_std = trans.get('eth_std', '')
                 speed = ETH_STD_SPEED.get(eth_std, infer_speed(iface['interface']))
                 writer.writerow([
-                    iface['elemento'], iface['id'], iface['interface'],
+                    iface['element'], iface['id'], iface['interface'],
                     trans.get('media', ''), eth_std, trans.get('connector', ''),
-                    speed, 'com_transceiver'
+                    speed, 'with_transceiver'
                 ])
             else:
                 speed = infer_speed(iface['interface'])
                 writer.writerow([
-                    iface['elemento'], iface['id'], iface['interface'],
-                    '', '', '', speed, 'sem_transceiver'
+                    iface['element'], iface['id'], iface['interface'],
+                    '', '', '', speed, 'without_transceiver'
                 ])
 
-    print("✅ Arquivo gerado: interfaces_max_speed.csv")
+    print("✅ File generated: interfaces_max_speed.csv")
 
 if __name__ == '__main__':
     generate_max_speed_csv()

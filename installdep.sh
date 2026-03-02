@@ -1,22 +1,22 @@
 #!/bin/bash
 
-# installdep.sh - Porque dependências não se instalam sozinhas.
-# Valido para Debian/Ubuntu minimal.
+# installdep.sh - Because dependencies don't install themselves.
+# Valid for Debian/Ubuntu minimal.
 
 if [ "$EUID" -ne 0 ]
-  then echo "Por favor, execute como root (sudo). Não tenho bola de cristal para adivinhar sua senha."
+  then echo "Please run as root (sudo). I don't have a crystal ball to guess your password."
   exit
 fi
 
-echo "Atualizando lista de pacotes (isso pode demorar se sua internet for discada)..."
+echo "Updating package list (this might take a while if you're on dial-up)..."
 apt-get update
 
-echo "Instalando Python3, Pip, Pandas e Paramiko..."
+echo "Installing Python3, Pip, Pandas, and Paramiko..."
 apt-get install -y python3 python3-pip python3-pandas python3-paramiko
 
-# Se o pandas via apt for muito antigo (debian stable moments), garantimos via pip
-# Mas geralmente o apt resolve para o básico.
+# If pandas via apt is too old (debian stable moments), we guarantee it via pip
+# But usually apt resolves the basics.
 # pip3 install pandas --break-system-packages 2>/dev/null || pip3 install pandas
 
-echo "Pronto. Agora você pode rodar o orquestrador:"
+echo "Done. Now you can run the orchestrator:"
 echo "  python3 network-data-extractor.py --help"

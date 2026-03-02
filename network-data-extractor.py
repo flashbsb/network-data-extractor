@@ -5,7 +5,7 @@ run_scripts_sequencia.py
 
 Behavior:
  - Does not prompt for credentials initially.
- - When reaching comandos.py, executes INTERACTIVELY (stdin/tty connected)
+ - When reaching commands.py, executes INTERACTIVELY (stdin/tty connected)
    so you can directly type username/password.
  - For other scripts, executes and streams the output in real-time
    while saving logs to <script>.txt.

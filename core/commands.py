@@ -12,8 +12,8 @@ import concurrent.futures
 # Logging will be configured in main()
 
 
-def read_elementos(path):
-    elementos = []
+def read_elements(path):
+    elements = []
     if not os.path.isfile(path):
         logging.error(f"Element file not found: {path}")
         sys.exit(1)
@@ -27,8 +27,8 @@ def read_elementos(path):
             if len(parts) != 4:
                 logging.warning(f"Invalid line {lineno} in {path}: {line}")
                 continue
-            elementos.append(dict(zip(['hostname', 'ip', 'modelo', 'cmd_key'], parts)))
-    return elementos
+            elements.append(dict(zip(['hostname', 'ip', 'model', 'cmd_key'], parts)))
+    return elements
 
 
 def read_commands(path):
@@ -69,7 +69,7 @@ def execute_commands_shell(client, cmds):
 
     output_map = {}
     for cmd in cmds:
-        # logging.info(f"Enviando comando: {cmd}") # Suppressed
+        # logging.info(f"Sending command: {cmd}") # Suppressed
         shell.send(cmd + '\n')
         time.sleep(5)
         buff = b''
@@ -100,18 +100,18 @@ def main():
     )
     logging.getLogger("paramiko").setLevel(logging.WARNING)
 
-    elementos = read_elementos(args.elements)
+    elements = read_elements(args.elements)
     commands_map = read_commands(args.commands)
 
     user = input('SSH Worker User: ')
     password = getpass.getpass('SSH Password: ')
 
-    if not elementos:
+    if not elements:
         logging.error('No valid elements found.')
         sys.exit(1)
 
     import threading
-    total_elements = len(elementos)
+    total_elements = len(elements)
     pad = len(str(total_elements))
     counter = 0
     counter_lock = threading.Lock()
@@ -131,7 +131,7 @@ def main():
             return
 
         timestamp = datetime.datetime.now().strftime('%d%m%y%H%M%S')
-        logging.info(f"Conectando em {host} ({ip}) chave '{key}'")
+        logging.info(f"Connecting to {host} ({ip}) key '{key}'")
 
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -148,12 +148,12 @@ def main():
         outputs = execute_commands_shell(client, cmds)
         client.close()
 
-        # Grava arquivos
+        # Save files
         for cmd, out in outputs.items():
             fname = f"{host}.{timestamp}.{sanitize_filename(cmd)}.txt"
             try:
                 with open(os.path.join(args.outdir, fname), 'w') as f:
-                    f.write(f"# Host: {host}\n# IP: {ip}\n# Comando: {cmd}\n# Data: {timestamp}\n\n")
+                    f.write(f"# Host: {host}\n# IP: {ip}\n# Command: {cmd}\n# Date: {timestamp}\n\n")
                     f.write(out)
                 # Omit verbose logging of every single file generated to preserve terminal UX
             except Exception as e:
@@ -167,9 +167,9 @@ def main():
 
         # logging.info(f"Session finished for {host}\n")
 
-    # Inicia a thread pool com o numero de threads especificado
+    # Start the thread pool with the specified number of threads
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.threads) as executor:
-        executor.map(process_element, elementos)
+        executor.map(process_element, elements)
 
 if __name__ == '__main__':
     main()
