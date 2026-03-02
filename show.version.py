@@ -15,7 +15,7 @@ def parse_show_version(filename):
             elif 'System uptime is' in line:
                 uptime = line.split('System uptime is',1)[1].strip()
     return {
-        'elemento': host,
+        'element': host,
         'id': identifier,
         'software_version': software_version,
         'uptime': uptime
@@ -28,10 +28,20 @@ if __name__ == '__main__':
     parser.add_argument('--indir', default='.')
     args = parser.parse_args()
     out = os.path.join(args.outdir, 'version_all.csv')
-    hdr = ['elemento','id','software_version','uptime']
+    hdr = ['element','id','software_version','uptime']
     with open(out, 'w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=hdr, delimiter=';')
         writer.writeheader()
-        for fn in glob.glob(os.path.join(args.indir, '*.show.version.txt')):
+        files_to_parse = glob.glob(os.path.join(args.indir, '*.show.version.txt'))
+
+        print(f'Searching for files *.show.version.txt in {args.indir}... Found {len(files_to_parse)} applicable files.')
+
+        processed = 0
+
+        for fn in files_to_parse:
             writer.writerow(parse_show_version(fn))
-    print('CSV gerado:', out)
+    if 'processed' in locals():
+
+        print(f'-> Total parsed and successfully saved nodes: {processed}')
+
+    print('CSV generated:', out)

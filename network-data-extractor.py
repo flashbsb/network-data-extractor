@@ -3,13 +3,13 @@
 """
 run_scripts_sequencia.py
 
-Comportamento:
- - Nao pergunta credenciais no inicio.
- - Quando chegar em comandos.py, executa INTERATIVAMENTE (stdin/tty conectados)
-   para que voce digite usuario/senha diretamente.
- - Para os outros scripts, executa e mostra a saida em tempo real na tela
-   e tambem grava cada saida em <script>.txt.
- - Ao final, cria ../infos/DDMMYYYY e ../consolidado/DDMMYYYY e move .txt/.csv.
+Behavior:
+ - Does not prompt for credentials initially.
+ - When reaching comandos.py, executes INTERACTIVELY (stdin/tty connected)
+   so you can directly type username/password.
+ - For other scripts, executes and streams the output in real-time
+   while saving logs to <script>.txt.
+ - Ultimately generates ../infos/DDMMYYYY and ../consolidado/DDMMYYYY and moves .txt/.csv.
 """
 
 import subprocess
@@ -19,6 +19,12 @@ import shutil
 import argparse
 from datetime import datetime
 from glob import glob
+
+# ANSI Colors
+C_GREEN = '\033[92m'
+C_RED = '\033[91m'
+C_CYAN = '\033[96m'
+C_RESET = '\033[0m'
 
 SCRIPTS = [
     "comandos.py",
@@ -32,13 +38,13 @@ SCRIPTS = [
     "show.firmware.py",
     "show.hardware-status.transceiver.py",
     "show.hardware-status.transceivers.detail.py",
-    "gerar_max_speed_interfaces.py",
+    "generate_max_speed_interfaces.py",
     "show.lldp.neighbors.detail.py",
 ]
 
-parser = argparse.ArgumentParser(description="Principal extrator")
-parser.add_argument("--threads", type=int, default=10, help="Numero de conexoes simultaneas para comandos.py")
-parser.add_argument("--outbase", type=str, default="infos", help="Pasta raiz base para o timestamp (default: infos/)")
+parser = argparse.ArgumentParser(description="Main Extractor orchestrator")
+parser.add_argument("--threads", type=int, default=10, help="Number of concurrent sessions for comandos.py")
+parser.add_argument("--outbase", type=str, default="infos", help="Root directory base for timestamp (default: infos/)")
 args = parser.parse_args()
 
 DIR_SUFFIX = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -53,49 +59,53 @@ os.makedirs(COLLECT_DIR, exist_ok=True)
 os.makedirs(RESUME_DIR, exist_ok=True)
 os.makedirs(CONNECTIONS_DIR, exist_ok=True)
 
+orchestrator_log = os.path.join(LOG_DIR, "orchestrator.log")
+def log_orchestrator(msg):
+    with open(orchestrator_log, "a", encoding="utf-8") as f:
+        f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {msg}\n")
+
 start_time = datetime.now()
-print("Inicio:", start_time.strftime("%Y-%m-%d %H:%M:%S"))
-print("Diretorio atual:", os.getcwd())
+log_orchestrator(f"Extraction Started. Output Root: {TIMESTAMP_DIR}")
+print(f"{C_CYAN}--- Network Data Extractor Orchestrator ---{C_RESET}")
+print(f"Start: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+print(f"Output Root: {TIMESTAMP_DIR}\n")
 cwd = os.getcwd()
 
 
 def run_and_stream_capture(cmd, env=None, out_path=None):
     """
-    Executa cmd (lista) e:
-     - streama stdout+stderr para a tela em tempo real
-     - grava a mesma saida em out_path (se fornecido)
-    Retorna returncode.
+    Executes cmd (list) and:
+     - streams stdout+stderr SILENTLY to out_path log file (no terminal echo)
+    Returns returncode.
     """
-    # Abre arquivo de saida se necessario
+    # Open output file if needed
     out_file = None
     if out_path:
         out_file = open(out_path, "w", encoding="utf-8", errors="replace")
 
-    # Inicia processo com stdout PIPE e stderr para STDOUT
+    # Start process overriding standard buffers
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env, bufsize=1, universal_newlines=True)
 
     try:
-        # Le e escreve linha a linha para ter saida em tempo real
+        # Stream read bounds in real-time
         while True:
             line = proc.stdout.readline()
             if not line and proc.poll() is not None:
                 break
             if line:
-                sys.stdout.write(line)
-                sys.stdout.flush()
-                # grava no arquivo
+                # log to file (no sys.stdout.write to prevent terminal noise)
                 if out_file:
                     out_file.write(line)
                     out_file.flush()
     except KeyboardInterrupt:
-        print("\nInterrompido pelo usuario. Matando processo filho.")
+        print("\nInterrupted by user. Killing child process.")
         proc.kill()
         proc.wait()
         if out_file:
             out_file.close()
         return 130
     finally:
-        # garante que entramos aqui quando terminar
+        # Ensures clean teardown
         proc.stdout.close()
 
     rc = proc.wait()
@@ -104,90 +114,118 @@ def run_and_stream_capture(cmd, env=None, out_path=None):
     return rc
 
 
-for script in SCRIPTS:
-    print("\n" + "=" * 60)
-    print(f"Executando processo: {script}")
+total_scripts = len(SCRIPTS)
+for i, script in enumerate(SCRIPTS, start=1):
+    step_prefix = f"[{i:2d}/{total_scripts:2d}] {script:40s}"
     script_path = os.path.join(cwd, script)
     if not os.path.isfile(script_path):
-        print(f"Aviso: Opcional extra {script} nao econtrado. Pulando etapa.")
+        print(f"{step_prefix} {C_RED}[SKIPPED - NOT FOUND]{C_RESET}")
+        log_orchestrator(f"Skipped {script}: File not found")
         continue
+
+    log_orchestrator(f"Executing {script}...")
 
     cmd = [sys.executable, script_path]
 
-    # Se for comandos.py -> executar INTERATIVAMENTE (stdin/tty conectado)
+    # If comandos.py -> execute INTERACTIVELY
     if script == "comandos.py":
-        cmd.extend(["--outdir", COLLECT_DIR, "--threads", str(args.threads)])
-        print(f"    --> Coletando dados crus e enviando para: {COLLECT_DIR}")
-        print(">>> comandos.py sera executado de forma INTERATIVA. Pressione Ctrl+C para pular ou digite credenciais.")
+        cmd.extend(["--outdir", COLLECT_DIR, "--logdir", LOG_DIR, "--threads", str(args.threads)])
+        print(f">>> {C_CYAN}comandos.py{C_RESET} is running. Extracted data goes to: collect/")
         try:
-            # Não capturamos aqui; deixamos a interação no terminal para o usuario
+            # Let standard bounds stay active for user password inputs
+            script_start_time = datetime.now()
             rc = subprocess.run(cmd)
-            # se o comando gerar arquivos por host, eles ja ficaram no cwd
-            print(f"[{script}] Finalizado com codigo de retorno: {rc.returncode}")
+            script_duration = (datetime.now() - script_start_time).total_seconds()
+            
+            status_text = f"{C_GREEN}[SUCCESS]{C_RESET}" if rc.returncode == 0 else f"{C_RED}[FAILED ]{C_RESET}"
+            log_orchestrator(f"{script} Finished. Return Code: {rc.returncode}")
+            print(f"{step_prefix} {status_text} ({script_duration:5.1f}s)")
         except KeyboardInterrupt:
-            print(f"\n[{script}] Interrompido pelo usuario.")
+            print(f"{step_prefix} {C_RED}[INTERRUPTED]{C_RESET}")
         except Exception as e:
-            print(f"Erro ao executar {script} interativamente: {e}")
+            log_orchestrator(f"{script} Error: {e}")
+            print(f"{step_prefix} {C_RED}[ERROR]{C_RESET}")
     else:
         cmd.extend(["--outdir", RESUME_DIR, "--indir", COLLECT_DIR])
-        print(f"    --> Analisando de: {COLLECT_DIR}  |  Enviando para: {RESUME_DIR}")
-        # Para scripts nao interativos, executa e grava saida em <script>.log enquanto mostra na tela
+        # Scripts output real-time to std and file automatically
         safe_name = script.replace(".py", "")
         out_file_name = os.path.join(LOG_DIR, f"{safe_name}.log")
-        # Escreve um cabeçalho no arquivo antes de rodar
+        # Initialize execution header
         try:
             with open(out_file_name, "w", encoding="utf-8") as fh:
-                fh.write(f"COMANDO: {' '.join(cmd)}\n")
-                fh.write("INICIO: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n\n")
+                fh.write(f"COMMAND: {' '.join(cmd)}\n")
+                fh.write("START: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n\n")
         except Exception as e:
-            print("Aviso: nao foi possivel criar arquivo de log inicial:", e)
+            log_orchestrator(f"Warning: unable to create log for {script}: {e}")
             out_file_name = None
 
+        script_start_time = datetime.now()
         rc = run_and_stream_capture(cmd, env=None, out_path=out_file_name)
+        script_end_time = datetime.now()
+        script_duration = (script_end_time - script_start_time).total_seconds()
+        log_orchestrator(f"{script} Finished. Return Code: {rc}. Duration: {script_duration:.2f}s")
+        
+        status = "SUCCESS" if rc == 0 else "FAILURE/WARNING"
+        status_text = f"{C_GREEN}[SUCCESS]{C_RESET}" if rc == 0 else f"{C_RED}[FAILED ]{C_RESET}"
 
-        # apos termino, grava retorno e hora final no arquivo
+        # After finishing, append summary block to the file
         if out_file_name:
             try:
                 with open(out_file_name, "a", encoding="utf-8") as fh:
-                    fh.write("\n\nRETURNCODE: " + str(rc) + "\n")
-                    fh.write("FIM: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n")
+                    fh.write(f"\n\n--- EXECUTION SUMMARY ---\n")
+                    fh.write(f"FINAL STATUS: {status} (Return Code: {rc})\n")
+                    fh.write(f"PROCESSING TIME: {script_duration:.2f} seconds\n")
+                    fh.write("END: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n")
             except Exception as e:
-                print("Aviso: falha ao atualizar arquivo de log:", e)
+                pass # Silently drop missing summary lines instead of breaking terminal display
 
-        print(f"{script} finalizado com codigo {rc}")
+        print(f"{step_prefix} {status_text} ({script_duration:5.1f}s)")
+        if rc != 0:
+             print(f"    └─> {C_RED}Check log/orchestrator.log or log/{safe_name}.log for details.{C_RESET}")
 
-
-print("\n" + "=" * 60)
-print(f"Gerando conexoes consolidadas...")
-print(f"    --> Analisando de: {RESUME_DIR}  |  Enviando para: {CONNECTIONS_DIR}/connections.log")
+print("\n" + "-" * 60)
+step_prefix_conn = f"[**/**] {'interface2connection.py':40s}"
 script_interface2conn = os.path.join(cwd, "interface2connection.py")
 
-orchestrator_log = os.path.join(LOG_DIR, "orchestrator.log")
+log_orchestrator(f"Executing interface2connection.py...")
 
 if os.path.isfile(script_interface2conn):
     try:
         cmd_conn = [sys.executable, script_interface2conn, "--input", RESUME_DIR, "--output", CONNECTIONS_DIR]
         conn_log = os.path.join(LOG_DIR, "interface2connection.log")
+        conn_start = datetime.now()
         rc_conn = run_and_stream_capture(cmd_conn, env=None, out_path=conn_log)
-        print(f"[interface2connection.py] Finalizou com codigo {rc_conn}")
+        conn_duration = (datetime.now() - conn_start).total_seconds()
+        status_conn = "SUCCESS" if rc_conn == 0 else "FAILURE/WARNING"
+        status_text_conn = f"{C_GREEN}[SUCCESS]{C_RESET}" if rc_conn == 0 else f"{C_RED}[FAILED ]{C_RESET}"
+        
+        # Append summary block to connections log as well
+        with open(conn_log, "a", encoding="utf-8") as fh:
+            fh.write(f"\n\n--- EXECUTION SUMMARY ---\n")
+            fh.write(f"FINAL STATUS: {status_conn} (Return Code: {rc_conn})\n")
+            fh.write(f"PROCESSING TIME: {conn_duration:.2f} seconds\n")
+            fh.write("END: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n")
+            
+        print(f"{step_prefix_conn} {status_text_conn} ({conn_duration:5.1f}s)")
+        if rc_conn != 0:
+             print(f"    └─> {C_RED}Check log/interface2connection.log for details.{C_RESET}")
     except Exception as e:
-        print(f"Erro GRAVE ao executar interface2connection.py. Causa: {e}")
-        with open(orchestrator_log, "a", encoding="utf-8") as f:
-            f.write(f"[{datetime.now()}] ERRO FATAL: Falha ao rodar interface2connecion: {e}\n")
+        print(f"{step_prefix_conn} {C_RED}[CRASHED]{C_RESET}")
+        log_orchestrator(f"FATAL ERROR: Failed to execute interface2connection: {e}")
 else:
-    print("Aviso: interface2connection.py nao encontrado. Pulando etapa de conexoes.")
-    with open(orchestrator_log, "a", encoding="utf-8") as f:
-        f.write(f"[{datetime.now()}] AVISO: {script_interface2conn} nao encontrado, skippando loop.\n")
+    print(f"{step_prefix_conn} {C_RED}[SKIPPED - NOT FOUND]{C_RESET}")
+    log_orchestrator(f"WARNING: {script_interface2conn} not found, skipping hook.")
 
 end_time = datetime.now()
-print("\n" + "=" * 60)
-print("Fim:", end_time.strftime("%Y-%m-%d %H:%M:%S"))
+log_orchestrator("Extraction Ended")
+print("\n" + "-" * 60)
+print("End:", end_time.strftime("%Y-%m-%d %H:%M:%S"))
 
 duration = end_time - start_time
 total_seconds = int(duration.total_seconds())
 hours = total_seconds // 3600
 minutes = (total_seconds % 3600) // 60
 seconds = total_seconds % 60
-print(f"Tempo total: {hours:02d}:{minutes:02d}:{seconds:02d}")
+print(f"Total processing time: {hours:02d}:{minutes:02d}:{seconds:02d}")
 
 sys.exit(0)

@@ -18,7 +18,7 @@ def parse_show_firmware(filename):
     )
     flashes_str = ';'.join(f"{i}|{v}|{d}|{f}|{s}" for (i,v,d,f,s) in flashes)
     return {
-        'elemento': host,
+        'element': host,
         'id': identifier,
         'running_version':    safe_search(r'Firmware version:\s*(\S+)', text),
         'stack_version':      safe_search(r'Stack version:\s*(\S+)', text),
@@ -35,12 +35,22 @@ if __name__ == '__main__':
     args = parser.parse_args()
     out = os.path.join(args.outdir, 'firmware_all.csv')
     hdr = [
-        'elemento','id','running_version','stack_version',
+        'element','id','running_version','stack_version',
         'compile_date','bootloader_version','flashes'
     ]
     with open(out, 'w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=hdr, delimiter=';')
         writer.writeheader()
-        for fn in glob.glob(os.path.join(args.indir, '*.show.firmware.txt')):
+        files_to_parse = glob.glob(os.path.join(args.indir, '*.show.firmware.txt'))
+
+        print(f'Searching for files *.show.firmware.txt in {args.indir}... Found {len(files_to_parse)} applicable files.')
+
+        processed = 0
+
+        for fn in files_to_parse:
             writer.writerow(parse_show_firmware(fn))
-    print('CSV gerado:', out)
+    if 'processed' in locals():
+
+        print(f'-> Total parsed and successfully saved nodes: {processed}')
+
+    print('CSV generated:', out)

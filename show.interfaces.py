@@ -3,14 +3,14 @@
 import re, glob, csv, os
 
 def parse_show_interfaces(filename):
-    # Extrai hostname e id do nome do arquivo
+    # Extracts hostname and id from filename
     base = os.path.basename(filename)
     host, _, rest = base.partition('.')
     identifier = rest.split('.')[0]
     data = []
     with open(filename) as f:
         text = f.read()
-    # Divide em blocos por interface
+    # Splits into blocks per interface
     blocks = re.split(r'\n(?=\S+ is )', text)
     for blk in blocks:
         m = re.match(r'^(?P<iface>\S+) is (?P<admin>[\w ]+), line protocol is (?P<prot>[\w ]+)', blk)
@@ -28,7 +28,7 @@ def parse_show_interfaces(filename):
         rx   = re.search(r'rxload (\S+)', blk)
         flap = re.search(r'Last link flapped ([\w\d]+)', blk)
         data.append({
-            'elemento': host,
+            'element': host,
             'id': identifier,
             'interface': iface,
             'admin_status': admin,
@@ -51,12 +51,18 @@ if __name__ == '__main__':
     parser.add_argument('--indir', default='.')
     args = parser.parse_args()
     out_file = os.path.join(args.outdir, 'interfaces_all.csv')
-    headers = ['elemento','id','interface','admin_status','line_protocol','description',
+    headers = ['element','id','interface','admin_status','line_protocol','description',
                'ip_address','mtu','bandwidth_kbit','reliability','txload','rxload','last_flapped']
     with open(out_file, 'w', newline='') as csvf:
         writer = csv.DictWriter(csvf, fieldnames=headers, delimiter=';')
         writer.writeheader()
-        for fn in glob.glob(os.path.join(args.indir, '*.show.interfaces.txt')):
+        files_to_parse = glob.glob(os.path.join(args.indir, '*.show.interfaces.txt'))
+
+        print(f'Searching for files *.show.interfaces.txt in {args.indir}... Found {len(files_to_parse)} applicable files.')
+
+        processed = 0
+
+        for fn in files_to_parse:
             for row in parse_show_interfaces(fn):
                 writer.writerow(row)
-    print(f'CSV gerado: {out_file}')
+    print(f'CSV generated: {out_file}')

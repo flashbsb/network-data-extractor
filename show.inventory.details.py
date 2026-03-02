@@ -16,7 +16,7 @@ def parse_inventory_details(file_path):
             # Início de novo bloco
             if line.startswith('NAME:'):
                 if current:
-                    current['elemento'] = hostname
+                    current['element'] = hostname
                     current['id'] = ident
                     results.append(current)
                     current = {}
@@ -39,7 +39,7 @@ def parse_inventory_details(file_path):
                 current['pn'] = line.split(':', 1)[1].strip()
 
     if current:
-        current['elemento'] = hostname
+        current['element'] = hostname
         current['id'] = ident
         results.append(current)
 
@@ -52,7 +52,7 @@ if __name__ == '__main__':
     parser.add_argument('--indir', default='.')
     args = parser.parse_args()
     output_file = os.path.join(args.outdir, 'inventory_details_all.csv')
-    header = ['elemento', 'id', 'name', 'descr', 'pid', 'vid', 'sn', 'mfg_name', 'snmp_idx', 'pn']
+    header = ['element', 'id', 'name', 'descr', 'pid', 'vid', 'sn', 'mfg_name', 'snmp_idx', 'pn']
 
     with open(output_file, 'w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=header, delimiter=';')
@@ -61,4 +61,4 @@ if __name__ == '__main__':
             for row in parse_inventory_details(file):
                 writer.writerow(row)
 
-    print("CSV gerado:", output_file)
+    print("CSV generated:", output_file)

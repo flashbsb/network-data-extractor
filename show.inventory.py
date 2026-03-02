@@ -9,7 +9,7 @@ def parse_inventory(file_path):
     base = os.path.basename(file_path)
     hostname, ident = base.split('.', 1)[0], base.split('.')[1]
     results = []
-    current = {'elemento': hostname, 'id': ident}
+    current = {'element': hostname, 'id': ident}
 
     with open(file_path, encoding='utf-8') as f:
         for line in f:
@@ -17,7 +17,7 @@ def parse_inventory(file_path):
             if line.startswith("NAME:"):
                 if 'name' in current:
                     results.append(current)
-                    current = {'elemento': hostname, 'id': ident}
+                    current = {'element': hostname, 'id': ident}
                 m = re.search(r'NAME:\s+"([^"]+)",\s+DESCR:\s+"([^"]+)"', line)
                 if m:
                     current['name'], current['descr'] = m.groups()
@@ -38,7 +38,7 @@ if __name__ == '__main__':
     parser.add_argument('--indir', default='.')
     args = parser.parse_args()
     output_file = os.path.join(args.outdir, 'inventory_all.csv')
-    header = ['elemento', 'id', 'name', 'descr', 'pid', 'vid', 'sn']
+    header = ['element', 'id', 'name', 'descr', 'pid', 'vid', 'sn']
 
     with open(output_file, 'w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=header, delimiter=';')
@@ -47,4 +47,4 @@ if __name__ == '__main__':
             for row in parse_inventory(file):
                 writer.writerow(row)
 
-    print("CSV gerado:", output_file)
+    print("CSV generated:", output_file)

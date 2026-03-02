@@ -16,7 +16,7 @@ def parse_show_system(filename):
     identifier = rest.split('.')[0]
     text = open(filename).read()
     return {
-        'elemento':     host,
+        'element':     host,
         'id':           identifier,
         'model':        safe_search(r'Model:\s*(.+)', text),
         'oid':          safe_search(r'OID:\s*([\d\.]+)', text),
@@ -38,12 +38,22 @@ if __name__ == '__main__':
     args = parser.parse_args()
     out = os.path.join(args.outdir, 'system_all.csv')
     hdr = [
-        'elemento','id','model','oid','mainboard_id','mac_address',
+        'element','id','model','oid','mainboard_id','mac_address',
         'bridge','router','mpls','name','location','contact'
     ]
     with open(out, 'w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=hdr, delimiter=';')
         writer.writeheader()
-        for fn in glob.glob(os.path.join(args.indir, '*.show.system.txt')):
+        files_to_parse = glob.glob(os.path.join(args.indir, '*.show.system.txt'))
+
+        print(f'Searching for files *.show.system.txt in {args.indir}... Found {len(files_to_parse)} applicable files.')
+
+        processed = 0
+
+        for fn in files_to_parse:
             writer.writerow(parse_show_system(fn))
-    print('CSV gerado:', out)
+    if 'processed' in locals():
+
+        print(f'-> Total parsed and successfully saved nodes: {processed}')
+
+    print('CSV generated:', out)

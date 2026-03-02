@@ -71,20 +71,22 @@ def is_virtual(interface_name):
     return False
 
 def process_file(filepath, output_dir):
-    print(f"Processando arquivo: {filepath} ...")
+    print(f"Processing file: {filepath} ...")
     
     try:
         df = pd.read_csv(filepath, sep=';')
     except Exception as e:
-        print(f"Erro ao ler {filepath}: {e}")
-        return
+        print(f"Error reading {filepath}: {e}")
+        return 0, 0
 
     detailed_rows = []
+    ignored_virtual = 0
 
     for _, row in df.iterrows():
         # --- NOVO FILTRO AQUI ---
         # Se for virtual, pula para o próximo
         if is_virtual(row['interface']):
+            ignored_virtual += 1
             continue
             
         # Identifica vizinho
@@ -95,9 +97,9 @@ def process_file(filepath, output_dir):
             label, width, color, dashed = get_style(row['bandwidth_kbit'], row['admin_status'], row['line_protocol'])
             
             detailed_rows.append({
-                'ponta-a': row['elemento'],
-                'ponta-b': neighbor,
-                'textoconexao': label,
+                'endpoint_a': row['element'],
+                'endpoint_b': neighbor,
+                'connection_text': label,
                 'strokeWidth': width,
                 'strokeColor': color,
                 'dashed': dashed,
@@ -106,35 +108,36 @@ def process_file(filepath, output_dir):
             })
 
     if not detailed_rows:
-        print(f"Nenhuma conexão física encontrada em {filepath}. (Verifique se as descrições não estão apenas nas interfaces Bundle!)")
-        return
+        print(f"No physical connections found in {filepath}. Ignored Virtual interfaces: {ignored_virtual}")
+        return 0, ignored_virtual
 
-    # 1. Gerar Arquivo Detalhado (*.conexoes.csv)
+    # 1. Generate Detailed File (*.connections.csv)
     df_detailed = pd.DataFrame(detailed_rows)
-    cols = ['ponta-a', 'ponta-b', 'textoconexao', 'strokeWidth', 'strokeColor', 'dashed', 'fontStyle', 'fontSize']
+    cols = ['endpoint_a', 'endpoint_b', 'connection_text', 'strokeWidth', 'strokeColor', 'dashed', 'fontStyle', 'fontSize']
     df_detailed = df_detailed[cols]
     
     filename = os.path.basename(filepath)
-    output_detailed = os.path.join(output_dir, filename.replace('interfaces_all.csv', 'conexoes.csv'))
+    output_detailed = os.path.join(output_dir, filename.replace('interfaces_all.csv', 'connections.csv'))
     df_detailed.to_csv(output_detailed, sep=';', index=False)
-    print(f" -> Gerado: {output_detailed} ({len(df_detailed)} linhas)")
+    print(f" -> Generated: {output_detailed} ({len(df_detailed)} rows)")
 
-    # 2. Gerar Arquivo Sumarizado (*.conexoes.SUM.csv)
-    group_cols = ['ponta-a', 'ponta-b', 'textoconexao', 'strokeWidth', 'strokeColor', 'dashed']
+    # 2. Generate Summarized File (*.connections.SUM.csv)
+    group_cols = ['endpoint_a', 'endpoint_b', 'connection_text', 'strokeWidth', 'strokeColor', 'dashed']
     df_sum = df_detailed.groupby(group_cols).size().reset_index(name='count')
-    df_sum['textoconexao'] = df_sum.apply(lambda x: f"{x['count']}X {x['textoconexao']}", axis=1)
+    df_sum['connection_text'] = df_sum.apply(lambda x: f"{x['count']}X {x['connection_text']}", axis=1)
     df_sum['fontStyle'] = ''
     df_sum['fontSize'] = ''
     df_sum = df_sum[cols]
     
-    output_sum = os.path.join(output_dir, filename.replace('interfaces_all.csv', 'conexoes.SUM.csv'))
+    output_sum = os.path.join(output_dir, filename.replace('interfaces_all.csv', 'connections.SUM.csv'))
     df_sum.to_csv(output_sum, sep=';', index=False)
-    print(f" -> Gerado: {output_sum} ({len(df_sum)} linhas)")
+    print(f" -> Generated: {output_sum} ({len(df_sum)} rows)")
+    return len(df_detailed), ignored_virtual
 
 def main():
-    parser = argparse.ArgumentParser(description="Gera conexões a partir de arquivos CSV de interfaces.")
-    parser.add_argument("--input", default=".", help="Diretório de entrada contendo os CSVs.")
-    parser.add_argument("--output", default=".", help="Diretório de saída para os CSVs gerados.")
+    parser = argparse.ArgumentParser(description="Generates connections from interface CSV files.")
+    parser.add_argument("--input", default=".", help="Input directory containing CSVs.")
+    parser.add_argument("--output", default=".", help="Output directory for generated CSVs.")
     args = parser.parse_args()
 
     os.makedirs(args.output, exist_ok=True)
@@ -142,13 +145,20 @@ def main():
     files = glob.glob(os.path.join(args.input, '*interfaces_all.csv'))
     
     if not files:
-        print(f"Nenhum arquivo *.interfaces_all.csv encontrado em {args.input}.")
+        print(f"No *.interfaces_all.csv file found in {args.input}.")
         return
 
+    total_conexoes = 0
+    total_virtuais = 0
     for f in files:
-        process_file(f, args.output)
+        conns_ok, conns_ignored = process_file(f, args.output)
+        total_conexoes += conns_ok
+        total_virtuais += conns_ignored
         
-    print("\nConcluído. Interfaces virtuais foram devidamente ignoradas.")
+    print(f"\n--- Final Connection Summary ---")
+    print(f"Completed Successfully.")
+    print(f"Total resolved connections: {total_conexoes}")
+    print(f"Total ignored virtual interfaces: {total_virtuais}")
 
 if __name__ == "__main__":
     main()

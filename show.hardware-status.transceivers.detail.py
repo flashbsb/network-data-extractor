@@ -9,14 +9,14 @@ def parse_transceivers_detail(file_path):
     base = os.path.basename(file_path)
     hostname, ident = base.split('.', 1)[0], base.split('.')[1]
     results = []
-    current = {'elemento': hostname, 'id': ident}
+    current = {'element': hostname, 'id': ident}
 
     with open(file_path, encoding='utf-8') as f:
         for line in f:
             if line.startswith("Information of ETH port"):
                 if 'port' in current:
                     results.append(current)
-                    current = {'elemento': hostname, 'id': ident}
+                    current = {'element': hostname, 'id': ident}
                 current['port'] = line.strip().split()[-1]
             elif "Manufacturer:" in line:
                 current['manufacturer'] = line.split(":", 1)[1].strip()
@@ -46,7 +46,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     output_file = os.path.join(args.outdir, 'transceivers_detail_all.csv')
     header = [
-        'elemento', 'id', 'port', 'manufacturer', 'part_number',
+        'element', 'id', 'port', 'manufacturer', 'part_number',
         'serial_number', 'media', 'eth_std', 'connector', 'wavelength'
     ]
 
@@ -57,4 +57,4 @@ if __name__ == '__main__':
             for row in parse_transceivers_detail(file):
                 writer.writerow(row)
 
-    print("CSV gerado:", output_file)
+    print("CSV generated:", output_file)

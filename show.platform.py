@@ -19,7 +19,7 @@ def parse_show_platform(filename):
         parts = re.split(r'\s{2,}', line.strip())
         if len(parts) >= 4:
             data.append({
-                'elemento': host,
+                'element': host,
                 'id': identifier,
                 'node': parts[0],
                 'type': parts[1],
@@ -35,11 +35,21 @@ if __name__ == '__main__':
     parser.add_argument('--indir', default='.')
     args = parser.parse_args()
     out = os.path.join(args.outdir, 'platform_all.csv')
-    hdr = ['elemento','id','node','type','state','config_state']
+    hdr = ['element','id','node','type','state','config_state']
     with open(out, 'w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=hdr, delimiter=';')
         writer.writeheader()
-        for fn in glob.glob(os.path.join(args.indir, '*.show.platform.txt')):
+        files_to_parse = glob.glob(os.path.join(args.indir, '*.show.platform.txt'))
+
+        print(f'Searching for files *.show.platform.txt in {args.indir}... Found {len(files_to_parse)} applicable files.')
+
+        processed = 0
+
+        for fn in files_to_parse:
             for row in parse_show_platform(fn):
                 writer.writerow(row)
-    print('CSV gerado:', out)
+    if 'processed' in locals():
+
+        print(f'-> Total parsed and successfully saved nodes: {processed}')
+
+    print('CSV generated:', out)

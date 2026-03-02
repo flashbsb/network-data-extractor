@@ -19,7 +19,7 @@ def parse_show_int_status(filename):
         name  = re.search(r'Name:\s*(.*)', blk)
         if port and mac and admin and spd:
             data.append({
-                'elemento': host,
+                'element': host,
                 'id': identifier,
                 'port': port.group(0),
                 'mac_address': mac.group(1),
@@ -37,11 +37,21 @@ if __name__ == '__main__':
     parser.add_argument('--indir', default='.')
     args = parser.parse_args()
     out = os.path.join(args.outdir, 'int_status_all.csv')
-    hdr = ['elemento','id','port','mac_address','port_admin','speed_duplex','link_status','name']
+    hdr = ['element','id','port','mac_address','port_admin','speed_duplex','link_status','name']
     with open(out, 'w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=hdr, delimiter=';')
         writer.writeheader()
-        for fn in glob.glob(os.path.join(args.indir, '*.show.interfaces.status.txt')):
+        files_to_parse = glob.glob(os.path.join(args.indir, '*.show.interfaces.status.txt'))
+
+        print(f'Searching for files *.show.interfaces.status.txt in {args.indir}... Found {len(files_to_parse)} applicable files.')
+
+        processed = 0
+
+        for fn in files_to_parse:
             for row in parse_show_int_status(fn):
                 writer.writerow(row)
-    print('CSV gerado:', out)
+    if 'processed' in locals():
+
+        print(f'-> Total parsed and successfully saved nodes: {processed}')
+
+    print('CSV generated:', out)

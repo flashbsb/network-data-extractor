@@ -114,7 +114,7 @@ def parse_show_lldp_neighbors_detail(filename):
         peer_mac = m_peer.group(1).strip() if m_peer else ''
 
         data.append({
-            'elemento': host,
+            'element': host,
             'id': identifier,
             'local_interface': local_if,
             'parent_interface': parent_if,
@@ -143,7 +143,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     out_file = os.path.join(args.outdir, 'show_lldp_neighbors_detail_all.csv')
     headers = [
-        'elemento',
+        'element',
         'id',
         'local_interface',
         'parent_interface',
@@ -164,7 +164,13 @@ if __name__ == '__main__':
     with open(out_file, 'w', newline='') as csvf:
         writer = csv.DictWriter(csvf, fieldnames=headers, delimiter=';')
         writer.writeheader()
-        for fn in glob.glob(os.path.join(args.indir, '*.show.lldp.neighbors.detail.txt')):
+        files_to_parse = glob.glob(os.path.join(args.indir, '*.show.lldp.neighbors.detail.txt'))
+
+        print(f'Searching for files *.show.lldp.neighbors.detail.txt in {args.indir}... Found {len(files_to_parse)} applicable files.')
+
+        processed = 0
+
+        for fn in files_to_parse:
             for row in parse_show_lldp_neighbors_detail(fn):
                 writer.writerow(row)
     print('CSV generated:', out_file)
