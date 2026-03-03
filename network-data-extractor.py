@@ -60,11 +60,28 @@ parser = argparse.ArgumentParser(
     description=description,
     formatter_class=argparse.RawTextHelpFormatter
 )
-parser.add_argument("--threads", type=int, default=20, help="Number of concurrent SSH sessions for commands.py (default: 20)")
-parser.add_argument("--outbase", type=str, default="infos", help="Root directory base to save timestamps/logs/CSVs folders (default: infos/)")
-parser.add_argument("--elements", type=str, default="config/elements.cfg", help="Input file containing the list of elements (default: config/elements.cfg)")
-parser.add_argument("--randomize", action="store_true", default=True, help="Randomize the connection order in commands.py (default: True)")
+
+import json
+json_config = {}
+if os.path.exists("config/settings.json"):
+    try:
+        with open("config/settings.json", "r") as f:
+            json_config = json.load(f)
+    except Exception as e:
+        print(f"Warning: Failed to load config/settings.json: {e}")
+
+extractor_cfg = json_config.get("extractor", {})
+def_threads = extractor_cfg.get("threads", 20)
+def_outbase = extractor_cfg.get("output_base_dir", "infos")
+def_elements = extractor_cfg.get("elements_file", "config/elements.cfg")
+def_randomize = extractor_cfg.get("randomize_order", True)
+
+parser.add_argument("--threads", type=int, default=def_threads, help=f"Number of concurrent SSH sessions for commands.py (default: {def_threads})")
+parser.add_argument("--outbase", type=str, default=def_outbase, help=f"Root directory base to save timestamps/logs/CSVs folders (default: {def_outbase})")
+parser.add_argument("--elements", type=str, default=def_elements, help=f"Input file containing the list of elements (default: {def_elements})")
+parser.add_argument("--randomize", action="store_true", default=def_randomize, help=f"Randomize the connection order in commands.py (default: {def_randomize})")
 parser.add_argument("--no-randomize", dest="randomize", action="store_false", help="Keep connection order sequential")
+parser.add_argument("--skip-wizard", action="store_true", help="Skip the configuration confirmation prompt")
 args = parser.parse_args()
 
 DIR_SUFFIX = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -102,6 +119,22 @@ print("============================================================")
 print(f"{C_RESET}")
 print(f"Start: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
 print(f"Output Root: {TIMESTAMP_DIR}\n")
+
+if not args.skip_wizard:
+    print(f"{C_CYAN}--- Configuration Wizard ---{C_RESET}")
+    print(f"  * Threads          : {args.threads}")
+    print(f"  * Output Directory : {TIMESTAMP_DIR}")
+    print(f"  * Elements File    : {args.elements}")
+    print(f"  * Randomize Order  : {args.randomize}")
+    print(f"  * Extractor Base   : {args.outbase}")
+    print(f"{C_CYAN}----------------------------{C_RESET}")
+    try:
+        input(f"Press [ENTER] to start extraction with these settings, or [Ctrl+C] to abort...")
+        print("")
+    except KeyboardInterrupt:
+        print("\nAborted by user.")
+        sys.exit(130)
+
 cwd = os.getcwd()
 
 
