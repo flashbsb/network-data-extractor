@@ -17,6 +17,12 @@ if os.path.exists("config/settings.json"):
 topology_cfg = json_config.get("topology", {})
 IGNORE_VIRTUAL_PREFIXES = tuple(topology_cfg.get("ignore_virtual_prefixes", ["Bundle", "PW", "NULL", "Null", "Loopback", "Tunnel"]))
 NEIGHBOR_PREFIXES = topology_cfg.get("neighbor_regex_prefixes", ["CONEXAO_COM_", "PEERING_", "TRUNK_"])
+SPEED_COLORS = topology_cfg.get("speed_colors", {
+    "1000000": {"width": 1, "color": "#800080"},
+    "10000000": {"width": 2, "color": "#0085DA"},
+    "100000000": {"width": 3, "color": "#006400"},
+    "default": {"width": 4, "color": "#800080"}
+})
 
 def parse_neighbor(description):
     """
@@ -70,13 +76,12 @@ def get_style(bw_kbit):
     Returns edge width and color based on bandwidth.
     """
     try:
-        bw = int(bw_kbit)
+        bw = str(int(bw_kbit))
     except:
-        bw = 0
-    if bw == 1000000: return 1, "#800080"
-    elif bw == 10000000: return 2, "#0085DA"
-    elif bw == 100000000: return 3, "#006400"
-    else: return 4, "#800080" # Fallback
+        bw = "0"
+        
+    style = SPEED_COLORS.get(bw, SPEED_COLORS.get("default", {"width": 4, "color": "#800080"}))
+    return style.get("width", 4), style.get("color", "#800080")
 
 def main():
     parser = argparse.ArgumentParser(description="Generates connections from interface CSV files.")

@@ -18,12 +18,35 @@
             "NULL",
             "Null",
             "Loopback",
-            "Tunnel"
+            "Tunnel",
+            "BVI",
+            "Vlan",
+            "Port-channel",
+            "Mgmt",
+            "NVI"
         ],
         "neighbor_regex_prefixes": [
             "CONEXAO_COM_",
             "PEERING_",
             "TRUNK_"
-        ]
+        ],
+        "speed_colors": {
+            "1000000": {
+                "width": 1,
+                "color": "#800080"
+            },
+            "10000000": {
+                "width": 2,
+                "color": "#0085DA"
+            },
+            "100000000": {
+                "width": 3,
+                "color": "#006400"
+            },
+            "default": {
+                "width": 4,
+                "color": "#800080"
+            }
+        }
     }
 }

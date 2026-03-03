@@ -20,7 +20,21 @@ ETH_STD_SPEED = {
     '': ''
 }
 
-IGNORE = ('Loopback', 'Bundle', 'Null', 'BVI', 'Vlan', 'Tunnel', 'Port-channel', 'Mgmt', 'NVI')
+import os
+import json
+
+base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+config_path = os.path.join(base_path, "config", "settings.json")
+json_config = {}
+if os.path.exists(config_path):
+    try:
+        with open(config_path, "r") as f:
+            json_config = json.load(f)
+    except:
+        pass
+
+topology_cfg = json_config.get("topology", {})
+IGNORE = tuple(topology_cfg.get("ignore_virtual_prefixes", ('Loopback', 'Bundle', 'Null', 'BVI', 'Vlan', 'Tunnel', 'Port-channel', 'Mgmt', 'NVI')))
 
 def is_physical(iface):
     return not iface.startswith(IGNORE)

@@ -74,11 +74,21 @@ extractor_cfg = json_config.get("extractor", {})
 def_threads = extractor_cfg.get("threads", 20)
 def_outbase = extractor_cfg.get("output_base_dir", "infos")
 def_elements = extractor_cfg.get("elements_file", "config/elements.cfg")
+def_commands = extractor_cfg.get("commands_file", "config/commands.cfg")
 def_randomize = extractor_cfg.get("randomize_order", True)
+
+ssh_cfg = json_config.get("ssh", {})
+SSH_TIMEOUT = ssh_cfg.get("timeout", 10)
+CMD_DELAY = ssh_cfg.get("delay_between_commands", 5)
+
+topology_cfg = json_config.get("topology", {})
+IGNORE_VIRTUAL_PREFIXES = topology_cfg.get("ignore_virtual_prefixes", [])
+NEIGHBOR_PREFIXES = topology_cfg.get("neighbor_regex_prefixes", [])
 
 parser.add_argument("--threads", type=int, default=def_threads, help=f"Number of concurrent SSH sessions for commands.py (default: {def_threads})")
 parser.add_argument("--outbase", type=str, default=def_outbase, help=f"Root directory base to save timestamps/logs/CSVs folders (default: {def_outbase})")
 parser.add_argument("--elements", type=str, default=def_elements, help=f"Input file containing the list of elements (default: {def_elements})")
+parser.add_argument("--commands", type=str, default=def_commands, help=f"Input file containing the list of commands (default: {def_commands})")
 parser.add_argument("--randomize", action="store_true", default=def_randomize, help=f"Randomize the connection order in commands.py (default: {def_randomize})")
 parser.add_argument("--no-randomize", dest="randomize", action="store_false", help="Keep connection order sequential")
 parser.add_argument("--skip-wizard", action="store_true", help="Skip the configuration confirmation prompt")
@@ -126,7 +136,12 @@ if not args.skip_wizard:
     print(f"  * Threads          : {args.threads}")
     print(f"  * Extractor Base   : {args.outbase}")
     print(f"  * Elements File    : {args.elements}")
+    print(f"  * Commands File    : {args.commands}")
     print(f"  * Randomize Order  : {args.randomize}")
+    print(f"  * SSH Timeout      : {SSH_TIMEOUT}s")
+    print(f"  * Command Delay    : {CMD_DELAY}s")
+    print(f"  * Ignored Virtuals : {len(IGNORE_VIRTUAL_PREFIXES)} prefixes defined")
+    print(f"  * Neighbor Matches : {len(NEIGHBOR_PREFIXES)} patterns defined")
     print(f"{C_CYAN}----------------------------------------{C_RESET}")
     
     try:
@@ -147,12 +162,35 @@ if not args.skip_wizard:
             inp_elements = input(f"  * Elements File    [{args.elements}]: ").strip()
             if inp_elements: args.elements = inp_elements
             
+            # Prompt for Commands File
+            inp_commands = input(f"  * Commands File    [{args.commands}]: ").strip()
+            if inp_commands: args.commands = inp_commands
+            
             # Prompt for Randomize
             inp_rand = input(f"  * Randomize Order  [{args.randomize}] (y/n): ").strip().lower()
             if inp_rand in ['y', 'yes', 'true', '1']:
                 args.randomize = True
             elif inp_rand in ['n', 'no', 'false', '0']:
                 args.randomize = False
+
+            # Prompt for SSH Timeout
+            inp_ssh_time = input(f"  * SSH Timeout      [{SSH_TIMEOUT}]: ").strip()
+            if inp_ssh_time: 
+                SSH_TIMEOUT = int(inp_ssh_time)
+                json_config['ssh']['timeout'] = SSH_TIMEOUT
+                
+            # Prompt for Command Delay
+            inp_cmd_delay = input(f"  * Command Delay    [{CMD_DELAY}]: ").strip()
+            if inp_cmd_delay: 
+                CMD_DELAY = int(inp_cmd_delay)
+                json_config['ssh']['delay_between_commands'] = CMD_DELAY
+                
+            # Persist interactive changes back to settings.json purely for child scripts to read
+            try:
+                with open("config/settings.json", "w") as f:
+                    json.dump(json_config, f, indent=4)
+            except Exception as e:
+                print(f"Warning: Could not save interactive overrides to settings.json: {e}")
             
     except KeyboardInterrupt:
         print("\nAborted by user.")
@@ -236,7 +274,7 @@ for i, script in enumerate(SCRIPTS, start=1):
     cmd = [sys.executable, script_path]
 
     if script_name == "commands.py":
-        cmd.extend(["--outdir", COLLECT_DIR, "--logdir", LOG_DIR, "--threads", str(args.threads), "--elements", args.elements])
+        cmd.extend(["--outdir", COLLECT_DIR, "--logdir", LOG_DIR, "--threads", str(args.threads), "--elements", args.elements, "--commands", args.commands])
         if args.randomize:
             cmd.append("--randomize")
         else:
