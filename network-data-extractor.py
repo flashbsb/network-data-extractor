@@ -159,6 +159,8 @@ for i, script in enumerate(SCRIPTS, start=1):
             print(f"{step_prefix} {status_text} ({script_duration:5.1f}s)")
         except KeyboardInterrupt:
             print(f"{step_prefix} {C_RED}[INTERRUPTED]{C_RESET}")
+            log_orchestrator("Orchestrator interrupted by user during commands.py")
+            sys.exit(130)
         except Exception as e:
             log_orchestrator(f"{script_name} Error: {e}")
             print(f"{step_prefix} {C_RED}[ERROR]{C_RESET}")
@@ -178,6 +180,10 @@ for i, script in enumerate(SCRIPTS, start=1):
 
         script_start_time = datetime.now()
         rc = run_and_stream_capture(cmd, env=None, out_path=out_file_name)
+        if rc == 130:
+            log_orchestrator(f"Orchestrator interrupted by user during {script_name}")
+            sys.exit(130)
+            
         script_end_time = datetime.now()
         script_duration = (script_end_time - script_start_time).total_seconds()
         log_orchestrator(f"{script_name} Finished. Return Code: {rc}. Duration: {script_duration:.2f}s")
