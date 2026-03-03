@@ -51,9 +51,11 @@ parser = argparse.ArgumentParser(
     description=description,
     formatter_class=argparse.RawTextHelpFormatter
 )
-parser.add_argument("--threads", type=int, default=10, help="Number of concurrent SSH sessions for commands.py (default: 10)")
+parser.add_argument("--threads", type=int, default=20, help="Number of concurrent SSH sessions for commands.py (default: 20)")
 parser.add_argument("--outbase", type=str, default="infos", help="Root directory base to save timestamps/logs/CSVs folders (default: infos/)")
 parser.add_argument("--elements", type=str, default="config/elements.cfg", help="Input file containing the list of elements (default: config/elements.cfg)")
+parser.add_argument("--randomize", action="store_true", default=True, help="Randomize the connection order in commands.py (default: True)")
+parser.add_argument("--no-randomize", dest="randomize", action="store_false", help="Keep connection order sequential")
 args = parser.parse_args()
 
 DIR_SUFFIX = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -141,6 +143,10 @@ for i, script in enumerate(SCRIPTS, start=1):
 
     if script_name == "commands.py":
         cmd.extend(["--outdir", COLLECT_DIR, "--logdir", LOG_DIR, "--threads", str(args.threads), "--elements", args.elements])
+        if args.randomize:
+            cmd.append("--randomize")
+        else:
+            cmd.append("--no-randomize")
         print(f">>> {C_CYAN}core/commands.py{C_RESET} is running. Extracted data goes to: collect/")
         try:
             # Let standard bounds stay active for user password inputs

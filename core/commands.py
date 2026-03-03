@@ -89,6 +89,8 @@ def main():
     parser.add_argument("--threads", type=int, default=20, help="Number of concurrent connections")
     parser.add_argument("--elements", type=str, default="config/elements.cfg", help="Input file containing the list of elements")
     parser.add_argument("--commands", type=str, default="config/commands.cfg", help="Input file containing the list of commands")
+    parser.add_argument("--randomize", action="store_true", default=True, help="Randomize the connection order (default: True)")
+    parser.add_argument("--no-randomize", dest="randomize", action="store_false", help="Keep the connection order exactly as in the elements file")
     args = parser.parse_args()
 
     log_file = os.path.join(args.logdir, 'commands.log')
@@ -109,6 +111,11 @@ def main():
     if not elements:
         logging.error('No valid elements found.')
         sys.exit(1)
+
+    if args.randomize:
+        import random
+        random.shuffle(elements)
+        logging.info("Randomized the connection sequence.")
 
     import threading
     total_elements = len(elements)
