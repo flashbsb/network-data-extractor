@@ -1,15 +1,24 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-run_scripts_sequencia.py
+============================================================
+           NETWORK DATA EXTRACTOR ORCHESTRATOR           
+============================================================
+Version : 1.14.1
+Date    : 2026-03-03
+Author  : flashbsb (and contributors)
+
+Changelog:
+ - Removed unused 3rd column from elements.cfg
+ - Refactored Topology Aggregation (interface2connection)
+ - Enforced strict KeyboardInterrupt graceful exits
+============================================================
 
 Behavior:
  - Does not prompt for credentials initially.
- - When reaching commands.py, executes INTERACTIVELY (stdin/tty connected)
-   so you can directly type username/password.
- - For other scripts, executes and streams the output in real-time
-   while saving logs to <script>.txt.
- - Ultimately generates ../infos/DDMMYYYY and ../consolidado/DDMMYYYY and moves .txt/.csv.
+ - When reaching commands.py, executes INTERACTIVELY (stdin/tty connected).
+ - For other scripts, executes and streams the output in real-time.
+ - Ultimately generates ../infos/DDMMYYYY and consolidates .txt/.csv.
 """
 
 import subprocess
@@ -77,7 +86,20 @@ def log_orchestrator(msg):
 
 start_time = datetime.now()
 log_orchestrator(f"Extraction Started. Output Root: {TIMESTAMP_DIR}")
-print(f"{C_CYAN}--- Network Data Extractor Orchestrator ---{C_RESET}")
+print(f"{C_CYAN}")
+print("============================================================")
+print("           NETWORK DATA EXTRACTOR ORCHESTRATOR           ")
+print("============================================================")
+print("Version : 1.14.1")
+print(f"Date    : {datetime.now().strftime('%Y-%m-%d')}")
+print("Author  : flashbsb (and contributors)")
+print("")
+print("Changelog:")
+print(" - Removed unused 3rd column from elements.cfg")
+print(" - Refactored Topology Aggregation (interface2connection)")
+print(" - Enforced strict KeyboardInterrupt graceful exits")
+print("============================================================")
+print(f"{C_RESET}")
 print(f"Start: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
 print(f"Output Root: {TIMESTAMP_DIR}\n")
 cwd = os.getcwd()
@@ -250,5 +272,8 @@ hours = total_seconds // 3600
 minutes = (total_seconds % 3600) // 60
 seconds = total_seconds % 60
 print(f"Total processing time: {hours:02d}:{minutes:02d}:{seconds:02d}")
+
+print(f"\n{C_CYAN}All tasks completed. For updates and new versions, visit:{C_RESET}")
+print(f"{C_CYAN}https://github.com/flashbsb/network-data-extractor{C_RESET}\n")
 
 sys.exit(0)

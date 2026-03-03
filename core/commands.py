@@ -24,10 +24,10 @@ def read_elements(path):
             if not line or line.startswith('#'):
                 continue
             parts = line.split(';')
-            if len(parts) != 4:
-                logging.warning(f"Invalid line {lineno} in {path}: {line}")
+            if len(parts) != 3:
+                logging.warning(f"Invalid line {lineno} in {path} (Expected format: hostname;ip;command_key): {line}")
                 continue
-            elements.append(dict(zip(['hostname', 'ip', 'model', 'cmd_key'], parts)))
+            elements.append(dict(zip(['hostname', 'ip', 'cmd_key'], parts)))
     return elements
 
 
