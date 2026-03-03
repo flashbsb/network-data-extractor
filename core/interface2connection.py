@@ -3,6 +3,20 @@ import glob
 import re
 import os
 import argparse
+import json
+
+# Load Global Settings
+json_config = {}
+if os.path.exists("config/settings.json"):
+    try:
+        with open("config/settings.json", "r") as f:
+            json_config = json.load(f)
+    except:
+        pass
+
+topology_cfg = json_config.get("topology", {})
+IGNORE_VIRTUAL_PREFIXES = tuple(topology_cfg.get("ignore_virtual_prefixes", ["Bundle", "PW", "NULL", "Null", "Loopback", "Tunnel"]))
+NEIGHBOR_PREFIXES = topology_cfg.get("neighbor_regex_prefixes", ["CONEXAO_COM_", "PEERING_", "TRUNK_"])
 
 def parse_neighbor(description):
     """
@@ -10,8 +24,11 @@ def parse_neighbor(description):
     """
     if pd.isna(description):
         return None
+        
+    prefix_group = "|".join(NEIGHBOR_PREFIXES)
+    pattern = rf'(?:{prefix_group})([A-Za-z0-9-]+(?:-[A-Za-z0-9]+)*)'
     
-    match = re.search(r'(?:CONEXAO_COM_|PEERING_|TRUNK_)([A-Za-z0-9-]+(?:-[A-Za-z0-9]+)*)', description)
+    match = re.search(pattern, description)
     if match:
         neighbor = match.group(1)
         neighbor = re.sub(r'_(?:IPV4|IPV6|ipv4|ipv6)$', '', neighbor)
@@ -26,8 +43,7 @@ def is_virtual(interface_name):
     if pd.isna(interface_name):
         return False
     name = str(interface_name).strip()
-    virtual_prefixes = ('Bundle', 'PW', 'NULL', 'Null', 'Loopback', 'Tunnel')
-    return name.startswith(virtual_prefixes)
+    return name.startswith(IGNORE_VIRTUAL_PREFIXES)
 
 def extract_capacity(bandwidth_kbit):
     """

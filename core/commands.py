@@ -6,10 +6,25 @@ import os
 import sys
 import time
 import concurrent.futures
-
-# v1.1
+import json
+import argparse
 
 # Logging will be configured in main()
+
+# Load Global Settings once
+json_config = {}
+if os.path.exists("config/settings.json"):
+    try:
+        with open("config/settings.json", "r") as f:
+            json_config = json.load(f)
+    except:
+        pass
+
+ssh_cfg = json_config.get("ssh", {})
+SSH_TIMEOUT = ssh_cfg.get("timeout", 10)
+CMD_DELAY = ssh_cfg.get("delay_between_commands", 5)
+extractor_cfg = json_config.get("extractor", {})
+LOG_LEVEL = extractor_cfg.get("log_level", "INFO").upper()
 
 
 def read_elements(path):
@@ -71,7 +86,7 @@ def execute_commands_shell(client, cmds):
     for cmd in cmds:
         # logging.info(f"Sending command: {cmd}") # Suppressed
         shell.send(cmd + '\n')
-        time.sleep(5)
+        time.sleep(CMD_DELAY)
         buff = b''
         while shell.recv_ready():
             buff += shell.recv(65535)
@@ -94,8 +109,9 @@ def main():
     args = parser.parse_args()
 
     log_file = os.path.join(args.logdir, 'commands.log')
+    numeric_level = getattr(logging, LOG_LEVEL, logging.INFO)
     logging.basicConfig(
-        level=logging.INFO,
+        level=numeric_level,
         format='%(asctime)s %(levelname)s: %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S',
         handlers=[logging.FileHandler(log_file, mode='a', encoding='utf-8')]
@@ -143,7 +159,7 @@ def main():
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         try:
-            client.connect(ip, username=user, password=password, timeout=10, look_for_keys=False)
+            client.connect(ip, username=user, password=password, timeout=SSH_TIMEOUT, look_for_keys=False)
         except Exception as e:
             logging.error(f"Connection failed for {host}: {e}")
             with counter_lock:

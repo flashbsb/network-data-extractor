@@ -4,9 +4,26 @@
         "randomize_order": true,
         "output_base_dir": "infos",
         "elements_file": "config/elements.cfg",
-        "commands_file": "config/commands.cfg"
+        "commands_file": "config/commands.cfg",
+        "log_level": "INFO"
     },
     "ssh": {
-        "timeout": 10
+        "timeout": 10,
+        "delay_between_commands": 5
+    },
+    "topology": {
+        "ignore_virtual_prefixes": [
+            "Bundle",
+            "PW",
+            "NULL",
+            "Null",
+            "Loopback",
+            "Tunnel"
+        ],
+        "neighbor_regex_prefixes": [
+            "CONEXAO_COM_",
+            "PEERING_",
+            "TRUNK_"
+        ]
     }
 }
