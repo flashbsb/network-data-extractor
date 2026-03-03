@@ -4,14 +4,14 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
-Version : 1.14.1
+Version : 1.21.0
 Date    : 2026-03-03
 Author  : flashbsb (and contributors)
 
 Changelog:
- - Removed unused 3rd column from elements.cfg
- - Refactored Topology Aggregation (interface2connection)
- - Enforced strict KeyboardInterrupt graceful exits
+ - Externalized architecture parameters to config/settings.json
+ - Added Interactive Configuration Wizard with Bypasses
+ - Migrated topology hardcodes to dynamic dictionaries
 ============================================================
 
 Behavior:
@@ -117,14 +117,14 @@ print(f"{C_CYAN}")
 print("============================================================")
 print("           NETWORK DATA EXTRACTOR ORCHESTRATOR           ")
 print("============================================================")
-print("Version : 1.14.1")
+print("Version : 1.15.0")
 print(f"Date    : {datetime.now().strftime('%Y-%m-%d')}")
 print("Author  : flashbsb (and contributors)")
 print("")
 print("Changelog:")
-print(" - Removed unused 3rd column from elements.cfg")
-print(" - Refactored Topology Aggregation (interface2connection)")
-print(" - Enforced strict KeyboardInterrupt graceful exits")
+print(" - Externalized architecture parameters to config/settings.json")
+print(" - Added Interactive Configuration Wizard with Bypasses")
+print(" - Migrated topology hardcodes to dynamic dictionaries")
 print("============================================================")
 print(f"{C_RESET}")
 print(f"Start: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
