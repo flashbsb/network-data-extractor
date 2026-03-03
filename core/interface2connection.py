@@ -4,35 +4,6 @@ import re
 import os
 import argparse
 
-def get_style(bandwidth_kbit, admin_status, line_protocol):
-    """
-    Defines visual style based on speed and status.
-    """
-    try:
-        bw = int(bandwidth_kbit)
-    except:
-        bw = 0
-    
-    # Status Logic (Up/Down)
-    dashed = ''
-    if str(line_protocol).lower() != 'up':
-        dashed = 1
-        
-    # Color and Width Logic
-    if bw == 1000000:
-        return "1Gbps", 1, "#800080", dashed
-    elif bw == 10000000:
-        return "10Gbps", 2, "#0085DA", dashed
-    elif bw == 100000000:
-        return "100Gbps", 3, "#006400", dashed
-    else:
-        # Fallback for exotic speeds
-        if bw >= 1000000:
-            label = f"{int(bw/1000000)}Gbps"
-        else:
-            label = f"{int(bw/1000)}Mbps"
-        return label, 4, "#800080", dashed
-
 def parse_neighbor(description):
     """
     Tries to find the neighbor (RT* or PTT*) in the description.
@@ -41,98 +12,55 @@ def parse_neighbor(description):
         return None
     
     match = re.search(r'(?:CONEXAO_COM_|PEERING_|TRUNK_)([A-Za-z0-9-]+(?:-[A-Za-z0-9]+)*)', description)
-    
     if match:
         neighbor = match.group(1)
         neighbor = re.sub(r'_(?:IPV4|IPV6|ipv4|ipv6)$', '', neighbor)
-        
-        if neighbor.startswith('RT') or neighbor.startswith('PTT')  or neighbor.startswith('SW') or neighbor.startswith('SM'):
+        if neighbor.startswith(('RT', 'PTT', 'SW', 'SM')):
             return neighbor
-            
     return None
 
 def is_virtual(interface_name):
     """
     Checks if the interface is virtual to be ignored.
-    Returns True if it should be ignored.
     """
     if pd.isna(interface_name):
         return False
-        
     name = str(interface_name).strip()
-    
-    # List of forbidden prefixes (Case Insensitive logic applied below)
-    # Added Loopback and Tunnel as a precaution, since they are classic virtuals.
     virtual_prefixes = ('Bundle', 'PW', 'NULL', 'Null', 'Loopback', 'Tunnel')
-    
-    if name.startswith(virtual_prefixes):
-        return True
-        
-    return False
+    return name.startswith(virtual_prefixes)
 
-def process_file(filepath, output_dir):
-    print(f"Processing file: {filepath} ...")
-    
+def extract_capacity(bandwidth_kbit):
+    """
+    Returns (label, speed_in_kbit) for sorting and display.
+    """
     try:
-        df = pd.read_csv(filepath, sep=';')
-    except Exception as e:
-        print(f"Error reading {filepath}: {e}")
-        return 0, 0
-
-    detailed_rows = []
-    ignored_virtual = 0
-
-    for _, row in df.iterrows():
-        # --- NEW FILTER HERE ---
-        # If it's virtual, skip to the next
-        if is_virtual(row['interface']):
-            ignored_virtual += 1
-            continue
-            
-        # Identify neighbor
-        neighbor = parse_neighbor(row['description'])
+        bw = int(bandwidth_kbit)
+    except:
+        bw = 0
         
-        if neighbor:
-            # Identify style
-            label, width, color, dashed = get_style(row['bandwidth_kbit'], row['admin_status'], row['line_protocol'])
-            
-            detailed_rows.append({
-                'endpoint_a': row['element'],
-                'endpoint_b': neighbor,
-                'connection_text': label,
-                'strokeWidth': width,
-                'strokeColor': color,
-                'dashed': dashed,
-                'fontStyle': '',
-                'fontSize': ''
-            })
+    if bw == 1000000:
+        return "1G", bw
+    elif bw == 10000000:
+        return "10G", bw
+    elif bw == 100000000:
+        return "100G", bw
+    elif bw >= 1000000:
+        return f"{int(bw/1000000)}G", bw
+    else:
+        return f"{int(bw/1000)}M", bw
 
-    if not detailed_rows:
-        print(f"No physical connections found in {filepath}. Ignored Virtual interfaces: {ignored_virtual}")
-        return 0, ignored_virtual
-
-    # 1. Generate Detailed File (*.connections.csv)
-    df_detailed = pd.DataFrame(detailed_rows)
-    cols = ['endpoint_a', 'endpoint_b', 'connection_text', 'strokeWidth', 'strokeColor', 'dashed', 'fontStyle', 'fontSize']
-    df_detailed = df_detailed[cols]
-    
-    filename = os.path.basename(filepath)
-    output_detailed = os.path.join(output_dir, filename.replace('interfaces_all.csv', 'connections.csv'))
-    df_detailed.to_csv(output_detailed, sep=';', index=False)
-    print(f" -> Generated: {output_detailed} ({len(df_detailed)} rows)")
-
-    # 2. Generate Summarized File (*.connections.SUM.csv)
-    group_cols = ['endpoint_a', 'endpoint_b', 'connection_text', 'strokeWidth', 'strokeColor', 'dashed']
-    df_sum = df_detailed.groupby(group_cols).size().reset_index(name='count')
-    df_sum['connection_text'] = df_sum.apply(lambda x: f"{x['count']}X {x['connection_text']}", axis=1)
-    df_sum['fontStyle'] = ''
-    df_sum['fontSize'] = ''
-    df_sum = df_sum[cols]
-    
-    output_sum = os.path.join(output_dir, filename.replace('interfaces_all.csv', 'connections.SUM.csv'))
-    df_sum.to_csv(output_sum, sep=';', index=False)
-    print(f" -> Generated: {output_sum} ({len(df_sum)} rows)")
-    return len(df_detailed), ignored_virtual
+def get_style(bw_kbit):
+    """
+    Returns edge width and color based on bandwidth.
+    """
+    try:
+        bw = int(bw_kbit)
+    except:
+        bw = 0
+    if bw == 1000000: return 1, "#800080"
+    elif bw == 10000000: return 2, "#0085DA"
+    elif bw == 100000000: return 3, "#006400"
+    else: return 4, "#800080" # Fallback
 
 def main():
     parser = argparse.ArgumentParser(description="Generates connections from interface CSV files.")
@@ -141,24 +69,148 @@ def main():
     args = parser.parse_args()
 
     os.makedirs(args.output, exist_ok=True)
-    
     files = glob.glob(os.path.join(args.input, '*interfaces_all.csv'))
     
     if not files:
         print(f"No *.interfaces_all.csv file found in {args.input}.")
         return
 
-    total_connections = 0
-    total_virtuals = 0
+    print("Loading interface data...")
+    df_list = []
     for f in files:
-        conns_ok, conns_ignored = process_file(f, args.output)
-        total_connections += conns_ok
-        total_virtuals += conns_ignored
+        try:
+            df = pd.read_csv(f, sep=';', dtype=str)
+            df_list.append(df)
+        except Exception as e:
+            print(f"Error reading {f}: {e}")
+            
+    if not df_list:
+        return
+
+    # Phase 1: Ingest All Files into a Master DataFrame
+    master_df = pd.concat(df_list, ignore_index=True)
+    
+    connections = {} # (node_A, node_B) -> list of links
+    ignored_virtual = 0
+
+    print("Cross-referencing logic...")
+    # Phase 2: Process valid physical links
+    for _, row in master_df.iterrows():
+        if is_virtual(row.get('interface', '')):
+            ignored_virtual += 1
+            continue
+            
+        src_element = str(row.get('element', '')).strip()
+        description = row.get('description', '')
         
+        neighbor = parse_neighbor(description)
+        if not neighbor or not src_element:
+            continue
+            
+        # Standardize Nodes Alphabetically to avoid A->B / B->A duplication
+        node_a, node_b = sorted([src_element, neighbor])
+        pair_key = (node_a, node_b)
+        
+        bw_kbit = row.get('bandwidth_kbit', '0')
+        admin = str(row.get('admin_status', '')).lower()
+        protocol = str(row.get('line_protocol', '')).lower()
+        dashed = 1 if protocol != 'up' else ''
+        
+        label, bw_val = extract_capacity(bw_kbit)
+        
+        if pair_key not in connections:
+            connections[pair_key] = []
+            
+        connections[pair_key].append({
+            'source_port': str(row.get('interface', '')),
+            'label': label,
+            'bw_val': bw_val,
+            'dashed': dashed,
+            'admin': admin,
+            'protocol': protocol
+        })
+
+    # Phase 3: Deduplication and Normalization
+    detailed_rows = []
+    summarized_rows = []
+    
+    for (node_a, node_b), links in connections.items():
+        # A single physical cable might have been declared twice (once by node A, once by node B)
+        # We assume that a cable of the same speed existing in both directions is just one physical link
+        # Strategy: Differentiate by speed, and take the maximum symmetric count.
+        
+        # Count connections declared by side
+        speed_counts = {}
+        for link in links:
+            spd = link['bw_val']
+            speed_counts[spd] = speed_counts.get(spd, 0) + 1
+            
+        deduplicated_links = []
+        # Since each side can report the link, a link reported by both is 2 entries.
+        # Real physical links = CEIL(reported_entries / 2)
+        for spd, count in speed_counts.items():
+            real_count = (count // 2) + (count % 2)
+            
+            # Find a representative link object to extract styles
+            rep_link = next(l for l in links if l['bw_val'] == spd)
+            width, color = get_style(spd)
+            
+            # Create detailed rows (one for each physical cable)
+            for _ in range(real_count):
+                detailed_rows.append({
+                    'endpoint_a': node_a,
+                    'endpoint_b': node_b,
+                    'connection_text': rep_link['label'],
+                    'strokeWidth': width,
+                    'strokeColor': color,
+                    'dashed': rep_link['dashed'],
+                    'fontStyle': '',
+                    'fontSize': ''
+                })
+                
+            # Summarize formatting: "2x 10G"
+            label_str = rep_link['label']
+            deduplicated_links.append(f"{real_count}x {label_str}")
+
+        # Create one summarized row per node pair
+        if deduplicated_links:
+            # e.g., "Max Width" logic for the summarized edge
+            max_spd_link = max(links, key=lambda x: x['bw_val'])
+            width, color = get_style(max_spd_link['bw_val'])
+            
+            summarized_rows.append({
+                'endpoint_a': node_a,
+                'endpoint_b': node_b,
+                'connection_text': " + ".join(deduplicated_links),
+                'strokeWidth': width,
+                'strokeColor': color,
+                'dashed': max_spd_link['dashed'],
+                'fontStyle': '',
+                'fontSize': ''
+            })
+
+    # Output detailed CSV
+    df_detailed = pd.DataFrame(detailed_rows)
+    cols = ['endpoint_a', 'endpoint_b', 'connection_text', 'strokeWidth', 'strokeColor', 'dashed', 'fontStyle', 'fontSize']
+    output_detailed = os.path.join(args.output, 'topology.connections.csv')
+    if not df_detailed.empty:
+        df_detailed = df_detailed[cols]
+        df_detailed.to_csv(output_detailed, sep=';', index=False)
+        print(f" -> Generated: {output_detailed} ({len(df_detailed)} specific links)")
+
+    # Output summarized CSV
+    df_sum = pd.DataFrame(summarized_rows)
+    output_sum = os.path.join(args.output, 'topology.connections.SUM.csv')
+    if not df_sum.empty:
+        df_sum = df_sum[cols]
+        df_sum.to_csv(output_sum, sep=';', index=False)
+        print(f" -> Generated: {output_sum} ({len(df_sum)} unified edge summaries)")
+
     print(f"\n--- Final Connection Summary ---")
     print(f"Completed Successfully.")
-    print(f"Total resolved connections: {total_connections}")
-    print(f"Total ignored virtual interfaces: {total_virtuals}")
+    print(f"Total resolved physical links: {len(df_detailed)}")
+    print(f"Total summarized edge pairs: {len(df_sum)}")
+    print(f"Total ignored virtual interfaces: {ignored_virtual}")
 
 if __name__ == "__main__":
     main()
