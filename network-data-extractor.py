@@ -121,19 +121,53 @@ print(f"Start: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
 print(f"Output Root: {TIMESTAMP_DIR}\n")
 
 if not args.skip_wizard:
-    print(f"{C_CYAN}--- Configuration Wizard ---{C_RESET}")
-    print(f"  * Threads          : {args.threads}")
-    print(f"  * Output Directory : {TIMESTAMP_DIR}")
-    print(f"  * Elements File    : {args.elements}")
-    print(f"  * Randomize Order  : {args.randomize}")
-    print(f"  * Extractor Base   : {args.outbase}")
-    print(f"{C_CYAN}----------------------------{C_RESET}")
+    print(f"{C_CYAN}--- Interactive Configuration Wizard ---{C_RESET}")
+    print(f"Loaded {C_GREEN}config/settings.json{C_RESET} defaults.")
+    
     try:
-        input(f"Press [ENTER] to start extraction with these settings, or [Ctrl+C] to abort...")
-        print("")
+        use_defaults = input("Use default configurations? [Y/n]: ").strip().lower()
+        if use_defaults not in ['n', 'no', 'false', '0']:
+            print("Accepting defaults. Skipping granular setup...\n")
+        else:
+            print("\nPress [ENTER] to accept the [] default value, or type a new value.")
+            # Prompt for Threads
+            inp_threads = input(f"  * Threads          [{args.threads}]: ").strip()
+            if inp_threads: args.threads = int(inp_threads)
+            
+            # Prompt for Extractor Base
+            inp_outbase = input(f"  * Extractor Base   [{args.outbase}]: ").strip()
+            if inp_outbase: args.outbase = inp_outbase
+            
+            # Prompt for Elements File
+            inp_elements = input(f"  * Elements File    [{args.elements}]: ").strip()
+            if inp_elements: args.elements = inp_elements
+            
+            # Prompt for Randomize
+            inp_rand = input(f"  * Randomize Order  [{args.randomize}] (y/n): ").strip().lower()
+            if inp_rand in ['y', 'yes', 'true', '1']:
+                args.randomize = True
+            elif inp_rand in ['n', 'no', 'false', '0']:
+                args.randomize = False
+            
     except KeyboardInterrupt:
         print("\nAborted by user.")
         sys.exit(130)
+    
+    # Re-evaluate TIMESTAMP_DIR just in case Outbase changed
+    TIMESTAMP_DIR = os.path.abspath(os.path.join(args.outbase, DIR_SUFFIX))
+    LOG_DIR = os.path.join(TIMESTAMP_DIR, "log")
+    COLLECT_DIR = os.path.join(TIMESTAMP_DIR, "collect")
+    RESUME_DIR = os.path.join(TIMESTAMP_DIR, "resume")
+    CONNECTIONS_DIR = os.path.join(TIMESTAMP_DIR, "connections")
+
+    os.makedirs(LOG_DIR, exist_ok=True)
+    os.makedirs(COLLECT_DIR, exist_ok=True)
+    os.makedirs(RESUME_DIR, exist_ok=True)
+    os.makedirs(CONNECTIONS_DIR, exist_ok=True)
+    
+    print(f"{C_CYAN}----------------------------------------{C_RESET}")
+    print(f"Extraction initializing...")
+    print("")
 
 cwd = os.getcwd()
 

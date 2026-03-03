@@ -1,0 +1,12 @@
+{
+    "extractor": {
+        "threads": 20,
+        "randomize_order": true,
+        "output_base_dir": "infos",
+        "elements_file": "config/elements.cfg",
+        "commands_file": "config/commands.cfg"
+    },
+    "ssh": {
+        "timeout": 10
+    }
+}
