@@ -122,10 +122,15 @@ print(f"Output Root: {TIMESTAMP_DIR}\n")
 
 if not args.skip_wizard:
     print(f"{C_CYAN}--- Interactive Configuration Wizard ---{C_RESET}")
-    print(f"Loaded {C_GREEN}config/settings.json{C_RESET} defaults.")
+    print(f"Loaded {C_GREEN}config/settings.json{C_RESET} defaults:")
+    print(f"  * Threads          : {args.threads}")
+    print(f"  * Extractor Base   : {args.outbase}")
+    print(f"  * Elements File    : {args.elements}")
+    print(f"  * Randomize Order  : {args.randomize}")
+    print(f"{C_CYAN}----------------------------------------{C_RESET}")
     
     try:
-        use_defaults = input("Use default configurations? [Y/n]: ").strip().lower()
+        use_defaults = input("Use these default configurations? [Y/n]: ").strip().lower()
         if use_defaults not in ['n', 'no', 'false', '0']:
             print("Accepting defaults. Skipping granular setup...\n")
         else:
