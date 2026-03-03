@@ -178,13 +178,17 @@ def main():
             max_spd_link = max(links, key=lambda x: x['bw_val'])
             width, color = get_style(max_spd_link['bw_val'])
             
+            # The line should be dashed ONLY if EVERY single link is down (dashed == 1)
+            all_down = all(link.get('dashed') == 1 for link in links)
+            agg_dashed = 1 if all_down else ''
+            
             summarized_rows.append({
                 'endpoint_a': node_a,
                 'endpoint_b': node_b,
                 'connection_text': " + ".join(deduplicated_links),
                 'strokeWidth': width,
                 'strokeColor': color,
-                'dashed': max_spd_link['dashed'],
+                'dashed': agg_dashed,
                 'fontStyle': '',
                 'fontSize': ''
             })
