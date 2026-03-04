@@ -36,6 +36,7 @@ from glob import glob
 C_GREEN = '\033[92m'
 C_RED = '\033[91m'
 C_CYAN = '\033[96m'
+C_YELLOW = '\033[93m'
 C_RESET = '\033[0m'
 
 parsers_show = sorted(glob("parsers/show.*.py"))
@@ -410,7 +411,7 @@ isolated_count = 0
 
 if os.path.isfile(script_topocheck):
     log_orchestrator(f"Executing core/topology_checker.py...")
-    cmd_check = [sys.executable, script_topocheck, "--resume_dir", RESUME_DIR]
+    cmd_check = [sys.executable, script_topocheck, "--resume_dir", RESUME_DIR, "--connections_dir", CONNECTIONS_DIR]
     check_log = os.path.join(LOG_DIR, "topology_checker.log")
     
     check_start = datetime.now()

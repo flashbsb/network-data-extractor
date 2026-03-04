@@ -7,17 +7,18 @@ import argparse
 def main():
     parser = argparse.ArgumentParser(description="Audits the generated topology for completely isolated successful nodes.")
     parser.add_argument("--resume_dir", required=True, help="Directory containing the parsed CSV files.")
+    parser.add_argument("--connections_dir", required=True, help="Directory containing the topology connections CSV.")
     args = parser.parse_args()
 
     status_csv = os.path.join(args.resume_dir, "status.elements.csv")
-    topology_csv = os.path.join(args.resume_dir, "interfaces.em.conexoes.csv")
+    topology_csv = os.path.join(args.connections_dir, "topology.connections.csv")
     out_csv = os.path.join(args.resume_dir, "topology_warnings.isolated.csv")
 
     if not os.path.isfile(status_csv):
         print("Missing status.elements.csv, skipping isolation check.")
         return
     if not os.path.isfile(topology_csv):
-        print("Missing interfaces.em.conexoes.csv, skipping isolation check.")
+        print("Missing topology.connections.csv, skipping isolation check.")
         return
 
     # 1. Gather all elements successfully collected ("ok")
@@ -39,8 +40,8 @@ def main():
     with open(topology_csv, 'r', encoding='utf-8', errors='ignore') as f:
         reader = csv.DictReader(f, delimiter=';')
         for row in reader:
-            a = row.get("equipamento", "").strip()
-            b = row.get("vizinho", "").strip()
+            a = row.get("endpoint_a", "").strip()
+            b = row.get("endpoint_b", "").strip()
             if a: topology_nodes.add(a)
             if b: topology_nodes.add(b)
 
