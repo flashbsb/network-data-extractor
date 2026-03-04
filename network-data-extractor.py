@@ -4,7 +4,7 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
-Version : 1.22.0
+Version : 1.23.0
 Date    : 2026-03-04
 Author  : flashbsb (and contributors)
 
@@ -14,6 +14,7 @@ Changelog:
  - Migrated topology hardcodes to dynamic dictionaries
  - Added element_status.py Consolidation Report (Axis 5)
  - Added topology_checker.py LLDP Isolation Warning System (Axis 6)
+ - Added Datacom parsing integration for interfaces_all.csv (Axis 7)
 ============================================================
 
 Behavior:
