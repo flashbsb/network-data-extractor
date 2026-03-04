@@ -38,7 +38,7 @@ def main():
     parser.add_argument("--elements_cfg", required=True, help="Path to config/elements.cfg")
     args = parser.parse_args()
 
-    out_csv = os.path.join(args.collect_dir, "status.elements.csv")
+    out_csv = os.path.join(args.resume_dir, "status.elements.csv")
 
     # 1. Load Expected Elements from elements.cfg
     expected_elements = set()

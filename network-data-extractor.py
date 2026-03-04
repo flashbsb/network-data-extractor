@@ -4,7 +4,7 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
-Version : 1.21.0
+Version : 1.22.0
 Date    : 2026-03-04
 Author  : flashbsb (and contributors)
 
@@ -13,6 +13,7 @@ Changelog:
  - Added Interactive Configuration Wizard with Bypasses
  - Migrated topology hardcodes to dynamic dictionaries
  - Added element_status.py Consolidation Report (Axis 5)
+ - Added topology_checker.py LLDP Isolation Warning System (Axis 6)
 ============================================================
 
 Behavior:
@@ -27,6 +28,7 @@ import sys
 import os
 import shutil
 import argparse
+import csv
 from datetime import datetime
 from glob import glob
 
@@ -401,7 +403,65 @@ else:
     print(f"{step_prefix_conn} {C_RED}[SKIPPED - NOT FOUND]{C_RESET}")
     log_orchestrator(f"WARNING: {script_interface2conn} not found, skipping hook.")
 
+print("\n" + "-" * 60)
+step_prefix_check = f"[**/**] {'core/topology_checker.py':40s}"
+script_topocheck = os.path.join(cwd, "core", "topology_checker.py")
+isolated_count = 0
+
+if os.path.isfile(script_topocheck):
+    log_orchestrator(f"Executing core/topology_checker.py...")
+    cmd_check = [sys.executable, script_topocheck, "--resume_dir", RESUME_DIR]
+    check_log = os.path.join(LOG_DIR, "topology_checker.log")
+    
+    check_start = datetime.now()
+    rc_check = run_and_stream_capture(cmd_check, env=None, out_path=check_log)
+    check_duration = (datetime.now() - check_start).total_seconds()
+    
+    if rc_check == 50:
+        print(f"{step_prefix_check} {C_YELLOW}[WARNING]{C_RESET} ({check_duration:5.1f}s)")
+        print(f"    └─> {C_YELLOW}Isolated node(s) detected. Check audit logs.{C_RESET}")
+        isolated_csv_path = os.path.join(RESUME_DIR, "topology_warnings.isolated.csv")
+        if os.path.isfile(isolated_csv_path):
+            with open(isolated_csv_path, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f, delimiter=';')
+                isolated_count = sum(1 for _ in reader)
+    elif rc_check == 0:
+        print(f"{step_prefix_check} {C_GREEN}[SUCCESS]{C_RESET} ({check_duration:5.1f}s)")
+    else:
+        print(f"{step_prefix_check} {C_RED}[FAILED ]{C_RESET} ({check_duration:5.1f}s)")
+else:
+    print(f"{step_prefix_check} {C_RED}[SKIPPED - NOT FOUND]{C_RESET}")
+    log_orchestrator(f"WARNING: {script_topocheck} not found, skipping isolation check.")
+
 end_time = datetime.now()
+
+# --- CONSOLIDATION RUN SUMMARY ---
+status_csv_path = os.path.join(RESUME_DIR, "status.elements.csv")
+ok_count = 0
+fail_count = 0
+new_count = 0
+if os.path.isfile(status_csv_path):
+    with open(status_csv_path, 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f, delimiter=';')
+        for row in reader:
+            st = row.get("status", "")
+            if st == "ok": ok_count += 1
+            elif st == "fail": fail_count += 1
+            elif st == "new": new_count += 1
+
+print("\n" + "=" * 60)
+print(f"{C_CYAN}                CONSOLIDATION SUMMARY{C_RESET}")
+print("=" * 60)
+print(f"  * Collected (OK)   : {C_GREEN}{ok_count}{C_RESET} elements")
+print(f"  * Failed (FAIL)    : {C_RED}{fail_count}{C_RESET} elements")
+print(f"  * Discovered (NEW) : {C_YELLOW}{new_count}{C_RESET} elements")
+if isolated_count > 0:
+    print(f"  * Topology Iso.    : {C_YELLOW}{isolated_count} WARNINGS{C_RESET} (missing from LLDP map)")
+print("  └─> View full report in: resume/status.elements.csv")
+if isolated_count > 0:
+    print("  └─> View isolation in  : resume/topology_warnings.isolated.csv")
+print("=" * 60)
+
 log_orchestrator("Extraction Ended")
 print("\n" + "-" * 60)
 print("End:", end_time.strftime("%Y-%m-%d %H:%M:%S"))
