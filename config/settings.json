@@ -48,5 +48,11 @@
                 "color": "#800080"
             }
         }
+    },
+    "discovery": {
+        "ignore_new_prefixes": [
+            "JOAO",
+            "MARIA"
+        ]
     }
 }

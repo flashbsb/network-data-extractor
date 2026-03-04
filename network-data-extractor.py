@@ -5,13 +5,14 @@
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
 Version : 1.21.0
-Date    : 2026-03-03
+Date    : 2026-03-04
 Author  : flashbsb (and contributors)
 
 Changelog:
  - Externalized architecture parameters to config/settings.json
  - Added Interactive Configuration Wizard with Bypasses
  - Migrated topology hardcodes to dynamic dictionaries
+ - Added element_status.py Consolidation Report (Axis 5)
 ============================================================
 
 Behavior:
@@ -35,11 +36,10 @@ C_RED = '\033[91m'
 C_CYAN = '\033[96m'
 C_RESET = '\033[0m'
 
-# Auto-discover parsers
 parsers_show = sorted(glob("parsers/show.*.py"))
 parsers_others = sorted([p for p in glob("parsers/*.py") if p not in parsers_show])
 
-SCRIPTS = ["core/commands.py"] + parsers_show + parsers_others
+SCRIPTS = ["core/commands.py"] + parsers_show + parsers_others + ["core/element_status.py"]
 
 description = """
 Main Extractor Orchestrator
@@ -52,8 +52,9 @@ Workflow:
   1. Prompts for SSH credentials interactively.
   2. Executes 'core/commands.py' concurrently to gather raw CLI outputs into '<outbase>/YYYYMMDD_HHMMSS/collect/'.
   3. Sequentially process all parsing scripts (parsers/*.py) to generate CSV structures into '<outbase>/YYYYMMDD_HHMMSS/resume/'.
-  4. Finally runs 'core/interface2connection.py' to map the physical topology connections.
-  5. All execution logs are silently stored in '<outbase>/YYYYMMDD_HHMMSS/log/'.
+  4. Runs 'core/element_status.py' to generate 'status.elements.csv' inside 'collect/'.
+  5. Finally runs 'core/interface2connection.py' to map the physical topology connections.
+  6. All execution logs are silently stored in '<outbase>/YYYYMMDD_HHMMSS/log/'.
 """
 
 parser = argparse.ArgumentParser(
@@ -84,6 +85,9 @@ CMD_DELAY = ssh_cfg.get("delay_between_commands", 5)
 topology_cfg = json_config.get("topology", {})
 IGNORE_VIRTUAL_PREFIXES = topology_cfg.get("ignore_virtual_prefixes", [])
 NEIGHBOR_PREFIXES = topology_cfg.get("neighbor_regex_prefixes", [])
+
+discovery_cfg = json_config.get("discovery", {})
+IGNORE_NEW_PREFIXES = discovery_cfg.get("ignore_new_prefixes", [])
 
 parser.add_argument("--threads", type=int, default=def_threads, help=f"Number of concurrent SSH sessions for commands.py (default: {def_threads})")
 parser.add_argument("--outbase", type=str, default=def_outbase, help=f"Root directory base to save timestamps/logs/CSVs folders (default: {def_outbase})")
@@ -142,6 +146,7 @@ if not args.skip_wizard:
     print(f"  * Command Delay    : {CMD_DELAY}s")
     print(f"  * Ignored Virtuals : {len(IGNORE_VIRTUAL_PREFIXES)} prefixes defined")
     print(f"  * Neighbor Matches : {len(NEIGHBOR_PREFIXES)} patterns defined")
+    print(f"  * Ignored Discover : {len(IGNORE_NEW_PREFIXES)} prefixes defined")
     print(f"{C_CYAN}----------------------------------------{C_RESET}")
     
     try:
@@ -296,6 +301,31 @@ for i, script in enumerate(SCRIPTS, start=1):
         except Exception as e:
             log_orchestrator(f"{script_name} Error: {e}")
             print(f"{step_prefix} {C_RED}[ERROR]{C_RESET}")
+    elif script_name == "element_status.py":
+        cmd.extend(["--collect_dir", COLLECT_DIR, "--resume_dir", RESUME_DIR, "--elements_cfg", args.elements])
+        safe_name = "element_status"
+        out_file_name = os.path.join(LOG_DIR, f"{safe_name}.log")
+        
+        try:
+            with open(out_file_name, "w", encoding="utf-8") as fh:
+                fh.write(f"COMMAND: {' '.join(cmd)}\n")
+                fh.write("START: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n\n")
+        except:
+            out_file_name = None
+
+        script_start_time = datetime.now()
+        rc = run_and_stream_capture(cmd, env=None, out_path=out_file_name)
+        if rc == 130:
+            log_orchestrator(f"Orchestrator interrupted by user during {script_name}")
+            sys.exit(130)
+            
+        script_duration = (datetime.now() - script_start_time).total_seconds()
+        log_orchestrator(f"{script_name} Finished. Return Code: {rc}")
+        
+        status_text = f"{C_GREEN}[SUCCESS]{C_RESET}" if rc == 0 else f"{C_RED}[FAILED ]{C_RESET}"
+        print(f"{step_prefix} {status_text} ({script_duration:5.1f}s)")
+        if rc != 0:
+             print(f"    └─> {C_RED}Check log/{safe_name}.log for details.{C_RESET}")
     else:
         cmd.extend(["--outdir", RESUME_DIR, "--indir", COLLECT_DIR])
         # Scripts output real-time to std and file automatically
