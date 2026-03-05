@@ -1,5 +1,7 @@
 {
+    "_help": "Global Configuration for Network Data Extractor. Note: JSON does not support standard comments, so '_help' variables are used for documentation and ignored by the script.",
     "extractor": {
+        "_help_extractor": "Main orchestrator execution settings. Controls the concurrency and output destinations.",
         "threads": 20,
         "randomize_order": true,
         "output_base_dir": "infos",
@@ -8,10 +10,13 @@
         "log_level": "INFO"
     },
     "ssh": {
+        "_help_ssh": "Tuning parameters for the paramiko SSH connection backend. Increase timeout if devices are slow.",
         "timeout": 10,
         "delay_between_commands": 5
     },
     "topology": {
+        "_help_topology": "Core variables that instruct the Regex engine on how to generate the topology map (interface2connection.py).",
+        "_help_ignore_virtual": "Prefixes of virtual or uninteresting interfaces that will be completely ignored during topology creation.",
         "ignore_virtual_prefixes": [
             "Bundle",
             "PW",
@@ -25,11 +30,13 @@
             "Mgmt",
             "NVI"
         ],
+        "_help_neighbor_regex": "Prefixes in interface descriptions that trigger the script to look for a neighbor's hostname.",
         "neighbor_regex_prefixes": [
             "CONEXAO_COM_",
             "PEERING_",
             "TRUNK_"
         ],
+        "_help_device_name": "Prefixes defining the hostnames of your core hardware models. Only descriptions containing these will be considered valid topology endpoints.",
         "device_name_prefixes": [
             "RT",
             "SW",
@@ -37,6 +44,7 @@
             "PTT",
             "DW"
         ],
+        "_help_speed_colors": "Mapping from Interface Bandwidth (in bits per second) to Hex color codes and widths for the final topology visualization.",
         "speed_colors": {
             "1000000": {
                 "width": 1,
@@ -57,6 +65,7 @@
         }
     },
     "discovery": {
+        "_help_discovery": "Filters out expected/known prefixes of client/external equipment when the Topology Checker hunts for undocumented neighbor devices.",
         "ignore_new_prefixes": [
             "CPE",
             "BR-",
