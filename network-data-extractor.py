@@ -4,7 +4,7 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
-Version : 1.28.0
+Version : 1.28.1
 Date    : 2026-03-05
 Author  : flashbsb (and contributors)
 
@@ -24,7 +24,7 @@ import csv
 from datetime import datetime
 from glob import glob
 
-APP_VERSION = "1.28.0"
+APP_VERSION = "1.28.1"
 APP_DATE = "2026-03-05"
 
 # ANSI Colors
@@ -35,7 +35,18 @@ C_YELLOW = '\033[93m'
 C_RESET = '\033[0m'
 
 parsers_show = sorted(glob("parsers/show.*.py"))
-parsers_others = sorted([p for p in glob("parsers/*.py") if p not in parsers_show])
+# Exclude scripts that are manually called later in specialized 'consolidation' blocks to avoid double execution with wrong args
+consolidation_scripts = [
+    "parsers/generate_max_speed_interfaces.py",
+    "parsers/generate_service_inventory.py",
+    "parsers/license_matrix.py",
+    "parsers/port_census.py",
+    "parsers/subcomponents.py",
+    "parsers/system_asset.py",
+    "parsers/transceiver_matrix.py",
+    "parsers/show.bgp.vpnv4.unicast.all.summary.py"
+]
+parsers_others = sorted([p for p in glob("parsers/*.py") if p not in parsers_show and p not in consolidation_scripts])
 
 SCRIPTS = ["core/commands.py"] + parsers_show + parsers_others + ["core/element_status.py"]
 
@@ -527,7 +538,7 @@ script_srv = os.path.join(cwd, "parsers", "generate_service_inventory.py")
 if os.path.isfile(script_srv):
     log_orchestrator(f"Executing parsers/generate_service_inventory.py...")
     cmd_srv = [sys.executable, script_srv, "--resume_dir", RESUME_DIR]
-    srv_log = os.path.join(LOG_DIR, "service_matrix.log")
+    srv_log = os.path.join(LOG_DIR, "generate_service_inventory.log")
     
     srv_start = datetime.now()
     rc_srv = run_and_stream_capture(cmd_srv, env=None, out_path=srv_log)
@@ -547,7 +558,7 @@ script_bgp = os.path.join(cwd, "parsers", "show.bgp.vpnv4.unicast.all.summary.py
 if os.path.isfile(script_bgp):
     log_orchestrator(f"Executing parsers/show.bgp.vpnv4.unicast.all.summary.py...")
     cmd_bgp = [sys.executable, script_bgp, "--collect_dir", COLLECT_DIR, "--outdir", RESUME_DIR]
-    bgp_log = os.path.join(LOG_DIR, "bgp_matrix.log")
+    bgp_log = os.path.join(LOG_DIR, "show.bgp.vpnv4.unicast.all.summary.log")
     
     bgp_start = datetime.now()
     rc_bgp = run_and_stream_capture(cmd_bgp, env=None, out_path=bgp_log)

@@ -116,7 +116,7 @@ def parse_show_lldp_neighbors_detail(filename):
         data.append({
             'element': host,
             'id': identifier,
-            'local_interface': local_if,
+            'local_intf': local_if,
             'parent_interface': parent_if,
             'chassis_id': chassis_id,
             'port_id': port_id,
@@ -145,7 +145,7 @@ if __name__ == '__main__':
     headers = [
         'element',
         'id',
-        'local_interface',
+        'local_intf',
         'parent_interface',
         'chassis_id',
         'port_id',

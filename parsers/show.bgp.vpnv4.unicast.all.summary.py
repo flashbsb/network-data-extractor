@@ -42,19 +42,19 @@ def parse_bgp_summary(collect_dir, out_dir):
                     continue
                 
                 neighbor = cols[0]
-                    remote_as = cols[2]
-                    uptime = cols[8]
-                    # For State/PfxRcd, if it's purely digits it's the number of prefixes. If it's a word like "Active" or "Idle", the session is down.
-                    state_pfx = cols[9]
-                    
-                    rows.append({
-                        'Element': element,
-                        'Local_AS': local_as,
-                        'Neighbor': neighbor,
-                        'Remote_AS': remote_as,
-                        'Uptime': uptime,
-                        'State_or_Prefixes': state_pfx
-                    })
+                remote_as = cols[2]
+                uptime = cols[8]
+                # For State/PfxRcd, if it's purely digits it's the number of prefixes. If it's a word like "Active" or "Idle", the session is down.
+                state_pfx = cols[9]
+                
+                rows.append({
+                    'Element': element,
+                    'Local_AS': local_as,
+                    'Neighbor': neighbor,
+                    'Remote_AS': remote_as,
+                    'Uptime': uptime,
+                    'State_or_Prefixes': state_pfx
+                })
                     
     with open(out_file, 'w', newline='', encoding='utf-8') as csvfile:
         fieldnames = ['Element', 'Local_AS', 'Neighbor', 'Remote_AS', 'Uptime', 'State_or_Prefixes']

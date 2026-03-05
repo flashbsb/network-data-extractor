@@ -2,6 +2,14 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.28.1] - 2026-03-05
+### Fixed
+- **BGP Parser:** Fixed `IndentationError` in `parsers/show.bgp.vpnv4.unicast.all.summary.py`.
+- **LLDP Consistency Report:** Fixed column name mismatch (`local_interface` vs `local_intf`) that caused empty interface columns and false 'EMPTY' alerts.
+- **Orchestration Consolidation:** Prevented consolidation scripts from running twice (generic loop vs specialized end-pipe) to avoid argument mismatch errors.
+- **Improved LLDP Matching:** Added ignore-self and FQDN normalization to the LLDP auditor.
+
+
 ## [1.28.0] - 2026-03-05
 ### Added
 - **Service Inventory Auto-Extraction:** `parsers/generate_service_inventory.py` to extract clients, speeds, circuits, and services directly from interface descriptions.
