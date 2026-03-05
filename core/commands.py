@@ -77,10 +77,20 @@ def execute_commands_shell(client, cmds):
     shell = client.invoke_shell()
     time.sleep(1)
     shell.recv(1000)  # clear banner
-    # Disable pagination
-    shell.send('terminal length 0\n')
-    time.sleep(1)
-    shell.recv(1000)
+    
+    # Disable pagination (Universal Shotgun Strategy)
+    paginators = [
+        'terminal length 0',      # Cisco IOS / IOS-XE
+        'terminal pager 0',       # Datacom / DmOS / Huawei
+        'screen-length 0 disable' # HP / H3C / Datacom Legacy
+    ]
+    for p_cmd in paginators:
+        shell.send(p_cmd + '\n')
+        time.sleep(0.5)
+        
+    # Flush the pager command echos
+    while shell.recv_ready():
+        shell.recv(65535)
 
     output_map = {}
     for cmd in cmds:

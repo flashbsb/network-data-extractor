@@ -20,7 +20,8 @@ if os.path.exists(config_path):
         pass
 
 discovery_cfg = json_config.get("discovery", {})
-IGNORE_NEW_PREFIXES = tuple(discovery_cfg.get("ignore_new_prefixes", ["JOAO", "MARIA"]))
+_raw_prefixes = discovery_cfg.get("ignore_new_prefixes", ["JOAO", "MARIA"])
+IGNORE_NEW_PREFIXES = tuple(str(p).upper() for p in _raw_prefixes)
 
 def is_ignored(name):
     if not name: return True
