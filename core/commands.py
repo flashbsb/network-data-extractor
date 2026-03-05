@@ -154,8 +154,17 @@ def main():
     elements = read_elements(args.elements)
     commands_map = read_commands(args.commands)
 
-    user = input('SSH Worker User: ')
-    password = getpass.getpass('SSH Password: ')
+    # Check if credentials were provided via environment variables (Non-interactive mode)
+    env_user = os.environ.get('NDX_SSH_USER')
+    env_pass = os.environ.get('NDX_SSH_PASS')
+    
+    if env_user and env_pass:
+        logging.info("Using SSH credentials provided via arguments/environment.")
+        user = env_user
+        password = env_pass
+    else:
+        user = input('SSH Worker User: ')
+        password = getpass.getpass('SSH Password: ')
 
     if not elements:
         logging.error('No valid elements found.')

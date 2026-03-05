@@ -4,18 +4,15 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
-Version : 1.27.0
+Version : 1.28.0
 Date    : 2026-03-05
 Author  : flashbsb (and contributors)
 
 Changelog:
- - Added Multi-vendor terminal pagination support / Datacom Pager (Axis 8)
- - Added Smart Regex Device Extractor for topology building (Axis 9)
- - Added System Asset Matrix (Axis 10)
- - Added Optical Transceiver Health Matrix (Axis 11)
- - Added Modular Subcomponents Matrix (Axis 12)
- - Added Software Licensing Matrix (Axis 13)
- - Added Port Census Capacity Matrix (Axis 14)
+ - Externalized architecture parameters to config/settings.json
+ - Added Interactive Configuration Wizard with Bypasses
+ - Migrated topology hardcodes to dynamic dictionaries
+ - Added L2 Consistency, BGP, and Business Service Extraction
 ============================================================
 
 Behavior:
@@ -33,6 +30,9 @@ import argparse
 import csv
 from datetime import datetime
 from glob import glob
+
+APP_VERSION = "1.28.0"
+APP_DATE = "2026-03-05"
 
 # ANSI Colors
 C_GREEN = '\033[92m'
@@ -101,6 +101,8 @@ parser.add_argument("--commands", type=str, default=def_commands, help=f"Input f
 parser.add_argument("--randomize", action="store_true", default=def_randomize, help=f"Randomize the connection order in commands.py (default: {def_randomize})")
 parser.add_argument("--no-randomize", dest="randomize", action="store_false", help="Keep connection order sequential")
 parser.add_argument("--skip-wizard", action="store_true", help="Skip the configuration confirmation prompt")
+parser.add_argument("--user", type=str, help="SSH Username (if provided, skips interactive prompt)")
+parser.add_argument("--password", type=str, help="SSH Password (if provided, skips interactive prompt)")
 args = parser.parse_args()
 
 DIR_SUFFIX = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -126,14 +128,8 @@ print(f"{C_CYAN}")
 print("============================================================")
 print("           NETWORK DATA EXTRACTOR ORCHESTRATOR           ")
 print("============================================================")
-print("Version : 1.15.0")
-print(f"Date    : {datetime.now().strftime('%Y-%m-%d')}")
-print("Author  : flashbsb (and contributors)")
-print("")
-print("Changelog:")
-print(" - Externalized architecture parameters to config/settings.json")
-print(" - Added Interactive Configuration Wizard with Bypasses")
-print(" - Migrated topology hardcodes to dynamic dictionaries")
+print(f"Version : {APP_VERSION}")
+print(f"Date    : {APP_DATE}")
 print("============================================================")
 print(f"{C_RESET}")
 print(f"Start: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
@@ -516,6 +512,66 @@ if os.path.isfile(script_lic):
 else:
     print(f"{step_prefix_lic} {C_RED}[SKIPPED - NOT FOUND]{C_RESET}")
     log_orchestrator(f"WARNING: {script_lic} not found, skipping hook.")
+
+# ----------------- AXIS 14: Service Inventory Extractor -----------------
+print("\n" + "-" * 60)
+step_prefix_srv = f"[**/**] {'parsers/generate_service_inventory.py':40s}"
+script_srv = os.path.join(cwd, "parsers", "generate_service_inventory.py")
+
+if os.path.isfile(script_srv):
+    log_orchestrator(f"Executing parsers/generate_service_inventory.py...")
+    cmd_srv = [sys.executable, script_srv, "--resume_dir", RESUME_DIR]
+    srv_log = os.path.join(LOG_DIR, "service_matrix.log")
+    
+    srv_start = datetime.now()
+    rc_srv = run_and_stream_capture(cmd_srv, env=None, out_path=srv_log)
+    srv_duration = (datetime.now() - srv_start).total_seconds()
+    
+    status_srv = "SUCCESS" if rc_srv == 0 else "FAILURE/WARNING"
+    status_text_srv = f"{C_GREEN}[SUCCESS]{C_RESET}" if rc_srv == 0 else f"{C_RED}[FAILED ]{C_RESET}"
+    print(f"{step_prefix_srv} {status_text_srv} ({srv_duration:5.1f}s)")
+else:
+    print(f"{step_prefix_srv} {C_RED}[SKIPPED - NOT FOUND]{C_RESET}")
+
+# ----------------- AXIS 15: BGP Logical Peering Matrix -----------------
+print("\n" + "-" * 60)
+step_prefix_bgp = f"[**/**] {'parsers/show.bgp.vpnv4.unicast.all.summary.py':40s}"
+script_bgp = os.path.join(cwd, "parsers", "show.bgp.vpnv4.unicast.all.summary.py")
+
+if os.path.isfile(script_bgp):
+    log_orchestrator(f"Executing parsers/show.bgp.vpnv4.unicast.all.summary.py...")
+    cmd_bgp = [sys.executable, script_bgp, "--collect_dir", COLLECT_DIR, "--outdir", RESUME_DIR]
+    bgp_log = os.path.join(LOG_DIR, "bgp_matrix.log")
+    
+    bgp_start = datetime.now()
+    rc_bgp = run_and_stream_capture(cmd_bgp, env=None, out_path=bgp_log)
+    bgp_duration = (datetime.now() - bgp_start).total_seconds()
+    
+    status_bgp = "SUCCESS" if rc_bgp == 0 else "FAILURE/WARNING"
+    status_text_bgp = f"{C_GREEN}[SUCCESS]{C_RESET}" if rc_bgp == 0 else f"{C_RED}[FAILED ]{C_RESET}"
+    print(f"{step_prefix_bgp} {status_text_bgp} ({bgp_duration:5.1f}s)")
+else:
+    print(f"{step_prefix_bgp} {C_RED}[SKIPPED - NOT FOUND]{C_RESET}")
+
+# ----------------- AXIS 16: LLDP Consistency Cross-Reference -----------------
+print("\n" + "-" * 60)
+step_prefix_lldpchk = f"[**/**] {'core/lldp_consistency_checker.py':40s}"
+script_lldpchk = os.path.join(cwd, "core", "lldp_consistency_checker.py")
+
+if os.path.isfile(script_lldpchk):
+    log_orchestrator(f"Executing core/lldp_consistency_checker.py...")
+    cmd_lldpchk = [sys.executable, script_lldpchk, "--resume_dir", RESUME_DIR]
+    lldpchk_log = os.path.join(LOG_DIR, "lldp_mismatch.log")
+    
+    lldpchk_start = datetime.now()
+    rc_lldpchk = run_and_stream_capture(cmd_lldpchk, env=None, out_path=lldpchk_log)
+    lldpchk_duration = (datetime.now() - lldpchk_start).total_seconds()
+    
+    status_lldpchk = "SUCCESS" if rc_lldpchk == 0 else "FAILURE/WARNING"
+    status_text_lldpchk = f"{C_GREEN}[SUCCESS]{C_RESET}" if rc_lldpchk == 0 else f"{C_RED}[FAILED ]{C_RESET}"
+    print(f"{step_prefix_lldpchk} {status_text_lldpchk} ({lldpchk_duration:5.1f}s)")
+else:
+    print(f"{step_prefix_lldpchk} {C_RED}[SKIPPED - NOT FOUND]{C_RESET}")
 
 # ------------------------------------------------------------------
 

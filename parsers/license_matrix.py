@@ -36,7 +36,7 @@ def parse_licenses(collect_dir, out_dir):
             for line in lines:
                 line = line.strip()
                 # Skip headers or empty lines
-                if not line or '---' in line or 'Index' in line or 'Feature' in line:
+                if not line or '---' in line or 'Index' in line or 'Feature' in line or 'Entitlement Tag' in line or 'Count Status' in line or 'No licenses in use' in line:
                     continue
                     
                 # Match typical rows with 2+ spaces separating Feature, Status/Type, Expiry
@@ -44,7 +44,7 @@ def parse_licenses(collect_dir, out_dir):
                 if len(cols) >= 3:
                     feature = cols[0]
                     # Skip common junk lines that happen to have multiple spaces
-                    if len(feature) > 40 or 'Total' in feature or 'Store' in feature:
+                    if len(feature) > 40 or 'Total' in feature or 'Store' in feature or 'License' == feature.strip():
                         continue
                         
                     status = cols[1]

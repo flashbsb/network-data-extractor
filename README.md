@@ -1,6 +1,6 @@
 # Network Data Extractor
 
-![Version](https://img.shields.io/badge/version-1.25.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.28.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8%2B-green.svg)
 
 **Network Data Extractor** is an automated orchestrator built for network engineers and NOCs (Network Operations Centers). It performs massive, parallel SSH polling across dozens or hundreds of network elements (Cisco, Datacom, Huawei, HP, etc.), extracting raw command outputs (`show interfaces`, `show lldp neighbors`, etc.) and consolidating this raw data into CSV spreadsheets and logical topology maps ready for structural analysis.
@@ -99,7 +99,47 @@ pip install pandas paramiko
 python network-data-extractor.py
 ```
 
-*Tip: You can skip the Wizard or customize folders using flags, e.g., `python3 network-data-extractor.py --skip-wizard --threads 10`.*
+### 4. CLI Execution & Automation
+The script supports a comprehensive wizard, but it can also be fully automated out-of-the-box using arguments (useful for CI/CD or Linux `cron`). 
+
+#### Command Line Arguments
+```text
+usage: network-data-extractor.py [-h] [--threads THREADS] [--outbase OUTBASE]
+                                 [--elements ELEMENTS] [--commands COMMANDS]
+                                 [--randomize] [--no-randomize] [--skip-wizard]
+                                 [--user USER] [--password PASSWORD]
+
+optional arguments:
+  -h, --help           show this help message and exit
+  --threads THREADS    Number of concurrent SSH sessions for commands.py (default: 20)
+  --outbase OUTBASE    Root directory base to save timestamps/logs/CSVs folders (default: infos)
+  --elements ELEMENTS  Input file containing the list of elements (default: config/elements.cfg)
+  --commands COMMANDS  Input file containing the list of commands (default: config/commands.cfg)
+  --randomize          Randomize the connection order in commands.py (default: True)
+  --no-randomize       Keep connection order sequential
+  --skip-wizard        Skip the configuration confirmation prompt
+  --user USER          SSH Username (if provided, skips interactive prompt)
+  --password PASSWORD  SSH Password (if provided, skips interactive prompt)
+```
+
+#### Examples
+**Interactive Mode (Default):**
+Executes normally, confirming configuration files and asking for the SSH password via an invisible prompt.
+```bash
+python3 network-data-extractor.py
+```
+
+**Headless / CI-CD Mode (No prompts):**
+Skips the wizard and receives the SSH credentials via parameters. Ideal for scripts running in the background.
+```bash
+python3 network-data-extractor.py --skip-wizard --user "admin" --password "super_secret"
+```
+
+**Tuning Performance Constraints:**
+Bypass the wizard and restrict exactly how many SSH threads you want open at roughly the exact same time (to alleviate TACACS/Radius strain).
+```bash
+python3 network-data-extractor.py --skip-wizard --threads 10
+```
 
 ---
 
