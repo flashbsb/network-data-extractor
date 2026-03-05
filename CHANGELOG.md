@@ -2,6 +2,11 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.28.2] - 2026-03-05
+### Fixed
+- **Orchestration:** Corrected script categorization logic that was still allowing the BGP parser to run in the atomic `show.*` loop without mandatory arguments.
+
+
 ## [1.28.1] - 2026-03-05
 ### Fixed
 - **BGP Parser:** Fixed `IndentationError` in `parsers/show.bgp.vpnv4.unicast.all.summary.py`.

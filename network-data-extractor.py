@@ -4,7 +4,7 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
-Version : 1.28.1
+Version : 1.28.2
 Date    : 2026-03-05
 Author  : flashbsb (and contributors)
 
@@ -24,7 +24,7 @@ import csv
 from datetime import datetime
 from glob import glob
 
-APP_VERSION = "1.28.1"
+APP_VERSION = "1.28.2"
 APP_DATE = "2026-03-05"
 
 # ANSI Colors
@@ -34,7 +34,6 @@ C_CYAN = '\033[96m'
 C_YELLOW = '\033[93m'
 C_RESET = '\033[0m'
 
-parsers_show = sorted(glob("parsers/show.*.py"))
 # Exclude scripts that are manually called later in specialized 'consolidation' blocks to avoid double execution with wrong args
 consolidation_scripts = [
     "parsers/generate_max_speed_interfaces.py",
@@ -46,6 +45,7 @@ consolidation_scripts = [
     "parsers/transceiver_matrix.py",
     "parsers/show.bgp.vpnv4.unicast.all.summary.py"
 ]
+parsers_show = sorted([p for p in glob("parsers/show.*.py") if p not in consolidation_scripts])
 parsers_others = sorted([p for p in glob("parsers/*.py") if p not in parsers_show and p not in consolidation_scripts])
 
 SCRIPTS = ["core/commands.py"] + parsers_show + parsers_others + ["core/element_status.py"]
