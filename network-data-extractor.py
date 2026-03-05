@@ -4,19 +4,18 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
-Version : 1.25.0
+Version : 1.27.0
 Date    : 2026-03-05
 Author  : flashbsb (and contributors)
 
 Changelog:
- - Externalized architecture parameters to config/settings.json
- - Added Interactive Configuration Wizard with Bypasses
- - Migrated topology hardcodes to dynamic dictionaries
- - Added element_status.py Consolidation Report (Axis 5)
- - Added topology_checker.py LLDP Isolation Warning System (Axis 6)
- - Added Datacom parsing integration for interfaces_all.csv (Axis 7)
  - Added Multi-vendor terminal pagination support / Datacom Pager (Axis 8)
  - Added Smart Regex Device Extractor for topology building (Axis 9)
+ - Added System Asset Matrix (Axis 10)
+ - Added Optical Transceiver Health Matrix (Axis 11)
+ - Added Modular Subcomponents Matrix (Axis 12)
+ - Added Software Licensing Matrix (Axis 13)
+ - Added Port Census Capacity Matrix (Axis 14)
 ============================================================
 
 Behavior:
@@ -373,6 +372,152 @@ for i, script in enumerate(SCRIPTS, start=1):
         print(f"{step_prefix} {status_text} ({script_duration:5.1f}s)")
         if rc != 0:
              print(f"    └─> {C_RED}Check log/orchestrator.log or log/{safe_name}.log for details.{C_RESET}")
+
+print("\n" + "-" * 60)
+step_prefix_sys = f"[**/**] {'parsers/system_asset.py':40s}"
+script_sysasset = os.path.join(cwd, "parsers", "system_asset.py")
+
+if os.path.isfile(script_sysasset):
+    log_orchestrator(f"Executing parsers/system_asset.py...")
+    cmd_sys = [sys.executable, script_sysasset, "--collect_dir", COLLECT_DIR, "--resume_dir", RESUME_DIR]
+    sys_log = os.path.join(LOG_DIR, "system_asset.log")
+    
+    sys_start = datetime.now()
+    rc_sys = run_and_stream_capture(cmd_sys, env=None, out_path=sys_log)
+    sys_duration = (datetime.now() - sys_start).total_seconds()
+    status_sys = "SUCCESS" if rc_sys == 0 else "FAILURE/WARNING"
+    status_text_sys = f"{C_GREEN}[SUCCESS]{C_RESET}" if rc_sys == 0 else f"{C_RED}[FAILED ]{C_RESET}"
+    
+    with open(sys_log, "a", encoding="utf-8") as fh:
+        fh.write(f"\n\n--- EXECUTION SUMMARY ---\n")
+        fh.write(f"FINAL STATUS: {status_sys} (Return Code: {rc_sys})\n")
+        fh.write(f"PROCESSING TIME: {sys_duration:.2f} seconds\n")
+        fh.write("END: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n")
+        
+    print(f"{step_prefix_sys} {status_text_sys} ({sys_duration:5.1f}s)")
+    if rc_sys != 0:
+         print(f"    └─> {C_RED}Check log/system_asset.log for details.{C_RESET}")
+else:
+    print(f"{step_prefix_sys} {C_RED}[SKIPPED - NOT FOUND]{C_RESET}")
+    log_orchestrator(f"WARNING: {script_sysasset} not found, skipping hook.")
+
+# ----------------- AXIS 11: Optical Health Matrix -----------------
+print("\n" + "-" * 60)
+step_prefix_optics = f"[**/**] {'parsers/transceiver_matrix.py':40s}"
+script_optics = os.path.join(cwd, "parsers", "transceiver_matrix.py")
+
+if os.path.isfile(script_optics):
+    log_orchestrator(f"Executing parsers/transceiver_matrix.py...")
+    cmd_optics = [sys.executable, script_optics, "--collect_dir", COLLECT_DIR, "--resume_dir", RESUME_DIR]
+    optics_log = os.path.join(LOG_DIR, "transceiver_matrix.log")
+    
+    optics_start = datetime.now()
+    rc_optics = run_and_stream_capture(cmd_optics, env=None, out_path=optics_log)
+    optics_duration = (datetime.now() - optics_start).total_seconds()
+    status_optics = "SUCCESS" if rc_optics == 0 else "FAILURE/WARNING"
+    status_text_optics = f"{C_GREEN}[SUCCESS]{C_RESET}" if rc_optics == 0 else f"{C_RED}[FAILED ]{C_RESET}"
+    
+    with open(optics_log, "a", encoding="utf-8") as fh:
+        fh.write(f"\n\n--- EXECUTION SUMMARY ---\n")
+        fh.write(f"FINAL STATUS: {status_optics} (Return Code: {rc_optics})\n")
+        fh.write(f"PROCESSING TIME: {optics_duration:.2f} seconds\n")
+        fh.write("END: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n")
+        
+    print(f"{step_prefix_optics} {status_text_optics} ({optics_duration:5.1f}s)")
+    if rc_optics != 0:
+         print(f"    └─> {C_RED}Check log/transceiver_matrix.log for details.{C_RESET}")
+else:
+    print(f"{step_prefix_optics} {C_RED}[SKIPPED - NOT FOUND]{C_RESET}")
+    log_orchestrator(f"WARNING: {script_optics} not found, skipping hook.")
+
+# ----------------- AXIS 14: Port Census Matrix -----------------
+print("\n" + "-" * 60)
+step_prefix_census = f"[**/**] {'parsers/port_census.py':40s}"
+script_census = os.path.join(cwd, "parsers", "port_census.py")
+
+if os.path.isfile(script_census):
+    log_orchestrator(f"Executing parsers/port_census.py...")
+    cmd_census = [sys.executable, script_census, "--resume_dir", RESUME_DIR, "--outdir", RESUME_DIR]
+    census_log = os.path.join(LOG_DIR, "port_census.log")
+    
+    census_start = datetime.now()
+    rc_census = run_and_stream_capture(cmd_census, env=None, out_path=census_log)
+    census_duration = (datetime.now() - census_start).total_seconds()
+    status_census = "SUCCESS" if rc_census == 0 else "FAILURE/WARNING"
+    status_text_census = f"{C_GREEN}[SUCCESS]{C_RESET}" if rc_census == 0 else f"{C_RED}[FAILED ]{C_RESET}"
+    
+    with open(census_log, "a", encoding="utf-8") as fh:
+        fh.write(f"\n\n--- EXECUTION SUMMARY ---\n")
+        fh.write(f"FINAL STATUS: {status_census} (Return Code: {rc_census})\n")
+        fh.write(f"PROCESSING TIME: {census_duration:.2f} seconds\n")
+        fh.write("END: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n")
+        
+    print(f"{step_prefix_census} {status_text_census} ({census_duration:5.1f}s)")
+    if rc_census != 0:
+         print(f"    └─> {C_RED}Check log/port_census.log for details.{C_RESET}")
+else:
+    print(f"{step_prefix_census} {C_RED}[SKIPPED - NOT FOUND]{C_RESET}")
+    log_orchestrator(f"WARNING: {script_census} not found, skipping hook.")
+
+# ----------------- AXIS 12: Subcomponents Matrix -----------------
+print("\n" + "-" * 60)
+step_prefix_subc = f"[**/**] {'parsers/subcomponents.py':40s}"
+script_subc = os.path.join(cwd, "parsers", "subcomponents.py")
+
+if os.path.isfile(script_subc):
+    log_orchestrator(f"Executing parsers/subcomponents.py...")
+    cmd_subc = [sys.executable, script_subc, "--collect_dir", COLLECT_DIR, "--outdir", RESUME_DIR]
+    subc_log = os.path.join(LOG_DIR, "subcomponents.log")
+    
+    subc_start = datetime.now()
+    rc_subc = run_and_stream_capture(cmd_subc, env=None, out_path=subc_log)
+    subc_duration = (datetime.now() - subc_start).total_seconds()
+    status_subc = "SUCCESS" if rc_subc == 0 else "FAILURE/WARNING"
+    status_text_subc = f"{C_GREEN}[SUCCESS]{C_RESET}" if rc_subc == 0 else f"{C_RED}[FAILED ]{C_RESET}"
+    
+    with open(subc_log, "a", encoding="utf-8") as fh:
+        fh.write(f"\n\n--- EXECUTION SUMMARY ---\n")
+        fh.write(f"FINAL STATUS: {status_subc} (Return Code: {rc_subc})\n")
+        fh.write(f"PROCESSING TIME: {subc_duration:.2f} seconds\n")
+        fh.write("END: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n")
+        
+    print(f"{step_prefix_subc} {status_text_subc} ({subc_duration:5.1f}s)")
+    if rc_subc != 0:
+         print(f"    └─> {C_RED}Check log/subcomponents.log for details.{C_RESET}")
+else:
+    print(f"{step_prefix_subc} {C_RED}[SKIPPED - NOT FOUND]{C_RESET}")
+    log_orchestrator(f"WARNING: {script_subc} not found, skipping hook.")
+
+# ----------------- AXIS 13: Software Licensing Matrix -----------------
+print("\n" + "-" * 60)
+step_prefix_lic = f"[**/**] {'parsers/license_matrix.py':40s}"
+script_lic = os.path.join(cwd, "parsers", "license_matrix.py")
+
+if os.path.isfile(script_lic):
+    log_orchestrator(f"Executing parsers/license_matrix.py...")
+    cmd_lic = [sys.executable, script_lic, "--collect_dir", COLLECT_DIR, "--outdir", RESUME_DIR]
+    lic_log = os.path.join(LOG_DIR, "license_matrix.log")
+    
+    lic_start = datetime.now()
+    rc_lic = run_and_stream_capture(cmd_lic, env=None, out_path=lic_log)
+    lic_duration = (datetime.now() - lic_start).total_seconds()
+    status_lic = "SUCCESS" if rc_lic == 0 else "FAILURE/WARNING"
+    status_text_lic = f"{C_GREEN}[SUCCESS]{C_RESET}" if rc_lic == 0 else f"{C_RED}[FAILED ]{C_RESET}"
+    
+    with open(lic_log, "a", encoding="utf-8") as fh:
+        fh.write(f"\n\n--- EXECUTION SUMMARY ---\n")
+        fh.write(f"FINAL STATUS: {status_lic} (Return Code: {rc_lic})\n")
+        fh.write(f"PROCESSING TIME: {lic_duration:.2f} seconds\n")
+        fh.write("END: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n")
+        
+    print(f"{step_prefix_lic} {status_text_lic} ({lic_duration:5.1f}s)")
+    if rc_lic != 0:
+         print(f"    └─> {C_RED}Check log/license_matrix.log for details.{C_RESET}")
+else:
+    print(f"{step_prefix_lic} {C_RED}[SKIPPED - NOT FOUND]{C_RESET}")
+    log_orchestrator(f"WARNING: {script_lic} not found, skipping hook.")
+
+# ------------------------------------------------------------------
 
 print("\n" + "-" * 60)
 step_prefix_conn = f"[**/**] {'core/interface2connection.py':40s}"

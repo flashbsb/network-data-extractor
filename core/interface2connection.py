@@ -55,15 +55,32 @@ def is_virtual(interface_name):
     name = str(interface_name).strip()
     return name.startswith(IGNORE_VIRTUAL_PREFIXES)
 
-def extract_capacity(bandwidth_kbit):
+def extract_capacity(bandwidth_kbit, interface_name=""):
     """
     Returns (label, speed_in_kbit) for sorting and display.
     """
     try:
-        bw = int(bandwidth_kbit)
+        if bandwidth_kbit == 'Unknown' or not bandwidth_kbit:
+            bw = 0
+        else:
+            bw = int(bandwidth_kbit)
     except:
         bw = 0
         
+    # Fallback to interface name inference if BW is 0 or missing
+    if bw == 0 and interface_name:
+        if_name = interface_name.lower()
+        if '100g' in if_name or 'hundredgig' in if_name:
+            bw = 100000000
+        elif '40g' in if_name or 'fortygig' in if_name:
+            bw = 40000000
+        elif '25g' in if_name or 'twentyfivegig' in if_name:
+            bw = 25000000
+        elif '10g' in if_name or 'tengig' in if_name or 'xge' in if_name:
+            bw = 10000000
+        elif 'giga' in if_name or 'gigabit' in if_name or 'ge' in if_name or 'eth' in if_name:
+            bw = 1000000
+            
     if bw == 1000000:
         return "1G", bw
     elif bw == 10000000:
@@ -81,7 +98,7 @@ def get_style(bw_kbit):
     """
     try:
         bw = str(int(bw_kbit))
-    except:
+    except (ValueError, TypeError):
         bw = "0"
         
     style = SPEED_COLORS.get(bw, SPEED_COLORS.get("default", {"width": 4, "color": "#800080"}))
@@ -141,7 +158,7 @@ def main():
         protocol = str(row.get('line_protocol', '')).lower()
         dashed = 1 if protocol != 'up' else ''
         
-        label, bw_val = extract_capacity(bw_kbit)
+        label, bw_val = extract_capacity(bw_kbit, row.get('interface', ''))
         
         if pair_key not in connections:
             connections[pair_key] = []
@@ -194,8 +211,7 @@ def main():
                 })
                 
             # Summarize formatting: "2x 10G"
-            label_str = rep_link['label']
-            deduplicated_links.append(f"{real_count}x {label_str}")
+            deduplicated_links.append(f"{real_count}x {rep_link['label']}")
 
         # Create one summarized row per node pair
         if deduplicated_links:
