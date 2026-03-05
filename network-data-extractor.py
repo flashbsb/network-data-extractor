@@ -4,7 +4,7 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
-Version : 1.24.0
+Version : 1.25.0
 Date    : 2026-03-05
 Author  : flashbsb (and contributors)
 
@@ -16,6 +16,7 @@ Changelog:
  - Added topology_checker.py LLDP Isolation Warning System (Axis 6)
  - Added Datacom parsing integration for interfaces_all.csv (Axis 7)
  - Added Multi-vendor terminal pagination support / Datacom Pager (Axis 8)
+ - Added Smart Regex Device Extractor for topology building (Axis 9)
 ============================================================
 
 Behavior:

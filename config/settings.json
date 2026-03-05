@@ -30,6 +30,13 @@
             "PEERING_",
             "TRUNK_"
         ],
+        "device_name_prefixes": [
+            "RT",
+            "SW",
+            "SM",
+            "PTT",
+            "DW"
+        ],
         "speed_colors": {
             "1000000": {
                 "width": 1,

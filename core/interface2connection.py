@@ -17,6 +17,7 @@ if os.path.exists("config/settings.json"):
 topology_cfg = json_config.get("topology", {})
 IGNORE_VIRTUAL_PREFIXES = tuple(topology_cfg.get("ignore_virtual_prefixes", ["Bundle", "PW", "NULL", "Null", "Loopback", "Tunnel"]))
 NEIGHBOR_PREFIXES = topology_cfg.get("neighbor_regex_prefixes", ["CONEXAO_COM_", "PEERING_", "TRUNK_"])
+DEVICE_NAME_PREFIXES = topology_cfg.get("device_name_prefixes", ["RT", "SW", "SM", "PTT", "DW"])
 SPEED_COLORS = topology_cfg.get("speed_colors", {
     "1000000": {"width": 1, "color": "#800080"},
     "10000000": {"width": 2, "color": "#0085DA"},
@@ -26,20 +27,23 @@ SPEED_COLORS = topology_cfg.get("speed_colors", {
 
 def parse_neighbor(description):
     """
-    Tries to find the neighbor (RT* or PTT*) in the description.
+    Smart Analyzer: Hunts anywhere in the description string for a known device 
+    naming convention (e.g. SWAC-ARPO2-01) based on settings.json prefixes.
     """
     if pd.isna(description):
         return None
         
-    prefix_group = "|".join(NEIGHBOR_PREFIXES)
-    pattern = rf'(?:{prefix_group})([A-Za-z0-9-]+(?:-[A-Za-z0-9]+)*)'
+    # Build regex like: ((?:RT|SW|SM|PTT|DW)[A-Za-z0-9]+-[A-Za-z0-9-]+)
+    dev_group = "|".join(DEVICE_NAME_PREFIXES)
+    pattern = rf'((?:{dev_group})[A-Za-z0-9]+-[A-Za-z0-9-]+)'
     
-    match = re.search(pattern, description)
+    match = re.search(pattern, str(description), re.IGNORECASE)
     if match:
-        neighbor = match.group(1)
-        neighbor = re.sub(r'_(?:IPV4|IPV6|ipv4|ipv6)$', '', neighbor)
-        if neighbor.startswith(('RT', 'PTT', 'SW', 'SM')):
-            return neighbor
+        neighbor = match.group(1).upper()
+        # Clean up suffix artifacts just in case
+        neighbor = re.sub(r'_(?:IPV4|IPV6)$', '', neighbor)
+        return neighbor
+        
     return None
 
 def is_virtual(interface_name):

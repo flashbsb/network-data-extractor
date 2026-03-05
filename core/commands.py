@@ -96,11 +96,34 @@ def execute_commands_shell(client, cmds):
     for cmd in cmds:
         # logging.info(f"Sending command: {cmd}") # Suppressed
         shell.send(cmd + '\n')
-        time.sleep(CMD_DELAY)
+        
         buff = b''
-        while shell.recv_ready():
-            buff += shell.recv(65535)
-            time.sleep(0.5)
+        timeout_limit = 20  # Maximum seconds to wait total per command
+        start_time = time.time()
+        last_recv_time = time.time()
+        
+        while True:
+            # If we've hit the hard timeout limit, break out
+            if time.time() - start_time > timeout_limit:
+                break
+                
+            if shell.recv_ready():
+                chunk = shell.recv(65535)
+                if chunk:
+                    buff += chunk
+                    last_recv_time = time.time()
+                    
+                    # Detect pagination markers in the last tailored chunk
+                    text_chunk = chunk.decode('utf-8', errors='ignore').lower()
+                    if '--more--' in text_chunk or '---- more' in text_chunk or 'press any key' in text_chunk:
+                        shell.send(' ') # Send Spacebar to continue
+                        time.sleep(0.1) # Give it a fraction to respond
+            else:
+                # If we haven't received anything new for CMD_DELAY seconds, assume it's done
+                if time.time() - last_recv_time > CMD_DELAY:
+                    break
+                time.sleep(0.1)
+                
         output_map[cmd] = buff.decode('utf-8', errors='ignore')
     shell.close()
     return output_map
