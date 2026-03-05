@@ -119,20 +119,35 @@ optional arguments:
   --no-randomize       Keep connection order sequential
   --skip-wizard        Skip the configuration confirmation prompt
   --user USER          SSH Username (if provided, skips interactive prompt)
-  --password PASSWORD  SSH Password (if provided, skips interactive prompt)
+  --password PASSWORD  [WARNING: Insecure for terminal] SSH Password. Use only for automated CRON/CI execution. Consider certificate auth instead.
+  --key KEY            Path to SSH Private Key (Certificate) for passwordless authentication
 ```
 
 #### Examples
 **Interactive Mode (Default):**
-Executes normally, confirming configuration files and asking for the SSH password via an invisible prompt.
+Executes normally, confirming configuration files and asking for the SSH password via an invisible prompt. You can also leave the password blank to let the script attempt to use your local SSH Agent keys (`~/.ssh/id_rsa`).
 ```bash
 python3 network-data-extractor.py
 ```
 
+**Semi-Interactive Mode (User only):**
+Skips the wizard and passes the username, but still prompts securely for the password.
+```bash
+python3 network-data-extractor.py --skip-wizard --user "admin"
+```
+
 **Headless / CI-CD Mode (No prompts):**
-Skips the wizard and receives the SSH credentials via parameters. Ideal for scripts running in the background.
+> **⚠️ SECURITY WARNING**: Passing `--password` in plaintext on the terminal is bad practice as it remains in your `.bash_history`. The script mitigates this slightly by issuing a `clear` command upon startup, but it is highly recommended to transition to SSH Key/Certificate authentication for unattended execution.
+
+Skips the wizard and receives all SSH credentials via parameters. Ideal for scripts running asynchronously in the background.
 ```bash
 python3 network-data-extractor.py --skip-wizard --user "admin" --password "super_secret"
+```
+
+**Secure Certificate Auth (Recommended):**
+Skips the password entirely by relying on an SSH private certificate. Perfect for secure, automated production pipelines.
+```bash
+python3 network-data-extractor.py --skip-wizard --user "admin" --key "/home/user/.ssh/id_rsa"
 ```
 
 **Tuning Performance Constraints:**

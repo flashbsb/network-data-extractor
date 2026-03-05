@@ -8,13 +8,6 @@ Version : 1.28.0
 Date    : 2026-03-05
 Author  : flashbsb (and contributors)
 
-Changelog:
- - Externalized architecture parameters to config/settings.json
- - Added Interactive Configuration Wizard with Bypasses
- - Migrated topology hardcodes to dynamic dictionaries
- - Added L2 Consistency, BGP, and Business Service Extraction
-============================================================
-
 Behavior:
  - Does not prompt for credentials initially.
  - When reaching commands.py, executes INTERACTIVELY (stdin/tty connected).
@@ -102,8 +95,13 @@ parser.add_argument("--randomize", action="store_true", default=def_randomize, h
 parser.add_argument("--no-randomize", dest="randomize", action="store_false", help="Keep connection order sequential")
 parser.add_argument("--skip-wizard", action="store_true", help="Skip the configuration confirmation prompt")
 parser.add_argument("--user", type=str, help="SSH Username (if provided, skips interactive prompt)")
-parser.add_argument("--password", type=str, help="SSH Password (if provided, skips interactive prompt)")
+parser.add_argument("--password", type=str, help="[WARNING: Insecure for terminal] SSH Password. Use only for automated CRON/CI execution. Consider certificate auth instead.")
+parser.add_argument("--key", type=str, help="Path to SSH Private Key (Certificate) for passwordless authentication")
 args = parser.parse_args()
+
+# Clear the screen if a plaintext password was passed via CLI to hide it from terminal history
+if args.password:
+    os.system('clear' if os.name == 'posix' else 'cls')
 
 DIR_SUFFIX = datetime.now().strftime("%Y%m%d_%H%M%S")
 TIMESTAMP_DIR = os.path.abspath(os.path.join(args.outbase, DIR_SUFFIX))
@@ -287,9 +285,17 @@ for i, script in enumerate(SCRIPTS, start=1):
             cmd.append("--no-randomize")
         print(f">>> {C_CYAN}core/commands.py{C_RESET} is running. Extracted data goes to: collect/")
         try:
-            # Let standard bounds stay active for user password inputs
+            # Let standard bounds stay active for user password inputs, but pass our modified env
             script_start_time = datetime.now()
-            rc = subprocess.run(cmd)
+            
+            # Setup environment for this subprocess specifically
+            cmd_env = os.environ.copy()
+            cmd_env["PYTHONIOENCODING"] = "utf-8"
+            if args.user: cmd_env["NDX_SSH_USER"] = args.user
+            if args.password: cmd_env["NDX_SSH_PASS"] = args.password
+            if args.key: cmd_env["NDX_SSH_KEY"] = args.key
+            
+            rc = subprocess.run(cmd, env=cmd_env)
             script_duration = (datetime.now() - script_start_time).total_seconds()
             
             status_text = f"{C_GREEN}[SUCCESS]{C_RESET}" if rc.returncode == 0 else f"{C_RED}[FAILED ]{C_RESET}"

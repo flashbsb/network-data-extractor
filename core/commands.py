@@ -157,14 +157,22 @@ def main():
     # Check if credentials were provided via environment variables (Non-interactive mode)
     env_user = os.environ.get('NDX_SSH_USER')
     env_pass = os.environ.get('NDX_SSH_PASS')
+    env_key  = os.environ.get('NDX_SSH_KEY')
     
-    if env_user and env_pass:
-        logging.info("Using SSH credentials provided via arguments/environment.")
+    if env_user:
+        logging.info("Using SSH username provided via arguments/environment.")
         user = env_user
-        password = env_pass
     else:
         user = input('SSH Worker User: ')
-        password = getpass.getpass('SSH Password: ')
+        
+    password = None
+    if env_key:
+        logging.info(f"Using explicit SSH key provided via arguments: {env_key}")
+    elif env_pass:
+        logging.info("Using SSH password provided via arguments/environment.")
+        password = env_pass
+    else:
+        password = getpass.getpass('SSH Password (leave blank to use local SSH Agent/Keys): ')
 
     if not elements:
         logging.error('No valid elements found.')
@@ -201,7 +209,22 @@ def main():
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         try:
-            client.connect(ip, username=user, password=password, timeout=SSH_TIMEOUT, look_for_keys=False)
+            connect_kwargs = {
+                "username": user,
+                "timeout": SSH_TIMEOUT,
+                "look_for_keys": False,
+                "allow_agent": False
+            }
+            if env_key:
+                connect_kwargs['key_filename'] = env_key
+            elif password:
+                connect_kwargs['password'] = password
+            else:
+                # If neither explicit key nor password given, allow paramiko to search local keys/agent
+                connect_kwargs['look_for_keys'] = True
+                connect_kwargs['allow_agent'] = True
+                
+            client.connect(ip, **connect_kwargs)
         except Exception as e:
             logging.error(f"Connection failed for {host}: {e}")
             with counter_lock:
