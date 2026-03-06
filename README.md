@@ -121,6 +121,8 @@ optional arguments:
   --user USER          SSH Username (if provided, skips interactive prompt)
   --password PASSWORD  [WARNING: Insecure for terminal] SSH Password. Use only for automated CRON/CI execution. Consider certificate auth instead.
   --key KEY            Path to SSH Private Key (Certificate) for passwordless authentication
+  --force              Force execution even if data collection fails
+  --offline DIR        Skip data collection and process existing files in the specified directory
 ```
 
 #### Examples
@@ -138,6 +140,12 @@ python3 network-data-extractor.py --skip-wizard --user "admin"
 
 **Headless / CI-CD Mode (No prompts):**
 > **⚠️ SECURITY WARNING**: Passing `--password` in plaintext on the terminal is bad practice as it remains in your `.bash_history`. The script mitigates this slightly by issuing a `clear` command upon startup, but it is highly recommended to transition to SSH Key/Certificate authentication for unattended execution.
+
+**Offline Data Processing:**
+If you have already collected data or had a partial failure and simply want to rerun the parsing stack against an existing `collect/` folder, use the `--offline` flag. This will skip polling the equipment and will just parse data residing in that folder.
+```bash
+python3 network-data-extractor.py --offline infos/20260306_104132
+```
 
 Skips the wizard and receives all SSH credentials via parameters. Ideal for scripts running asynchronously in the background.
 ```bash

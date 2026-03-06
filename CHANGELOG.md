@@ -3,6 +3,9 @@
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
 ## [1.28.3] - 2026-03-06
+### Added
+- **Offline Processing (`--offline`)**: Added the ability to skip active SSH polling and reprocess existing `collect/` folders directly to generate updated CSVs and topology maps without logging into the equipment again.
+
 ### Fixed
 - **Empty Collection Handling**: The orchestrator now correctly stops execution if `core/commands.py` fails to collect any files (exit code 100).
 - **Silent Parser Success**: Implemented smart data presence checks before running parsers. If the required raw `collect/*.txt` files are missing, the orchestrator skips the parser (`[SKIPPED - NO DATA]`) instead of executing it and reporting a false `[SUCCESS]`.

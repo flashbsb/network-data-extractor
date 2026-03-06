@@ -109,110 +109,52 @@ parser.add_argument("--user", type=str, help="SSH Username (if provided, skips i
 parser.add_argument("--password", type=str, help="[WARNING: Insecure for terminal] SSH Password. Use only for automated CRON/CI execution. Consider certificate auth instead.")
 parser.add_argument("--key", type=str, help="Path to SSH Private Key (Certificate) for passwordless authentication")
 parser.add_argument("--force", action="store_true", help="Force execution even if data collection fails")
+parser.add_argument("--offline", type=str, metavar="DIR", help="Skip data collection and process existing files in the specified directory")
 args = parser.parse_args()
 
 # Clear the screen if a plaintext password was passed via CLI to hide it from terminal history
 if args.password:
     os.system('clear' if os.name == 'posix' else 'cls')
 
-DIR_SUFFIX = datetime.now().strftime("%Y%m%d_%H%M%S")
-TIMESTAMP_DIR = os.path.abspath(os.path.join(args.outbase, DIR_SUFFIX))
-LOG_DIR = os.path.join(TIMESTAMP_DIR, "log")
-COLLECT_DIR = os.path.join(TIMESTAMP_DIR, "collect")
-RESUME_DIR = os.path.join(TIMESTAMP_DIR, "resume")
-CONNECTIONS_DIR = os.path.join(TIMESTAMP_DIR, "connections")
+if args.offline:
+    TIMESTAMP_DIR = os.path.abspath(args.offline)
+    if not os.path.isdir(TIMESTAMP_DIR):
+        print(f"{C_RED}ERROR: Offline directory '{args.offline}' not found.{C_RESET}")
+        sys.exit(1)
+        
+    LOG_DIR = os.path.join(TIMESTAMP_DIR, "log")
+    COLLECT_DIR = os.path.join(TIMESTAMP_DIR, "collect")
+    RESUME_DIR = os.path.join(TIMESTAMP_DIR, "resume")
+    CONNECTIONS_DIR = os.path.join(TIMESTAMP_DIR, "connections")
 
-os.makedirs(LOG_DIR, exist_ok=True)
-os.makedirs(COLLECT_DIR, exist_ok=True)
-os.makedirs(RESUME_DIR, exist_ok=True)
-os.makedirs(CONNECTIONS_DIR, exist_ok=True)
+    os.makedirs(LOG_DIR, exist_ok=True)
+    os.makedirs(COLLECT_DIR, exist_ok=True)
+    os.makedirs(RESUME_DIR, exist_ok=True)
+    os.makedirs(CONNECTIONS_DIR, exist_ok=True)
 
-orchestrator_log = os.path.join(LOG_DIR, "orchestrator.log")
-def log_orchestrator(msg):
-    with open(orchestrator_log, "a", encoding="utf-8") as f:
-        f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {msg}\n")
+    orchestrator_log = os.path.join(LOG_DIR, "orchestrator.log")
+    def log_orchestrator(msg):
+        with open(orchestrator_log, "a", encoding="utf-8") as f:
+            f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {msg}\n")
 
-start_time = datetime.now()
-log_orchestrator(f"Extraction Started. Output Root: {TIMESTAMP_DIR}")
-print(f"{C_CYAN}")
-print("============================================================")
-print("           NETWORK DATA EXTRACTOR ORCHESTRATOR           ")
-print("============================================================")
-print(f"Version : {APP_VERSION}")
-print(f"Date    : {APP_DATE}")
-print("============================================================")
-print(f"{C_RESET}")
-print(f"Start: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
-print(f"Output Root: {TIMESTAMP_DIR}\n")
-
-if not args.skip_wizard:
-    print(f"{C_CYAN}--- Interactive Configuration Wizard ---{C_RESET}")
-    print(f"Loaded {C_GREEN}config/settings.json{C_RESET} defaults:")
-    print(f"  * Threads          : {args.threads}")
-    print(f"  * Extractor Base   : {args.outbase}")
-    print(f"  * Elements File    : {args.elements}")
-    print(f"  * Commands File    : {args.commands}")
-    print(f"  * Randomize Order  : {args.randomize}")
-    print(f"  * SSH Timeout      : {SSH_TIMEOUT}s")
-    print(f"  * Command Delay    : {CMD_DELAY}s")
-    print(f"  * Ignored Virtuals : {len(IGNORE_VIRTUAL_PREFIXES)} prefixes defined")
-    print(f"  * Neighbor Matches : {len(NEIGHBOR_PREFIXES)} patterns defined")
-    print(f"  * Ignored Discover : {len(IGNORE_NEW_PREFIXES)} prefixes defined")
+    start_time = datetime.now()
+    log_orchestrator(f"Offline Processing Started. Target Root: {TIMESTAMP_DIR}")
+    print(f"{C_CYAN}")
+    print("============================================================")
+    print("           NETWORK DATA EXTRACTOR ORCHESTRATOR           ")
+    print("============================================================")
+    print(f"Version : {APP_VERSION}")
+    print(f"Date    : {APP_DATE}")
+    print("============================================================")
+    print(f"{C_RESET}")
+    print(f"Start: {start_time.strftime('%Y-%m-%d %H:%M:%S')} {C_YELLOW}(OFFLINE MODE){C_RESET}")
+    print(f"Target Root: {TIMESTAMP_DIR}\n")
     print(f"{C_CYAN}----------------------------------------{C_RESET}")
-    
-    try:
-        use_defaults = input("Use these default configurations? [Y/n]: ").strip().lower()
-        if use_defaults not in ['n', 'no', 'false', '0']:
-            print("Accepting defaults. Skipping granular setup...\n")
-        else:
-            print("\nPress [ENTER] to accept the [] default value, or type a new value.")
-            # Prompt for Threads
-            inp_threads = input(f"  * Threads          [{args.threads}]: ").strip()
-            if inp_threads: args.threads = int(inp_threads)
-            
-            # Prompt for Extractor Base
-            inp_outbase = input(f"  * Extractor Base   [{args.outbase}]: ").strip()
-            if inp_outbase: args.outbase = inp_outbase
-            
-            # Prompt for Elements File
-            inp_elements = input(f"  * Elements File    [{args.elements}]: ").strip()
-            if inp_elements: args.elements = inp_elements
-            
-            # Prompt for Commands File
-            inp_commands = input(f"  * Commands File    [{args.commands}]: ").strip()
-            if inp_commands: args.commands = inp_commands
-            
-            # Prompt for Randomize
-            inp_rand = input(f"  * Randomize Order  [{args.randomize}] (y/n): ").strip().lower()
-            if inp_rand in ['y', 'yes', 'true', '1']:
-                args.randomize = True
-            elif inp_rand in ['n', 'no', 'false', '0']:
-                args.randomize = False
+    print(f"Offline processing initializing...")
+    print("")
 
-            # Prompt for SSH Timeout
-            inp_ssh_time = input(f"  * SSH Timeout      [{SSH_TIMEOUT}]: ").strip()
-            if inp_ssh_time: 
-                SSH_TIMEOUT = int(inp_ssh_time)
-                json_config['ssh']['timeout'] = SSH_TIMEOUT
-                
-            # Prompt for Command Delay
-            inp_cmd_delay = input(f"  * Command Delay    [{CMD_DELAY}]: ").strip()
-            if inp_cmd_delay: 
-                CMD_DELAY = int(inp_cmd_delay)
-                json_config['ssh']['delay_between_commands'] = CMD_DELAY
-                
-            # Persist interactive changes back to settings.json purely for child scripts to read
-            try:
-                with open("config/settings.json", "w") as f:
-                    json.dump(json_config, f, indent=4)
-            except Exception as e:
-                print(f"Warning: Could not save interactive overrides to settings.json: {e}")
-            
-    except KeyboardInterrupt:
-        print("\nAborted by user.")
-        sys.exit(130)
-    
-    # Re-evaluate TIMESTAMP_DIR just in case Outbase changed
+else:
+    DIR_SUFFIX = datetime.now().strftime("%Y%m%d_%H%M%S")
     TIMESTAMP_DIR = os.path.abspath(os.path.join(args.outbase, DIR_SUFFIX))
     LOG_DIR = os.path.join(TIMESTAMP_DIR, "log")
     COLLECT_DIR = os.path.join(TIMESTAMP_DIR, "collect")
@@ -223,10 +165,107 @@ if not args.skip_wizard:
     os.makedirs(COLLECT_DIR, exist_ok=True)
     os.makedirs(RESUME_DIR, exist_ok=True)
     os.makedirs(CONNECTIONS_DIR, exist_ok=True)
-    
-    print(f"{C_CYAN}----------------------------------------{C_RESET}")
-    print(f"Extraction initializing...")
-    print("")
+
+    orchestrator_log = os.path.join(LOG_DIR, "orchestrator.log")
+    def log_orchestrator(msg):
+        with open(orchestrator_log, "a", encoding="utf-8") as f:
+            f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {msg}\n")
+
+    start_time = datetime.now()
+    log_orchestrator(f"Extraction Started. Output Root: {TIMESTAMP_DIR}")
+    print(f"{C_CYAN}")
+    print("============================================================")
+    print("           NETWORK DATA EXTRACTOR ORCHESTRATOR           ")
+    print("============================================================")
+    print(f"Version : {APP_VERSION}")
+    print(f"Date    : {APP_DATE}")
+    print("============================================================")
+    print(f"{C_RESET}")
+    print(f"Start: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"Output Root: {TIMESTAMP_DIR}\n")
+
+    if not args.skip_wizard:
+        print(f"{C_CYAN}--- Interactive Configuration Wizard ---{C_RESET}")
+        print(f"Loaded {C_GREEN}config/settings.json{C_RESET} defaults:")
+        print(f"  * Threads          : {args.threads}")
+        print(f"  * Extractor Base   : {args.outbase}")
+        print(f"  * Elements File    : {args.elements}")
+        print(f"  * Commands File    : {args.commands}")
+        print(f"  * Randomize Order  : {args.randomize}")
+        print(f"  * SSH Timeout      : {SSH_TIMEOUT}s")
+        print(f"  * Command Delay    : {CMD_DELAY}s")
+        print(f"  * Ignored Virtuals : {len(IGNORE_VIRTUAL_PREFIXES)} prefixes defined")
+        print(f"  * Neighbor Matches : {len(NEIGHBOR_PREFIXES)} patterns defined")
+        print(f"  * Ignored Discover : {len(IGNORE_NEW_PREFIXES)} prefixes defined")
+        print(f"{C_CYAN}----------------------------------------{C_RESET}")
+        
+        try:
+            use_defaults = input("Use these default configurations? [Y/n]: ").strip().lower()
+            if use_defaults not in ['n', 'no', 'false', '0']:
+                print("Accepting defaults. Skipping granular setup...\n")
+            else:
+                print("\nPress [ENTER] to accept the [] default value, or type a new value.")
+                # Prompt for Threads
+                inp_threads = input(f"  * Threads          [{args.threads}]: ").strip()
+                if inp_threads: args.threads = int(inp_threads)
+                
+                # Prompt for Extractor Base
+                inp_outbase = input(f"  * Extractor Base   [{args.outbase}]: ").strip()
+                if inp_outbase: args.outbase = inp_outbase
+                
+                # Prompt for Elements File
+                inp_elements = input(f"  * Elements File    [{args.elements}]: ").strip()
+                if inp_elements: args.elements = inp_elements
+                
+                # Prompt for Commands File
+                inp_commands = input(f"  * Commands File    [{args.commands}]: ").strip()
+                if inp_commands: args.commands = inp_commands
+                
+                # Prompt for Randomize
+                inp_rand = input(f"  * Randomize Order  [{args.randomize}] (y/n): ").strip().lower()
+                if inp_rand in ['y', 'yes', 'true', '1']:
+                    args.randomize = True
+                elif inp_rand in ['n', 'no', 'false', '0']:
+                    args.randomize = False
+
+                # Prompt for SSH Timeout
+                inp_ssh_time = input(f"  * SSH Timeout      [{SSH_TIMEOUT}]: ").strip()
+                if inp_ssh_time: 
+                    SSH_TIMEOUT = int(inp_ssh_time)
+                    json_config['ssh']['timeout'] = SSH_TIMEOUT
+                    
+                # Prompt for Command Delay
+                inp_cmd_delay = input(f"  * Command Delay    [{CMD_DELAY}]: ").strip()
+                if inp_cmd_delay: 
+                    CMD_DELAY = int(inp_cmd_delay)
+                    json_config['ssh']['delay_between_commands'] = CMD_DELAY
+                    
+                # Persist interactive changes back to settings.json purely for child scripts to read
+                try:
+                    with open("config/settings.json", "w") as f:
+                        json.dump(json_config, f, indent=4)
+                except Exception as e:
+                    print(f"Warning: Could not save interactive overrides to settings.json: {e}")
+                
+        except KeyboardInterrupt:
+            print("\nAborted by user.")
+            sys.exit(130)
+        
+        # Re-evaluate TIMESTAMP_DIR just in case Outbase changed
+        TIMESTAMP_DIR = os.path.abspath(os.path.join(args.outbase, DIR_SUFFIX))
+        LOG_DIR = os.path.join(TIMESTAMP_DIR, "log")
+        COLLECT_DIR = os.path.join(TIMESTAMP_DIR, "collect")
+        RESUME_DIR = os.path.join(TIMESTAMP_DIR, "resume")
+        CONNECTIONS_DIR = os.path.join(TIMESTAMP_DIR, "connections")
+
+        os.makedirs(LOG_DIR, exist_ok=True)
+        os.makedirs(COLLECT_DIR, exist_ok=True)
+        os.makedirs(RESUME_DIR, exist_ok=True)
+        os.makedirs(CONNECTIONS_DIR, exist_ok=True)
+        
+        print(f"{C_CYAN}----------------------------------------{C_RESET}")
+        print(f"Extraction initializing...")
+        print("")
 
 cwd = os.getcwd()
 
@@ -340,6 +379,11 @@ for i, script in enumerate(SCRIPTS, start=1):
     cmd = [sys.executable, script_path]
 
     if script_name == "commands.py":
+        if args.offline:
+            print(f"{step_prefix} {C_YELLOW}[SKIPPED - OFFLINE MODE]{C_RESET}")
+            log_orchestrator(f"Skipped {script_name}: Running in offline mode.")
+            continue
+            
         cmd.extend(["--outdir", COLLECT_DIR, "--logdir", LOG_DIR, "--threads", str(args.threads), "--elements", args.elements, "--commands", args.commands])
         if args.randomize:
             cmd.append("--randomize")
