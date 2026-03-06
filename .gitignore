@@ -2,3 +2,4 @@
 infos*/
 *.log
 *.csv
+config/elements.cfg
