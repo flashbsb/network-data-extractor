@@ -52,9 +52,18 @@ def main():
             isolated.append(node)
 
     # 4. Generate Audit Report & Signal Orchestrator
+    print(f"Audit Results:")
+    print(f"  * Total Successful Elements: {len(ok_elements)}")
+    print(f"  * Elements in Topology    : {len(topology_nodes)}")
+    print(f"  * Isolated Elements Found : {len(isolated)}")
+
     if isolated:
         # Sort alphabetically for a neat report
         isolated.sort()
+        print("\nIsolated Elements List:")
+        for node in isolated:
+            print(f"  - {node}")
+            
         headers = ["element_name", "status", "issue", "recommended_reason"]
         with open(out_csv, 'w', newline='', encoding='utf-8') as f:
             writer = csv.DictWriter(f, fieldnames=headers, delimiter=';')
@@ -67,10 +76,12 @@ def main():
                     "recommended_reason": "LLDP neighbors restricted, missing, or interface2connection Regex filters dropped it."
                 })
         
+        print(f"\nDetailed report generated: {out_csv}")
         # We use a special return code (e.g. 50) to signal to the main script that isolated nodes exist
         import sys
         sys.exit(50)
     else:
+        print("\nNo isolated nodes detected. All successful elements are present in the topology map.")
         # Clear any old isolation reports if things are perfectly healthy
         if os.path.exists(out_csv):
             try:

@@ -193,6 +193,7 @@ def main():
 
     def process_element(elem):
         nonlocal counter
+        nonlocal files_written
         host = elem['hostname']
         ip = elem['ip']
         key = elem['cmd_key']

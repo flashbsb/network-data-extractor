@@ -4,7 +4,7 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
-Version : 1.28.3
+Version : 1.28.6
 Date    : 2026-03-06
 Author  : flashbsb (and contributors)
 
@@ -24,7 +24,7 @@ import csv
 from datetime import datetime
 from glob import glob
 
-APP_VERSION = "1.28.3"
+APP_VERSION = "1.28.6"
 APP_DATE = "2026-03-06"
 
 # ANSI Colors
@@ -325,16 +325,23 @@ def check_data_presence(script_path, collect_dir, resume_dir):
          return len(glob(os.path.join(collect_dir, f"*.{cmd_part}.txt"))) > 0
 
     if script_name == "system_asset.py":
+        # system_asset.py parses Datacom show system, and Cisco show version / show platform
         return any(len(glob(os.path.join(collect_dir, pat))) > 0 for pat in ["*.show.system.txt", "*.show.version.txt", "*.show.platform.txt"])
 
     if script_name == "transceiver_matrix.py":
-        return any(len(glob(os.path.join(collect_dir, pat))) > 0 for pat in ["*.show.inventory.txt", "*.show.interfaces.transceiver.txt"])
+        # transceiver_matrix.py parses Datacom hardware-status AND Cisco inventory/inventory details
+        return any(len(glob(os.path.join(collect_dir, pat))) > 0 for pat in [
+            "*.show.hardware-status.transceivers.detail.txt",
+            "*.show.inventory.details.txt", 
+            "*.show.inventory.txt"
+        ])
 
     if script_name == "subcomponents.py":
-        return len(glob(os.path.join(collect_dir, "*.show.inventory.txt"))) > 0
+        # subcomponents.py parses show inventory
+        return any(len(glob(os.path.join(collect_dir, pat))) > 0 for pat in ["*.show.inventory.txt", "*.show.inventory.details.txt"])
 
     if script_name == "license_matrix.py":
-        return len(glob(os.path.join(collect_dir, "*.show.license.txt"))) > 0
+        return any(len(glob(os.path.join(collect_dir, pat))) > 0 for pat in ["*.show.license.summary.txt", "*.show.license.feature.txt", "*.show.license.txt"])
 
     if script_name == "port_census.py":
         return os.path.isfile(os.path.join(resume_dir, "interfaces_all.csv"))
@@ -349,7 +356,9 @@ def check_data_presence(script_path, collect_dir, resume_dir):
          return os.path.isfile(os.path.join(resume_dir, "interfaces_all.csv"))
 
     if script_name == "topology_checker.py":
-         return os.path.isfile(os.path.join(resume_dir, "topology.connections.csv"))
+         # Check in the connections directory, which is a sibling to resume
+         conn_dir = os.path.join(os.path.dirname(resume_dir), "connections")
+         return os.path.isfile(os.path.join(conn_dir, "topology.connections.csv"))
     
     if script_name == "element_status.py":
          return len(glob(os.path.join(collect_dir, "*.txt"))) > 0

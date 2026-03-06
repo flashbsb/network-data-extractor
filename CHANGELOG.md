@@ -2,6 +2,25 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.28.7] - 2026-03-06
+### Fixed
+- **Topology Audit Logging**: Fixed a bug where `core/topology_checker.py` was generating an empty log file. Added verbose output to the script so that audit results and isolated node lists are correctly captured by the orchestrator.
+
+## [1.28.6] - 2026-03-06
+### Fixed
+- **Comprehensive Audit of Skip Logic**: Performed a full validation of all `check_data_presence` rules. 
+- **Transceiver Matrix Detection**: Corrected patterns for `transceiver_matrix.py` to include Datacom-specific `hardware-status` and Cisco's `inventory.details` filenames, which were previously being ignored.
+- **Subcomponents Detection**: Expanded detection patterns to ensure consistency for both vendors.
+
+## [1.28.5] - 2026-03-06
+### Fixed
+- **Parser Skip Logic**: Fixed a bug where `license_matrix.py` was being skipped due to a mismatch in filename patterns (`*.show.license.txt` vs the actual `*.show.license.summary.txt` or `feature.txt`).
+- **Topology Check Skip**: Fixed a path error in the skip logic for `core/topology_checker.py`, which was looking for the connections CSV in the wrong directory.
+
+## [1.28.4] - 2026-03-06
+### Fixed
+- **UnboundLocalError in Commands**: Fixed a scoping bug introduced in 1.28.3 where `commands.py` crashed silently during thread execution due to the `files_written` variable missing a `nonlocal` declaration, resulting in false 100 exit codes even when files were successfully generated.
+
 ## [1.28.3] - 2026-03-06
 ### Added
 - **Offline Processing (`--offline`)**: Added the ability to skip active SSH polling and reprocess existing `collect/` folders directly to generate updated CSVs and topology maps without logging into the equipment again.
