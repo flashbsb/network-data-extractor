@@ -2,8 +2,13 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
-## [1.28.2] - 2026-03-05
+## [1.28.3] - 2026-03-06
 ### Fixed
+- **Empty Collection Handling**: The orchestrator now correctly stops execution if `core/commands.py` fails to collect any files (exit code 100).
+- **Silent Parser Success**: Implemented smart data presence checks before running parsers. If the required raw `collect/*.txt` files are missing, the orchestrator skips the parser (`[SKIPPED - NO DATA]`) instead of executing it and reporting a false `[SUCCESS]`.
+- **Force Execution**: Added a `--force` flag to bypass the new missing-data safeguards if needed by legacy automation pipelines.
+
+## [1.28.2] - 2026-03-05
 - **Orchestration:** Corrected script categorization logic that was still allowing the BGP parser to run in the atomic `show.*` loop without mandatory arguments.
 
 

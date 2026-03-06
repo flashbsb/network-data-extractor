@@ -188,6 +188,8 @@ def main():
     pad = len(str(total_elements))
     counter = 0
     counter_lock = threading.Lock()
+    files_written = 0
+    files_written_lock = threading.Lock()
 
     def process_element(elem):
         nonlocal counter
@@ -243,6 +245,8 @@ def main():
                 with open(os.path.join(args.outdir, fname), 'w') as f:
                     f.write(f"# Host: {host}\n# IP: {ip}\n# Command: {cmd}\n# Date: {timestamp}\n\n")
                     f.write(out)
+                with files_written_lock:
+                    files_written += 1
                 # Omit verbose logging of every single file generated to preserve terminal UX
             except Exception as e:
                 logging.error(f"Error saving '{fname}': {e}")
@@ -258,6 +262,10 @@ def main():
     # Start the thread pool with the specified number of threads
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.threads) as executor:
         executor.map(process_element, elements)
+
+    if files_written == 0:
+        logging.error("No data files were written. Collection failed or no elements responded.")
+        sys.exit(100)
 
 if __name__ == '__main__':
     main()
