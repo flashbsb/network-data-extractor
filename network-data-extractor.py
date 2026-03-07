@@ -845,7 +845,12 @@ minutes = (total_seconds % 3600) // 60
 seconds = total_seconds % 60
 print(f"Total processing time: {hours:02d}:{minutes:02d}:{seconds:02d}")
 
-print(f"\n{C_CYAN}All tasks completed. For updates and new versions, visit:{C_RESET}")
-print(f"{C_CYAN}https://github.com/flashbsb/network-data-extractor{C_RESET}\n")
+print(f"\n{C_CYAN}🔗 Repository - Follow on GitHub for new versions and updates{C_RESET}")
+print(f"\n{C_GREEN}Generate topologies dynamically{C_RESET}")
+print("https://github.com/flashbsb/network-topology-generator")
+print(f"\n{C_GREEN}Execute massive commands simply and generate connection information between network elements{C_RESET}")
+print("https://github.com/flashbsb/network-data-extractor")
+print(f"\n{C_GREEN}Dimension backbone topologies for testing:{C_RESET}")
+print("https://github.com/flashbsb/backbone-network-topology-generator\n")
 
 sys.exit(0)

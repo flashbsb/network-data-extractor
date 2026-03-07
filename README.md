@@ -174,3 +174,16 @@ Upon each execution, the entire ecosystem will be securely encapsulated in a fol
 - `/resume/`: The valuable, consolidated, and sanitized tables (`.csv`) ready to be imported into a Grafana/PowerBI Dashboard or opened in Excel for quick network management decisions.
 - `/resume/status.elements.csv`: Who failed to respond, who was successfully accessed, and even rogue/undocumented ("NEW") equipment orbiting the analyzed topology.
 - `/connections/topology.connections.csv`: Formal A->B edge mapping, cross-checked without bidirectional redundancy biases.
+
+---
+
+🔗 Repository - Follow on GitHub for new versions and updates
+
+Generate topologies dynamically
+https://github.com/flashbsb/network-topology-generator
+
+Execute massive commands simply and generate connection information between network elements
+https://github.com/flashbsb/network-data-extractor
+
+Dimension backbone topologies for testing:
+https://github.com/flashbsb/backbone-network-topology-generator
