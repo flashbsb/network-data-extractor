@@ -69,6 +69,7 @@ def main():
     parser.add_argument("--outdir", required=True, help="Directory to save the discovery results")
     parser.add_argument("--out_filename", help="Filename for the discovered elements (overrides settings.json)")
     parser.add_argument("--settings", help="Path to settings.json")
+    parser.add_argument("--resumedir", help="Directory for the CSV report (discovered_elements.csv)")
     args = parser.parse_args()
 
     settings = load_settings(args.settings)
@@ -159,6 +160,21 @@ def main():
             for line in output_elements:
                 f.write(line + "\n")
         print(f"Generated {len(output_elements)} potential new elements in {out_path}")
+        
+        # Also generate CSV report in resumedir
+        report_dir = args.resumedir if args.resumedir else args.outdir
+        csv_report_path = os.path.join(report_dir, "discovered_elements.csv")
+        csv_headers = ['hostname', 'ips', 'cmd_keys']
+        try:
+            with open(csv_report_path, 'w', newline='') as csvfile:
+                writer = csv.writer(csvfile, delimiter=';')
+                writer.writerow(csv_headers)
+                for line in output_elements:
+                    parts = line.split(';')
+                    writer.writerow(parts)
+            print(f"Discovery CSV report generated in {csv_report_path}")
+        except Exception as e:
+            print(f"Warning: Failed to generate discovery CSV report: {e}")
     else:
         print("No new elements discovered.")
 

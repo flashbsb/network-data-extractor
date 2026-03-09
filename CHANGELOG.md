@@ -2,6 +2,11 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
  
+## [1.34.0] - 2026-03-09
+### Changed
+- **Relocated Success Reports**: Moved `successful_keys.csv` from the raw data directory (`collect/`) to the summary directory (`resume/`) to keep `collect/` exclusively for raw command outputs.
+- **Improved Discovery Reporting**: `discovery.py` now generates a structured `discovered_elements.csv` report in the `resume/` directory, detailing hostnames, discovered IPs, and fallback keys for each hop.
+
 ## [1.33.1] - 2026-03-09
 ### Fixed
 - **Hostname Normalization**: Implemented `normalize_hostname` in `discovery.py` to correctly deduplicate FQDN vs short hostnames during discovery.

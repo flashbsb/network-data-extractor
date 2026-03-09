@@ -138,6 +138,7 @@ def main():
     parser.add_argument("--elements", type=str, default="config/elements.cfg", help="Input file containing the list of elements")
     parser.add_argument("--commands", type=str, default="config/commands.cfg", help="Input file containing the list of commands")
     parser.add_argument("--randomize", action="store_true", default=True, help="Randomize the connection order (default: True)")
+    parser.add_argument("--resumedir", help="Directory for consolidated/summary reports (e.g. successful_keys.csv)")
     parser.add_argument("--no-randomize", dest="randomize", action="store_false", help="Keep the connection order exactly as in the elements file")
     args = parser.parse_args()
 
@@ -248,7 +249,7 @@ def main():
                             logging.error(f"Error saving '{fname}': {e}")
                     
                     # Log the successful key for the user (to adjust elements.cfg)
-                    success_keys_file = os.path.join(args.outdir, "successful_keys.csv")
+                    success_keys_file = os.path.join(args.resumedir or args.outdir, "successful_keys.csv")
                     with files_written_lock:
                         with open(success_keys_file, 'a') as skf:
                             skf.write(f"{host};{current_ip};{current_key}\n")

@@ -4,7 +4,7 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
-Version : 1.33.1
+Version : 1.34.0
 Date    : 2026-03-09
 Author  : flashbsb (and contributors)
 
@@ -491,7 +491,7 @@ while True:
                 log_orchestrator(f"Skipped {script_name}: Running in offline mode.")
                 continue
                 
-            cmd.extend(["--outdir", COLLECT_DIR, "--logdir", LOG_DIR, "--threads", str(args.threads), "--elements", current_elements_file, "--commands", args.commands])
+            cmd.extend(["--outdir", COLLECT_DIR, "--resumedir", RESUME_DIR, "--logdir", LOG_DIR, "--threads", str(args.threads), "--elements", current_elements_file, "--commands", args.commands])
             if args.randomize:
                 cmd.append("--randomize")
             else:
@@ -697,7 +697,7 @@ while True:
         
         # Pass ALL known elements files to the skip list
         elements_skip_str = ",".join(known_elements_chain)
-        cmd_disco = [sys.executable, disco_script, "--resume_dir", RESUME_DIR, "--elements_cfg", elements_skip_str, "--outdir", TIMESTAMP_DIR, "--out_filename", disco_fname, "--settings", args.settings]
+        cmd_disco = [sys.executable, disco_script, "--resume_dir", RESUME_DIR, "--resumedir", RESUME_DIR, "--elements_cfg", elements_skip_str, "--outdir", TIMESTAMP_DIR, "--out_filename", disco_fname, "--settings", args.settings]
         
         disco_log_path = os.path.join(LOG_DIR, f"discovery_hop_{current_hop+1}.log")
         
