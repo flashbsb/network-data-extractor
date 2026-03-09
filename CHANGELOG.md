@@ -2,6 +2,18 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.30.0] - 2026-03-09
+### Added
+- **Recursive Network Discovery (`--discovery`)**: Implemented multi-hop recursive crawling. The script now parses LLDP neighbors at the end of each cycle and generates a new target list for the next hop.
+- **Management IP Election Logic**: Intelligent IP selection for discovered neighbors. Prioritizes configured `preferred_management_subnets` (loopbacks/mgmt) and falls back to other reachable IPs.
+- **Authentication Fallback (Multi-Key Support)**: Support for multiple `cmd_keys` separated by pipes (e.g., `cisco_ios|datacom_dmos`). Elements are tried against these keys sequentially until success.
+- **Success Key Reporting**: Added `successful_keys.csv` and a new `working_key` column in `status.elements.csv` to simplify inventory cleanup by identifying exactly which command profile worked for each device.
+- **Configurable Discovery Hops**: Added `--hops` CLI argument to control the depth of recursive crawling.
+
+### Fixed
+- **Duplicate Detection**: Refined to skip elements by both IP and Hostname, preventing redundant processing of multi-homed routers.
+- **Timestamp Consistency**: Fixed a bug in `core/commands.py` where the timestamp was not refreshed within the thread worker, causing file collision risks.
+
 ## [1.28.7] - 2026-03-06
 ### Fixed
 - **Topology Audit Logging**: Fixed a bug where `core/topology_checker.py` was generating an empty log file. Added verbose output to the script so that audit results and isolated node lists are correctly captured by the orchestrator.

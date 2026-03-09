@@ -4,8 +4,8 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
-Version : 1.28.6
-Date    : 2026-03-06
+Version : 1.30.0
+Date    : 2026-03-09
 Author  : flashbsb (and contributors)
 
 Behavior:
@@ -20,12 +20,12 @@ import sys
 import os
 import shutil
 import argparse
-import csv
+import json
 from datetime import datetime
 from glob import glob
 
-APP_VERSION = "1.28.6"
-APP_DATE = "2026-03-06"
+APP_VERSION = "1.30.0"
+APP_DATE = "2026-03-09"
 
 # ANSI Colors
 C_GREEN = '\033[92m'
@@ -66,19 +66,18 @@ Workflow:
   6. All execution logs are silently stored in '<outbase>/YYYYMMDD_HHMMSS/log/'.
 """
 
-parser = argparse.ArgumentParser(
-    description=description,
-    formatter_class=argparse.RawTextHelpFormatter
-)
+# --- PRE-PARSING TO LOAD SETTINGS ---
+pre_parser = argparse.ArgumentParser(add_help=False)
+pre_parser.add_argument("--settings", type=str, default="config/settings.json")
+pre_args, _ = pre_known = pre_parser.parse_known_args()
 
-import json
 json_config = {}
-if os.path.exists("config/settings.json"):
+if os.path.exists(pre_args.settings):
     try:
-        with open("config/settings.json", "r") as f:
+        with open(pre_args.settings, "r") as f:
             json_config = json.load(f)
     except Exception as e:
-        print(f"Warning: Failed to load config/settings.json: {e}")
+        print(f"Warning: Failed to load {pre_args.settings}: {e}")
 
 extractor_cfg = json_config.get("extractor", {})
 def_threads = extractor_cfg.get("threads", 20)
@@ -98,21 +97,60 @@ NEIGHBOR_PREFIXES = topology_cfg.get("neighbor_regex_prefixes", [])
 discovery_cfg = json_config.get("discovery", {})
 IGNORE_NEW_PREFIXES = discovery_cfg.get("ignore_new_prefixes", [])
 
-parser.add_argument("--threads", type=int, default=def_threads, help=f"Number of concurrent SSH sessions for commands.py (default: {def_threads})")
-parser.add_argument("--outbase", type=str, default=def_outbase, help=f"Root directory base to save timestamps/logs/CSVs folders (default: {def_outbase})")
-parser.add_argument("--elements", type=str, default=def_elements, help=f"Input file containing the list of elements (default: {def_elements})")
-parser.add_argument("--commands", type=str, default=def_commands, help=f"Input file containing the list of commands (default: {def_commands})")
-parser.add_argument("--randomize", action="store_true", default=def_randomize, help=f"Randomize the connection order in commands.py (default: {def_randomize})")
-parser.add_argument("--no-randomize", dest="randomize", action="store_false", help="Keep connection order sequential")
-parser.add_argument("--skip-wizard", action="store_true", help="Skip the configuration confirmation prompt")
-parser.add_argument("--user", type=str, help="SSH Username (if provided, skips interactive prompt)")
-parser.add_argument("--password", type=str, help="[WARNING: Insecure for terminal] SSH Password. Use only for automated CRON/CI execution. Consider certificate auth instead.")
-parser.add_argument("--key", type=str, help="Path to SSH Private Key (Certificate) for passwordless authentication")
-parser.add_argument("--force", action="store_true", help="Force execution even if data collection fails")
-parser.add_argument("--offline", type=str, metavar="DIR", help="Skip data collection and process existing files in the specified directory")
+# --- MAIN ARGUMENT PARSING ---
+parser = argparse.ArgumentParser(
+    description=description,
+    formatter_class=argparse.RawTextHelpFormatter
+)
+
+group_ext = parser.add_argument_group("Extraction & Path Settings (ignored in --offline)")
+group_ext.add_argument("--settings", type=str, default="config/settings.json", help="Path to JSON settings file (default: config/settings.json)")
+group_ext.add_argument("--threads", type=int, default=def_threads, help=f"Number of concurrent SSH sessions (default: {def_threads})")
+group_ext.add_argument("--outbase", type=str, default=def_outbase, help=f"Root directory for outputs (default: {def_outbase})")
+group_ext.add_argument("--elements", type=str, default=def_elements, help=f"Input elements file (default: {def_elements})")
+group_ext.add_argument("--commands", type=str, default=def_commands, help=f"Input commands file (default: {def_commands})")
+group_ext.add_argument("--randomize", action="store_true", default=def_randomize, help=f"Randomize connection order (default: {def_randomize})")
+group_ext.add_argument("--no-randomize", dest="randomize", action="store_false", help="Keep connection order sequential")
+
+group_auth = parser.add_argument_group("Authentication (ignored in --offline)")
+group_auth.add_argument("--user", type=str, help="SSH Username (required for automated auth)")
+auth_me = group_auth.add_mutually_exclusive_group()
+auth_me.add_argument("--password", type=str, help="[INSECURE] SSH Password (requires --user)")
+auth_me.add_argument("--key", type=str, help="Path to SSH Private Key (requires --user)")
+
+group_mode = parser.add_argument_group("Execution Modes")
+group_mode.add_argument("--skip-wizard", action="store_true", help="Skip configuration confirmation prompt")
+group_mode.add_argument("--force", action="store_true", help="Force execution even if collection fails")
+group_mode.add_argument("--offline", type=str, metavar="DIR", help="Process existing data in DIR (skips discovery/SSH)")
+
+group_disco = parser.add_argument_group("Discovery Options (ignored in --offline)")
+group_disco.add_argument("--discovery", action="store_true", help="Enable recursive discovery via LLDP neighbors")
+group_disco.add_argument("--hops", type=int, help="Number of recursive hops (requires --discovery)")
+
 args = parser.parse_args()
 
-# Clear the screen if a plaintext password was passed via CLI to hide it from terminal history
+# --- ARGUMENT VALIDATION & LOGIC ---
+
+# 1. Offline Mode Overrides
+if args.offline:
+    if args.discovery:
+        print(f"{C_YELLOW}Warning: --discovery is ignored in --offline mode.{C_RESET}")
+        args.discovery = False
+    args.hops = 0
+    # Values like threads, randomize, user, etc. are naturally ignored by the flow
+else:
+    # 2. Hops logic (only if NOT offline)
+    if args.discovery:
+        if args.hops is None:
+            args.hops = discovery_cfg.get("default_hops", 3)
+    else:
+        args.hops = 0
+
+# 3. Authentication logical dependency
+if (args.password or args.key) and not args.user:
+    print(f"{C_YELLOW}Warning: Automated authentication works best when --user is also provided.{C_RESET}")
+
+# 4. Clear screen for password security
 if args.password:
     os.system('clear' if os.name == 'posix' else 'cls')
 
@@ -366,444 +404,303 @@ def check_data_presence(script_path, collect_dir, resume_dir):
     return True
 
 
-total_scripts = len(SCRIPTS)
-for i, script in enumerate(SCRIPTS, start=1):
-    step_prefix = f"[{i:2d}/{total_scripts:2d}] {script:40s}"
-    # Determine script display name and path
-    script_name = os.path.basename(script)
-    script_path = os.path.join(cwd, script)
-    
-    if not os.path.isfile(script_path):
-        print(f"{step_prefix} {C_RED}[SKIPPED - NOT FOUND]{C_RESET}")
-        log_orchestrator(f"Skipped {script_name}: File not found at {script_path}")
-        continue
+# --- EXECUTION ENGINE ---
+current_elements_file = args.elements
+known_elements_chain = [args.elements]
+current_hop = 0
+max_hops = args.hops if args.discovery else 0
 
-    log_orchestrator(f"Executing {script_name}...")
+# Define consolidation scripts to be run after each full parsing cycle
+consolidation_scripts = [
+    "parsers/system_asset.py",
+    "parsers/transceiver_matrix.py",
+    "parsers/port_census.py",
+    "parsers/subcomponents.py",
+    "parsers/license_matrix.py",
+    "parsers/generate_service_inventory.py",
+    "parsers/show.bgp.vpnv4.unicast.all.summary.py",
+    "core/lldp_consistency_checker.py"
+]
 
-    if not args.force and not check_data_presence(script, COLLECT_DIR, RESUME_DIR):
-        print(f"{step_prefix} {C_YELLOW}[SKIPPED - NO DATA]{C_RESET}")
-        log_orchestrator(f"Skipped {script_name}: No data found in collect/ to process.")
-        continue
+while True:
+    log_orchestrator(f"--- STARTING HOP {current_hop} (Elements: {current_elements_file}) ---")
+    if current_hop > 0:
+        print(f"\n{C_CYAN}>>> DISCOVERY HOP {current_hop}/{max_hops} <<<{C_RESET}")
+        print(f"Targeting: {current_elements_file}\n")
 
-    cmd = [sys.executable, script_path]
-
-    if script_name == "commands.py":
-        if args.offline:
-            print(f"{step_prefix} {C_YELLOW}[SKIPPED - OFFLINE MODE]{C_RESET}")
-            log_orchestrator(f"Skipped {script_name}: Running in offline mode.")
+    total_scripts = len(SCRIPTS)
+    for i, script in enumerate(SCRIPTS, start=1):
+        step_prefix = f"[{i:2d}/{total_scripts:2d}] {script:40s}"
+        # Determine script display name and path
+        script_name = os.path.basename(script)
+        script_path = os.path.join(cwd, script)
+        
+        if not os.path.isfile(script_path):
+            print(f"{step_prefix} {C_RED}[SKIPPED - NOT FOUND]{C_RESET}")
+            log_orchestrator(f"Skipped {script_name}: File not found at {script_path}")
             continue
-            
-        cmd.extend(["--outdir", COLLECT_DIR, "--logdir", LOG_DIR, "--threads", str(args.threads), "--elements", args.elements, "--commands", args.commands])
-        if args.randomize:
-            cmd.append("--randomize")
-        else:
-            cmd.append("--no-randomize")
-        print(f">>> {C_CYAN}core/commands.py{C_RESET} is running. Extracted data goes to: collect/")
-        try:
-            # Let standard bounds stay active for user password inputs, but pass our modified env
-            script_start_time = datetime.now()
-            
-            # Setup environment for this subprocess specifically
-            cmd_env = os.environ.copy()
-            cmd_env["PYTHONIOENCODING"] = "utf-8"
-            if args.user: cmd_env["NDX_SSH_USER"] = args.user
-            if args.password: cmd_env["NDX_SSH_PASS"] = args.password
-            if args.key: cmd_env["NDX_SSH_KEY"] = args.key
-            
-            rc = subprocess.run(cmd, env=cmd_env)
-            script_duration = (datetime.now() - script_start_time).total_seconds()
-            
-            status_text = f"{C_GREEN}[SUCCESS]{C_RESET}" if rc.returncode == 0 else f"{C_RED}[FAILED ]{C_RESET}"
-            log_orchestrator(f"{script_name} Finished. Return Code: {rc.returncode}")
-            print(f"{step_prefix} {status_text} ({script_duration:5.1f}s)")
-            
-            if rc.returncode == 100 and not args.force:
-                print(f"\n{C_RED}ERROR: No data collected from any element. Stopping here.{C_RESET}")
-                print(f"Check {LOG_DIR}/commands.log for connection details.")
-                log_orchestrator("Stopping orchestrator: No data collected.")
-                sys.exit(100)
-        except KeyboardInterrupt:
-            print(f"{step_prefix} {C_RED}[INTERRUPTED]{C_RESET}")
-            log_orchestrator("Orchestrator interrupted by user during commands.py")
-            sys.exit(130)
-        except Exception as e:
-            log_orchestrator(f"{script_name} Error: {e}")
-            print(f"{step_prefix} {C_RED}[ERROR]{C_RESET}")
-    elif script_name == "element_status.py":
-        cmd.extend(["--collect_dir", COLLECT_DIR, "--resume_dir", RESUME_DIR, "--elements_cfg", args.elements])
-        safe_name = "element_status"
-        out_file_name = os.path.join(LOG_DIR, f"{safe_name}.log")
-        
-        try:
-            with open(out_file_name, "w", encoding="utf-8") as fh:
-                fh.write(f"COMMAND: {' '.join(cmd)}\n")
-                fh.write("START: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n\n")
-        except:
-            out_file_name = None
 
-        script_start_time = datetime.now()
-        rc = run_and_stream_capture(cmd, env=None, out_path=out_file_name)
-        if rc == 130:
-            log_orchestrator(f"Orchestrator interrupted by user during {script_name}")
-            sys.exit(130)
-            
-        script_duration = (datetime.now() - script_start_time).total_seconds()
-        log_orchestrator(f"{script_name} Finished. Return Code: {rc}")
-        
-        status_text = f"{C_GREEN}[SUCCESS]{C_RESET}" if rc == 0 else f"{C_RED}[FAILED ]{C_RESET}"
-        print(f"{step_prefix} {status_text} ({script_duration:5.1f}s)")
-        if rc != 0:
-             print(f"    └─> {C_RED}Check log/{safe_name}.log for details.{C_RESET}")
-    else:
-        cmd.extend(["--outdir", RESUME_DIR, "--indir", COLLECT_DIR])
-        # Scripts output real-time to std and file automatically
-        safe_name = script_name.replace(".py", "")
-        out_file_name = os.path.join(LOG_DIR, f"{safe_name}.log")
-        # Initialize execution header
-        try:
-            with open(out_file_name, "w", encoding="utf-8") as fh:
-                fh.write(f"COMMAND: {' '.join(cmd)}\n")
-                fh.write("START: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n\n")
-        except Exception as e:
-            log_orchestrator(f"Warning: unable to create log for {script_name}: {e}")
-            out_file_name = None
+        log_orchestrator(f"Executing {script_name}...")
 
-        script_start_time = datetime.now()
-        rc = run_and_stream_capture(cmd, env=None, out_path=out_file_name)
-        if rc == 130:
-            log_orchestrator(f"Orchestrator interrupted by user during {script_name}")
-            sys.exit(130)
-            
-        script_end_time = datetime.now()
-        script_duration = (script_end_time - script_start_time).total_seconds()
-        log_orchestrator(f"{script_name} Finished. Return Code: {rc}. Duration: {script_duration:.2f}s")
-        
-        status = "SUCCESS" if rc == 0 else "FAILURE/WARNING"
-        status_text = f"{C_GREEN}[SUCCESS]{C_RESET}" if rc == 0 else f"{C_RED}[FAILED ]{C_RESET}"
+        if not args.force and not check_data_presence(script, COLLECT_DIR, RESUME_DIR):
+            print(f"{step_prefix} {C_YELLOW}[SKIPPED - NO DATA]{C_RESET}")
+            log_orchestrator(f"Skipped {script_name}: No data found in collect/ to process.")
+            continue
 
-        # After finishing, append summary block to the file
-        if out_file_name:
-            try:
-                with open(out_file_name, "a", encoding="utf-8") as fh:
-                    fh.write(f"\n\n--- EXECUTION SUMMARY ---\n")
-                    fh.write(f"FINAL STATUS: {status} (Return Code: {rc})\n")
-                    fh.write(f"PROCESSING TIME: {script_duration:.2f} seconds\n")
-                    fh.write("END: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n")
-            except Exception as e:
-                pass # Silently drop missing summary lines instead of breaking terminal display
+        cmd = [sys.executable, script_path]
 
-        print(f"{step_prefix} {status_text} ({script_duration:5.1f}s)")
-        if rc != 0:
-             print(f"    └─> {C_RED}Check log/orchestrator.log or log/{safe_name}.log for details.{C_RESET}")
-
-print("\n" + "-" * 60)
-step_prefix_sys = f"[**/**] {'parsers/system_asset.py':40s}"
-script_sysasset = os.path.join(cwd, "parsers", "system_asset.py")
-
-if os.path.isfile(script_sysasset):
-    if not args.force and not check_data_presence(script_sysasset, COLLECT_DIR, RESUME_DIR):
-        print(f"{step_prefix_sys} {C_YELLOW}[SKIPPED - NO DATA]{C_RESET}")
-        log_orchestrator(f"Skipped parsers/system_asset.py: No data found.")
-    else:
-        log_orchestrator(f"Executing parsers/system_asset.py...")
-        cmd_sys = [sys.executable, script_sysasset, "--collect_dir", COLLECT_DIR, "--resume_dir", RESUME_DIR]
-        sys_log = os.path.join(LOG_DIR, "system_asset.log")
-        
-        sys_start = datetime.now()
-        rc_sys = run_and_stream_capture(cmd_sys, env=None, out_path=sys_log)
-        sys_duration = (datetime.now() - sys_start).total_seconds()
-        status_sys = "SUCCESS" if rc_sys == 0 else "FAILURE/WARNING"
-        status_text_sys = f"{C_GREEN}[SUCCESS]{C_RESET}" if rc_sys == 0 else f"{C_RED}[FAILED ]{C_RESET}"
-        
-        with open(sys_log, "a", encoding="utf-8") as fh:
-            fh.write(f"\n\n--- EXECUTION SUMMARY ---\n")
-            fh.write(f"FINAL STATUS: {status_sys} (Return Code: {rc_sys})\n")
-            fh.write(f"PROCESSING TIME: {sys_duration:.2f} seconds\n")
-            fh.write("END: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n")
-            
-        print(f"{step_prefix_sys} {status_text_sys} ({sys_duration:5.1f}s)")
-        if rc_sys != 0:
-             print(f"    └─> {C_RED}Check log/system_asset.log for details.{C_RESET}")
-else:
-    print(f"{step_prefix_sys} {C_RED}[SKIPPED - NOT FOUND]{C_RESET}")
-    log_orchestrator(f"WARNING: {script_sysasset} not found, skipping hook.")
-
-# ----------------- AXIS 11: Optical Health Matrix -----------------
-print("\n" + "-" * 60)
-step_prefix_optics = f"[**/**] {'parsers/transceiver_matrix.py':40s}"
-script_optics = os.path.join(cwd, "parsers", "transceiver_matrix.py")
-
-if os.path.isfile(script_optics):
-    if not args.force and not check_data_presence(script_optics, COLLECT_DIR, RESUME_DIR):
-        print(f"{step_prefix_optics} {C_YELLOW}[SKIPPED - NO DATA]{C_RESET}")
-        log_orchestrator(f"Skipped parsers/transceiver_matrix.py: No data found.")
-    else:
-        log_orchestrator(f"Executing parsers/transceiver_matrix.py...")
-        cmd_optics = [sys.executable, script_optics, "--collect_dir", COLLECT_DIR, "--resume_dir", RESUME_DIR]
-        optics_log = os.path.join(LOG_DIR, "transceiver_matrix.log")
-        
-        optics_start = datetime.now()
-        rc_optics = run_and_stream_capture(cmd_optics, env=None, out_path=optics_log)
-        optics_duration = (datetime.now() - optics_start).total_seconds()
-        status_optics = "SUCCESS" if rc_optics == 0 else "FAILURE/WARNING"
-        status_text_optics = f"{C_GREEN}[SUCCESS]{C_RESET}" if rc_optics == 0 else f"{C_RED}[FAILED ]{C_RESET}"
-        
-        with open(optics_log, "a", encoding="utf-8") as fh:
-            fh.write(f"\n\n--- EXECUTION SUMMARY ---\n")
-            fh.write(f"FINAL STATUS: {status_optics} (Return Code: {rc_optics})\n")
-            fh.write(f"PROCESSING TIME: {optics_duration:.2f} seconds\n")
-            fh.write("END: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n")
-            
-        print(f"{step_prefix_optics} {status_text_optics} ({optics_duration:5.1f}s)")
-        if rc_optics != 0:
-             print(f"    └─> {C_RED}Check log/transceiver_matrix.log for details.{C_RESET}")
-else:
-    print(f"{step_prefix_optics} {C_RED}[SKIPPED - NOT FOUND]{C_RESET}")
-    log_orchestrator(f"WARNING: {script_optics} not found, skipping hook.")
-
-# ----------------- AXIS 14: Port Census Matrix -----------------
-print("\n" + "-" * 60)
-step_prefix_census = f"[**/**] {'parsers/port_census.py':40s}"
-script_census = os.path.join(cwd, "parsers", "port_census.py")
-
-if os.path.isfile(script_census):
-    if not args.force and not check_data_presence(script_census, COLLECT_DIR, RESUME_DIR):
-        print(f"{step_prefix_census} {C_YELLOW}[SKIPPED - NO DATA]{C_RESET}")
-        log_orchestrator(f"Skipped parsers/port_census.py: No data found.")
-    else:
-        log_orchestrator(f"Executing parsers/port_census.py...")
-        cmd_census = [sys.executable, script_census, "--resume_dir", RESUME_DIR, "--outdir", RESUME_DIR]
-        census_log = os.path.join(LOG_DIR, "port_census.log")
-        
-        census_start = datetime.now()
-        rc_census = run_and_stream_capture(cmd_census, env=None, out_path=census_log)
-        census_duration = (datetime.now() - census_start).total_seconds()
-        status_census = "SUCCESS" if rc_census == 0 else "FAILURE/WARNING"
-        status_text_census = f"{C_GREEN}[SUCCESS]{C_RESET}" if rc_census == 0 else f"{C_RED}[FAILED ]{C_RESET}"
-        
-        with open(census_log, "a", encoding="utf-8") as fh:
-            fh.write(f"\n\n--- EXECUTION SUMMARY ---\n")
-            fh.write(f"FINAL STATUS: {status_census} (Return Code: {rc_census})\n")
-            fh.write(f"PROCESSING TIME: {census_duration:.2f} seconds\n")
-            fh.write("END: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n")
-            
-        print(f"{step_prefix_census} {status_text_census} ({census_duration:5.1f}s)")
-        if rc_census != 0:
-             print(f"    └─> {C_RED}Check log/port_census.log for details.{C_RESET}")
-else:
-    print(f"{step_prefix_census} {C_RED}[SKIPPED - NOT FOUND]{C_RESET}")
-    log_orchestrator(f"WARNING: {script_census} not found, skipping hook.")
-
-# ----------------- AXIS 12: Subcomponents Matrix -----------------
-print("\n" + "-" * 60)
-step_prefix_subc = f"[**/**] {'parsers/subcomponents.py':40s}"
-script_subc = os.path.join(cwd, "parsers", "subcomponents.py")
-
-if os.path.isfile(script_subc):
-    if not args.force and not check_data_presence(script_subc, COLLECT_DIR, RESUME_DIR):
-        print(f"{step_prefix_subc} {C_YELLOW}[SKIPPED - NO DATA]{C_RESET}")
-        log_orchestrator(f"Skipped parsers/subcomponents.py: No data found.")
-    else:
-        log_orchestrator(f"Executing parsers/subcomponents.py...")
-        cmd_subc = [sys.executable, script_subc, "--collect_dir", COLLECT_DIR, "--outdir", RESUME_DIR]
-        subc_log = os.path.join(LOG_DIR, "subcomponents.log")
-        
-        subc_start = datetime.now()
-        rc_subc = run_and_stream_capture(cmd_subc, env=None, out_path=subc_log)
-        subc_duration = (datetime.now() - subc_start).total_seconds()
-        status_subc = "SUCCESS" if rc_subc == 0 else "FAILURE/WARNING"
-        status_text_subc = f"{C_GREEN}[SUCCESS]{C_RESET}" if rc_subc == 0 else f"{C_RED}[FAILED ]{C_RESET}"
-        
-        with open(subc_log, "a", encoding="utf-8") as fh:
-            fh.write(f"\n\n--- EXECUTION SUMMARY ---\n")
-            fh.write(f"FINAL STATUS: {status_subc} (Return Code: {rc_subc})\n")
-            fh.write(f"PROCESSING TIME: {subc_duration:.2f} seconds\n")
-            fh.write("END: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n")
-            
-        print(f"{step_prefix_subc} {status_text_subc} ({subc_duration:5.1f}s)")
-        if rc_subc != 0:
-             print(f"    └─> {C_RED}Check log/subcomponents.log for details.{C_RESET}")
-else:
-    print(f"{step_prefix_subc} {C_RED}[SKIPPED - NOT FOUND]{C_RESET}")
-    log_orchestrator(f"WARNING: {script_subc} not found, skipping hook.")
-
-# ----------------- AXIS 13: Software Licensing Matrix -----------------
-print("\n" + "-" * 60)
-step_prefix_lic = f"[**/**] {'parsers/license_matrix.py':40s}"
-script_lic = os.path.join(cwd, "parsers", "license_matrix.py")
-
-if os.path.isfile(script_lic):
-    if not args.force and not check_data_presence(script_lic, COLLECT_DIR, RESUME_DIR):
-        print(f"{step_prefix_lic} {C_YELLOW}[SKIPPED - NO DATA]{C_RESET}")
-        log_orchestrator(f"Skipped parsers/license_matrix.py: No data found.")
-    else:
-        log_orchestrator(f"Executing parsers/license_matrix.py...")
-        cmd_lic = [sys.executable, script_lic, "--collect_dir", COLLECT_DIR, "--outdir", RESUME_DIR]
-        lic_log = os.path.join(LOG_DIR, "license_matrix.log")
-        
-        lic_start = datetime.now()
-        rc_lic = run_and_stream_capture(cmd_lic, env=None, out_path=lic_log)
-        lic_duration = (datetime.now() - lic_start).total_seconds()
-        status_lic = "SUCCESS" if rc_lic == 0 else "FAILURE/WARNING"
-        status_text_lic = f"{C_GREEN}[SUCCESS]{C_RESET}" if rc_lic == 0 else f"{C_RED}[FAILED ]{C_RESET}"
-        
-        with open(lic_log, "a", encoding="utf-8") as fh:
-            fh.write(f"\n\n--- EXECUTION SUMMARY ---\n")
-            fh.write(f"FINAL STATUS: {status_lic} (Return Code: {rc_lic})\n")
-            fh.write(f"PROCESSING TIME: {lic_duration:.2f} seconds\n")
-            fh.write("END: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n")
-            
-        print(f"{step_prefix_lic} {status_text_lic} ({lic_duration:5.1f}s)")
-        if rc_lic != 0:
-             print(f"    └─> {C_RED}Check log/license_matrix.log for details.{C_RESET}")
-else:
-    print(f"{step_prefix_lic} {C_RED}[SKIPPED - NOT FOUND]{C_RESET}")
-    log_orchestrator(f"WARNING: {script_lic} not found, skipping hook.")
-
-# ----------------- AXIS 14: Service Inventory Extractor -----------------
-print("\n" + "-" * 60)
-step_prefix_srv = f"[**/**] {'parsers/generate_service_inventory.py':40s}"
-script_srv = os.path.join(cwd, "parsers", "generate_service_inventory.py")
-
-if os.path.isfile(script_srv):
-    if not args.force and not check_data_presence(script_srv, COLLECT_DIR, RESUME_DIR):
-        print(f"{step_prefix_srv} {C_YELLOW}[SKIPPED - NO DATA]{C_RESET}")
-        log_orchestrator(f"Skipped parsers/generate_service_inventory.py: No data found.")
-    else:
-        log_orchestrator(f"Executing parsers/generate_service_inventory.py...")
-        cmd_srv = [sys.executable, script_srv, "--resume_dir", RESUME_DIR]
-        srv_log = os.path.join(LOG_DIR, "generate_service_inventory.log")
-        
-        srv_start = datetime.now()
-        rc_srv = run_and_stream_capture(cmd_srv, env=None, out_path=srv_log)
-        srv_duration = (datetime.now() - srv_start).total_seconds()
-        
-        status_srv = "SUCCESS" if rc_srv == 0 else "FAILURE/WARNING"
-        status_text_srv = f"{C_GREEN}[SUCCESS]{C_RESET}" if rc_srv == 0 else f"{C_RED}[FAILED ]{C_RESET}"
-        print(f"{step_prefix_srv} {status_text_srv} ({srv_duration:5.1f}s)")
-else:
-    print(f"{step_prefix_srv} {C_RED}[SKIPPED - NOT FOUND]{C_RESET}")
-
-# ----------------- AXIS 15: BGP Logical Peering Matrix -----------------
-print("\n" + "-" * 60)
-step_prefix_bgp = f"[**/**] {'parsers/show.bgp.vpnv4.unicast.all.summary.py':40s}"
-script_bgp = os.path.join(cwd, "parsers", "show.bgp.vpnv4.unicast.all.summary.py")
-
-if os.path.isfile(script_bgp):
-    if not args.force and not check_data_presence(script_bgp, COLLECT_DIR, RESUME_DIR):
-        print(f"{step_prefix_bgp} {C_YELLOW}[SKIPPED - NO DATA]{C_RESET}")
-        log_orchestrator(f"Skipped parsers/show.bgp.vpnv4.unicast.all.summary.py: No data found.")
-    else:
-        log_orchestrator(f"Executing parsers/show.bgp.vpnv4.unicast.all.summary.py...")
-        cmd_bgp = [sys.executable, script_bgp, "--collect_dir", COLLECT_DIR, "--outdir", RESUME_DIR]
-        bgp_log = os.path.join(LOG_DIR, "show.bgp.vpnv4.unicast.all.summary.log")
-        
-        bgp_start = datetime.now()
-        rc_bgp = run_and_stream_capture(cmd_bgp, env=None, out_path=bgp_log)
-        bgp_duration = (datetime.now() - bgp_start).total_seconds()
-        
-        status_bgp = "SUCCESS" if rc_bgp == 0 else "FAILURE/WARNING"
-        status_text_bgp = f"{C_GREEN}[SUCCESS]{C_RESET}" if rc_bgp == 0 else f"{C_RED}[FAILED ]{C_RESET}"
-        print(f"{step_prefix_bgp} {status_text_bgp} ({bgp_duration:5.1f}s)")
-else:
-    print(f"{step_prefix_bgp} {C_RED}[SKIPPED - NOT FOUND]{C_RESET}")
-
-# ----------------- AXIS 16: LLDP Consistency Cross-Reference -----------------
-print("\n" + "-" * 60)
-step_prefix_lldpchk = f"[**/**] {'core/lldp_consistency_checker.py':40s}"
-script_lldpchk = os.path.join(cwd, "core", "lldp_consistency_checker.py")
-
-if os.path.isfile(script_lldpchk):
-    if not args.force and not check_data_presence(script_lldpchk, COLLECT_DIR, RESUME_DIR):
-        print(f"{step_prefix_lldpchk} {C_YELLOW}[SKIPPED - NO DATA]{C_RESET}")
-        log_orchestrator(f"Skipped core/lldp_consistency_checker.py: No data found.")
-    else:
-        log_orchestrator(f"Executing core/lldp_consistency_checker.py...")
-        cmd_lldpchk = [sys.executable, script_lldpchk, "--resume_dir", RESUME_DIR]
-        lldpchk_log = os.path.join(LOG_DIR, "lldp_mismatch.log")
-        
-        lldpchk_start = datetime.now()
-        rc_lldpchk = run_and_stream_capture(cmd_lldpchk, env=None, out_path=lldpchk_log)
-        lldpchk_duration = (datetime.now() - lldpchk_start).total_seconds()
-        
-        status_lldpchk = "SUCCESS" if rc_lldpchk == 0 else "FAILURE/WARNING"
-        status_text_lldpchk = f"{C_GREEN}[SUCCESS]{C_RESET}" if rc_lldpchk == 0 else f"{C_RED}[FAILED ]{C_RESET}"
-        print(f"{step_prefix_lldpchk} {status_text_lldpchk} ({lldpchk_duration:5.1f}s)")
-else:
-    print(f"{step_prefix_lldpchk} {C_RED}[SKIPPED - NOT FOUND]{C_RESET}")
-
-# ------------------------------------------------------------------
-
-print("\n" + "-" * 60)
-step_prefix_conn = f"[**/**] {'core/interface2connection.py':40s}"
-script_interface2conn = os.path.join(cwd, "core", "interface2connection.py")
-
-log_orchestrator(f"Executing core/interface2connection.py...")
-
-if os.path.isfile(script_interface2conn):
-    if not args.force and not check_data_presence(script_interface2conn, COLLECT_DIR, RESUME_DIR):
-        print(f"{step_prefix_conn} {C_YELLOW}[SKIPPED - NO DATA]{C_RESET}")
-        log_orchestrator(f"Skipped core/interface2connection.py: No data found.")
-    else:
-        try:
-            cmd_conn = [sys.executable, script_interface2conn, "--input", RESUME_DIR, "--output", CONNECTIONS_DIR]
-            conn_log = os.path.join(LOG_DIR, "interface2connection.log")
-            conn_start = datetime.now()
-            rc_conn = run_and_stream_capture(cmd_conn, env=None, out_path=conn_log)
-            conn_duration = (datetime.now() - conn_start).total_seconds()
-            status_conn = "SUCCESS" if rc_conn == 0 else "FAILURE/WARNING"
-            status_text_conn = f"{C_GREEN}[SUCCESS]{C_RESET}" if rc_conn == 0 else f"{C_RED}[FAILED ]{C_RESET}"
-            
-            # Append summary block to connections log as well
-            with open(conn_log, "a", encoding="utf-8") as fh:
-                fh.write(f"\n\n--- EXECUTION SUMMARY ---\n")
-                fh.write(f"FINAL STATUS: {status_conn} (Return Code: {rc_conn})\n")
-                fh.write(f"PROCESSING TIME: {conn_duration:.2f} seconds\n")
-                fh.write("END: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n")
+        if script_name == "commands.py":
+            if args.offline:
+                print(f"{step_prefix} {C_YELLOW}[SKIPPED - OFFLINE MODE]{C_RESET}")
+                log_orchestrator(f"Skipped {script_name}: Running in offline mode.")
+                continue
                 
-            print(f"{step_prefix_conn} {status_text_conn} ({conn_duration:5.1f}s)")
-            if rc_conn != 0:
-                 print(f"    └─> {C_RED}Check log/interface2connection.log for details.{C_RESET}")
-        except Exception as e:
-            print(f"{step_prefix_conn} {C_RED}[CRASHED]{C_RESET}")
-            log_orchestrator(f"FATAL ERROR: Failed to execute interface2connection: {e}")
-else:
-    print(f"{step_prefix_conn} {C_RED}[SKIPPED - NOT FOUND]{C_RESET}")
-    log_orchestrator(f"WARNING: {script_interface2conn} not found, skipping hook.")
+            cmd.extend(["--outdir", COLLECT_DIR, "--logdir", LOG_DIR, "--threads", str(args.threads), "--elements", current_elements_file, "--commands", args.commands])
+            if args.randomize:
+                cmd.append("--randomize")
+            else:
+                cmd.append("--no-randomize")
+            print(f">>> {C_CYAN}core/commands.py{C_RESET} is running. Extracted data goes to: collect/")
+            try:
+                # Let standard bounds stay active for user password inputs, but pass our modified env
+                script_start_time = datetime.now()
+                
+                # Setup environment for this subprocess specifically
+                cmd_env = os.environ.copy()
+                cmd_env["PYTHONIOENCODING"] = "utf-8"
+                if args.user: cmd_env["NDX_SSH_USER"] = args.user
+                if args.password: cmd_env["NDX_SSH_PASS"] = args.password
+                if args.key: cmd_env["NDX_SSH_KEY"] = args.key
+                
+                rc = subprocess.run(cmd, env=cmd_env)
+                script_duration = (datetime.now() - script_start_time).total_seconds()
+                
+                status_text = f"{C_GREEN}[SUCCESS]{C_RESET}" if rc.returncode == 0 else f"{C_RED}[FAILED ]{C_RESET}"
+                log_orchestrator(f"{script_name} Finished. Return Code: {rc.returncode}")
+                print(f"{step_prefix} {status_text} ({script_duration:5.1f}s)")
+                
+                if rc.returncode == 100 and not args.force:
+                    print(f"\n{C_RED}ERROR: No data collected from any element. Stopping here.{C_RESET}")
+                    print(f"Check {LOG_DIR}/commands.log for connection details.")
+                    log_orchestrator("Stopping orchestrator: No data collected.")
+                    sys.exit(100)
+            except KeyboardInterrupt:
+                print(f"{step_prefix} {C_RED}[INTERRUPTED]{C_RESET}")
+                log_orchestrator("Orchestrator interrupted by user during commands.py")
+                sys.exit(130)
+            except Exception as e:
+                log_orchestrator(f"{script_name} Error: {e}")
+                print(f"{step_prefix} {C_RED}[ERROR]{C_RESET}")
+        elif script_name == "element_status.py":
+            cmd.extend(["--collect_dir", COLLECT_DIR, "--resume_dir", RESUME_DIR, "--elements_cfg", args.elements])
+            safe_name = "element_status"
+            out_file_name = os.path.join(LOG_DIR, f"{safe_name}.log")
+            
+            try:
+                with open(out_file_name, "w", encoding="utf-8") as fh:
+                    fh.write(f"COMMAND: {' '.join(cmd)}\n")
+                    fh.write("START: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n\n")
+            except:
+                out_file_name = None
 
-print("\n" + "-" * 60)
-step_prefix_check = f"[**/**] {'core/topology_checker.py':40s}"
-script_topocheck = os.path.join(cwd, "core", "topology_checker.py")
-isolated_count = 0
+            script_start_time = datetime.now()
+            rc = run_and_stream_capture(cmd, env=None, out_path=out_file_name)
+            if rc == 130:
+                log_orchestrator(f"Orchestrator interrupted by user during {script_name}")
+                sys.exit(130)
+                
+            script_duration = (datetime.now() - script_start_time).total_seconds()
+            log_orchestrator(f"{script_name} Finished. Return Code: {rc}")
+            
+            status_text = f"{C_GREEN}[SUCCESS]{C_RESET}" if rc == 0 else f"{C_RED}[FAILED ]{C_RESET}"
+            print(f"{step_prefix} {status_text} ({script_duration:5.1f}s)")
+            if rc != 0:
+                 print(f"    └─> {C_RED}Check log/{safe_name}.log for details.{C_RESET}")
+        else:
+            cmd.extend(["--outdir", RESUME_DIR, "--indir", COLLECT_DIR])
+            # Scripts output real-time to std and file automatically
+            safe_name = script_name.replace(".py", "")
+            out_file_name = os.path.join(LOG_DIR, f"{safe_name}.log")
+            # Initialize execution header
+            try:
+                with open(out_file_name, "w", encoding="utf-8") as fh:
+                    fh.write(f"COMMAND: {' '.join(cmd)}\n")
+                    fh.write("START: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n\n")
+            except Exception as e:
+                log_orchestrator(f"Warning: unable to create log for {script_name}: {e}")
+                out_file_name = None
 
-if os.path.isfile(script_topocheck):
-    if not args.force and not check_data_presence(script_topocheck, COLLECT_DIR, RESUME_DIR):
-        print(f"{step_prefix_check} {C_YELLOW}[SKIPPED - NO DATA]{C_RESET}")
-        log_orchestrator(f"Skipped core/topology_checker.py: No data found.")
-    else:
-        log_orchestrator(f"Executing core/topology_checker.py...")
-        cmd_check = [sys.executable, script_topocheck, "--resume_dir", RESUME_DIR, "--connections_dir", CONNECTIONS_DIR]
-        check_log = os.path.join(LOG_DIR, "topology_checker.log")
+            script_start_time = datetime.now()
+            rc = run_and_stream_capture(cmd, env=None, out_path=out_file_name)
+            if rc == 130:
+                log_orchestrator(f"Orchestrator interrupted by user during {script_name}")
+                sys.exit(130)
+                
+            script_end_time = datetime.now()
+            script_duration = (script_end_time - script_start_time).total_seconds()
+            log_orchestrator(f"{script_name} Finished. Return Code: {rc}. Duration: {script_duration:.2f}s")
+            
+            status = "SUCCESS" if rc == 0 else "FAILURE/WARNING"
+            status_text = f"{C_GREEN}[SUCCESS]{C_RESET}" if rc == 0 else f"{C_RED}[FAILED ]{C_RESET}"
+
+            # After finishing, append summary block to the file
+            if out_file_name:
+                try:
+                    with open(out_file_name, "a", encoding="utf-8") as fh:
+                        fh.write(f"\n\n--- EXECUTION SUMMARY ---\n")
+                        fh.write(f"FINAL STATUS: {status} (Return Code: {rc})\n")
+                        fh.write(f"PROCESSING TIME: {script_duration:.2f} seconds\n")
+                        fh.write("END: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n")
+                except Exception as e:
+                    pass # Silently drop missing summary lines instead of breaking terminal display
+
+            print(f"{step_prefix} {status_text} ({script_duration:5.1f}s)")
+            if rc != 0:
+                 print(f"    └─> {C_RED}Check log/orchestrator.log or log/{safe_name}.log for details.{C_RESET}")
+
+    # Specialized consolidation scripts
+    print(f"\n{C_CYAN}--- Consolidating Parsers ---{C_RESET}")
+    for script_rel in consolidation_scripts:
+        script_name = os.path.basename(script_rel)
+        script_abs = os.path.join(cwd, script_rel)
         
-        check_start = datetime.now()
-        rc_check = run_and_stream_capture(cmd_check, env=None, out_path=check_log)
-        check_duration = (datetime.now() - check_start).total_seconds()
+        if not os.path.isfile(script_abs):
+            print(f"[*] {script_name:40s} {C_RED}[SKIPPED - NOT FOUND]{C_RESET}")
+            log_orchestrator(f"Skipped {script_name}: File not found at {script_abs}")
+            continue
         
-        if rc_check == 50:
-            print(f"{step_prefix_check} {C_YELLOW}[WARNING]{C_RESET} ({check_duration:5.1f}s)")
+        if not args.force and not check_data_presence(script_rel, COLLECT_DIR, RESUME_DIR):
+            print(f"[*] {script_name:40s} {C_YELLOW}[SKIPPED - NO DATA]{C_RESET}")
+            log_orchestrator(f"Skipped {script_name}: No data found to process.")
+            continue
+        
+        log_orchestrator(f"Executing {script_name}...")
+        cmd = [sys.executable, script_abs, "--collect_dir", COLLECT_DIR, "--resume_dir", RESUME_DIR, "--outdir", RESUME_DIR]
+        out_log = os.path.join(LOG_DIR, f"{script_name.replace('.py','')}.log")
+        
+        script_start_time = datetime.now()
+        rc = run_and_stream_capture(cmd, out_path=out_log)
+        script_duration = (datetime.now() - script_start_time).total_seconds()
+        
+        status = f"{C_GREEN}[SUCCESS]{C_RESET}" if rc == 0 else f"{C_RED}[FAILED ]{C_RESET}"
+        print(f"[*] {script_name:40s} {status} ({script_duration:5.1f}s)")
+        if rc != 0:
+            print(f"    └─> {C_RED}Check log/{script_name.replace('.py','')}.log for details.{C_RESET}")
+        log_orchestrator(f"{script_name} Finished. Return Code: {rc}. Duration: {script_duration:.2f}s")
+
+
+    # Final Topology Mapping
+    print(f"\n{C_CYAN}--- Final Topology Mapping ---{C_RESET}")
+    scripts_final = ["core/interface2connection.py", "core/topology_checker.py"]
+    isolated_count = 0
+    for s_rel in scripts_final:
+        s_name = os.path.basename(s_rel)
+        s_abs = os.path.join(cwd, s_rel)
+
+        if not os.path.isfile(s_abs):
+            print(f"[*] {s_name:40s} {C_RED}[SKIPPED - NOT FOUND]{C_RESET}")
+            log_orchestrator(f"Skipped {s_name}: File not found at {s_abs}")
+            continue
+        
+        if not args.force and not check_data_presence(s_rel, COLLECT_DIR, RESUME_DIR):
+            print(f"[*] {s_name:40s} {C_YELLOW}[SKIPPED - NO DATA]{C_RESET}")
+            log_orchestrator(f"Skipped {s_name}: No data found to process.")
+            continue
+
+        log_orchestrator(f"Executing {s_name}...")
+        cmd = [sys.executable, s_abs]
+        out_log = os.path.join(LOG_DIR, f"{s_name.replace('.py','')}.log")
+
+        if s_name == "interface2connection.py":
+            cmd.extend(["--input", RESUME_DIR, "--output", CONNECTIONS_DIR])
+        elif s_name == "topology_checker.py":
+            cmd.extend(["--resume_dir", RESUME_DIR, "--connections_dir", CONNECTIONS_DIR])
+        
+        script_start_time = datetime.now()
+        rc = run_and_stream_capture(cmd, out_path=out_log)
+        script_duration = (datetime.now() - script_start_time).total_seconds()
+
+        if s_name == "topology_checker.py" and rc == 50:
+            print(f"[*] {s_name:40s} {C_YELLOW}[WARNING]{C_RESET} ({script_duration:5.1f}s)")
             print(f"    └─> {C_YELLOW}Isolated node(s) detected. Check audit logs.{C_RESET}")
             isolated_csv_path = os.path.join(RESUME_DIR, "topology_warnings.isolated.csv")
             if os.path.isfile(isolated_csv_path):
                 with open(isolated_csv_path, 'r', encoding='utf-8') as f:
                     reader = csv.DictReader(f, delimiter=';')
                     isolated_count = sum(1 for _ in reader)
-        elif rc_check == 0:
-            print(f"{step_prefix_check} {C_GREEN}[SUCCESS]{C_RESET} ({check_duration:5.1f}s)")
         else:
-            print(f"{step_prefix_check} {C_RED}[FAILED ]{C_RESET} ({check_duration:5.1f}s)")
-else:
-    print(f"{step_prefix_check} {C_RED}[SKIPPED - NOT FOUND]{C_RESET}")
-    log_orchestrator(f"WARNING: {script_topocheck} not found, skipping isolation check.")
+            status = f"{C_GREEN}[SUCCESS]{C_RESET}" if rc == 0 else f"{C_RED}[FAILED ]{C_RESET}"
+            print(f"[*] {s_name:40s} {status} ({script_duration:5.1f}s)")
+            if rc != 0:
+                print(f"    └─> {C_RED}Check log/{s_name.replace('.py','')}.log for details.{C_RESET}")
+        log_orchestrator(f"{s_name} Finished. Return Code: {rc}. Duration: {script_duration:.2f}s")
+
+
+    # DISCOVERY HOOK
+    if args.discovery and current_hop < max_hops:
+        print(f"\n{C_YELLOW}--- Running Discovery (Hop {current_hop+1}/{max_hops}) ---{C_RESET}")
+        log_orchestrator(f"Running discovery for hop {current_hop+1}")
+        disco_script = os.path.join(cwd, "core", "discovery.py")
+        disco_fname = f"discovery_hop_{current_hop+1}.elements.cfg"
+        disco_out = os.path.join(TIMESTAMP_DIR, disco_fname)
+        
+        # Pass ALL known elements files to the skip list
+        elements_skip_str = ",".join(known_elements_chain)
+        cmd_disco = [sys.executable, disco_script, "--resume_dir", RESUME_DIR, "--elements_cfg", elements_skip_str, "--outdir", TIMESTAMP_DIR, "--out_filename", disco_fname]
+        
+        disco_log_path = os.path.join(LOG_DIR, f"discovery_hop_{current_hop+1}.log")
+        
+        try:
+            with open(disco_log_path, "w", encoding="utf-8") as fh:
+                fh.write(f"COMMAND: {' '.join(cmd_disco)}\n")
+                fh.write("START: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n\n")
+            
+            disco_start_time = datetime.now()
+            rc_disco = subprocess.run(cmd_disco, stdout=fh, stderr=fh, text=True)
+            disco_duration = (datetime.now() - disco_start_time).total_seconds()
+            
+            with open(disco_log_path, "a", encoding="utf-8") as fh:
+                fh.write(f"\n\n--- EXECUTION SUMMARY ---\n")
+                fh.write(f"FINAL STATUS: {'SUCCESS' if rc_disco.returncode == 0 else 'FAILURE/WARNING'} (Return Code: {rc_disco.returncode})\n")
+                fh.write(f"PROCESSING TIME: {disco_duration:.2f} seconds\n")
+                fh.write("END: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n")
+
+        except Exception as e:
+            log_orchestrator(f"Discovery script execution failed: {e}")
+            rc_disco = type('obj', (object,), {'returncode' : 1})() # Mock a failed result
+            disco_duration = 0
+
+        log_orchestrator(f"Discovery script finished. Return Code: {rc_disco.returncode}. Output: {disco_out}")
+        
+        if rc_disco.returncode == 0 and os.path.isfile(disco_out):
+            # Check if it has any new elements (non-comment lines)
+            has_new = False
+            with open(disco_out, 'r') as f:
+                for line in f:
+                    if line.strip() and not line.strip().startswith('#'):
+                        has_new = True
+                        break
+            
+            if has_new:
+                known_elements_chain.append(disco_out)
+                current_elements_file = disco_out
+                current_hop += 1
+                log_orchestrator(f"Discovery found new elements. Advancing to hop {current_hop}")
+                print(f"{C_GREEN}Discovery found new elements. Advancing to hop {current_hop}.{C_RESET}")
+                continue # Next iteration of the while loop
+            else:
+                print(f"{C_YELLOW}No new elements discovered. Ending recursion.{C_RESET}")
+                log_orchestrator("No new elements discovered. Ending recursion.")
+        else:
+            print(f"{C_RED}Discovery script failed or no new elements file generated. Ending recursion.{C_RESET}")
+            log_orchestrator("Discovery script failed or no new elements file generated. Ending recursion.")
+    
+    break # Exit the while loop if no discovery or no more hops
+
+print(f"\n{C_GREEN}============================================================{C_RESET}")
+print(f"Final Execution Finished. Output in: {TIMESTAMP_DIR}")
+print(f"Duration: {(datetime.now()-start_time).total_seconds():.1f}s")
+print(f"{C_GREEN}============================================================{C_RESET}")
 
 end_time = datetime.now()
 

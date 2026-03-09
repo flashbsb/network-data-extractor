@@ -196,67 +196,77 @@ def main():
         nonlocal files_written
         host = elem['hostname']
         ip = elem['ip']
-        key = elem['cmd_key']
-        cmds = commands_map.get(key)
-        if not cmds:
-            logging.warning(f"No commands found for key '{key}' on element '{host}'")
-            with counter_lock:
-                counter += 1
-                curr = counter
-            print(f"  [{curr:>{pad}}/{total_elements}] [-] No cmds found: {host}")
-            return
-
-        timestamp = datetime.datetime.now().strftime('%d%m%y%H%M%S')
-        logging.info(f"Connecting to {host} ({ip}) key '{key}'")
-
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        try:
-            connect_kwargs = {
-                "username": user,
-                "timeout": SSH_TIMEOUT,
-                "look_for_keys": False,
-                "allow_agent": False
-            }
-            if env_key:
-                connect_kwargs['key_filename'] = env_key
-            elif password:
-                connect_kwargs['password'] = password
-            else:
-                # If neither explicit key nor password given, allow paramiko to search local keys/agent
-                connect_kwargs['look_for_keys'] = True
-                connect_kwargs['allow_agent'] = True
+        
+        # Support fallback cmd_keys by splitting by '|'
+        cmd_key_list = elem['cmd_key'].split('|')
+        success = False
+        
+        timestamp = datetime.datetime.now().strftime('%d%m%y%H%M%S')
+        for current_key in cmd_key_list:
+            cmds = commands_map.get(current_key)
+            if not cmds:
+                logging.warning(f"No commands found for key '{current_key}' on element '{host}'")
+                continue
                 
-            client.connect(ip, **connect_kwargs)
-        except Exception as e:
-            logging.error(f"Connection failed for {host}: {e}")
-            with counter_lock:
-                counter += 1
-                curr = counter
-            print(f"  [{curr:>{pad}}/{total_elements}] [-] Connection failed: {host} (See log for details)")
-            return
-
-        outputs = execute_commands_shell(client, cmds)
-        client.close()
-
-        # Save files
-        for cmd, out in outputs.items():
-            fname = f"{host}.{timestamp}.{sanitize_filename(cmd)}.txt"
             try:
-                with open(os.path.join(args.outdir, fname), 'w') as f:
-                    f.write(f"# Host: {host}\n# IP: {ip}\n# Command: {cmd}\n# Date: {timestamp}\n\n")
-                    f.write(out)
+                connect_kwargs = {
+                    "username": user,
+                    "timeout": SSH_TIMEOUT,
+                    "look_for_keys": False,
+                    "allow_agent": False
+                }
+                if env_key:
+                    connect_kwargs['key_filename'] = env_key
+                elif password:
+                    connect_kwargs['password'] = password
+                else:
+                    connect_kwargs['look_for_keys'] = True
+                    connect_kwargs['allow_agent'] = True
+                    
+                client.connect(ip, **connect_kwargs)
+                
+                # If we reached here, connection worked. Now try to execute.
+                outputs = execute_commands_shell(client, cmds)
+                client.close()
+                
+                # Save files
+                for cmd, out in outputs.items():
+                    fname = f"{host}.{timestamp}.{sanitize_filename(cmd)}.txt"
+                    try:
+                        with open(os.path.join(args.outdir, fname), 'w') as f:
+                            f.write(f"# Host: {host}\n# IP: {ip}\n# Command: {cmd}\n# Date: {timestamp}\n\n")
+                            f.write(out)
+                        with files_written_lock:
+                            files_written += 1
+                    except Exception as e:
+                        logging.error(f"Error saving '{fname}': {e}")
+                
+                # Log the successful key for the user (to adjust elements.cfg)
+                success_keys_file = os.path.join(args.outdir, "successful_keys.csv")
                 with files_written_lock:
-                    files_written += 1
-                # Omit verbose logging of every single file generated to preserve terminal UX
-            except Exception as e:
-                logging.error(f"Error saving '{fname}': {e}")
+                    with open(success_keys_file, 'a') as skf:
+                        skf.write(f"{host};{ip};{current_key}\n")
 
-        logging.info(f"Session finished for {host}")
+                success = True
+                logging.info(f"Session finished for {host} using key '{current_key}'")
+                break # Exit the fallback loop
+                
+            except Exception as e:
+                logging.warning(f"Connection/Execution failed for {host} with key '{current_key}': {e}")
+                try: client.close()
+                except: pass
+                continue
+
         with counter_lock:
             counter += 1
             curr = counter
-        print(f"  [{curr:>{pad}}/{total_elements}] [+] Collected: {host}")
+            
+        if success:
+            print(f"  [{curr:>{pad}}/{total_elements}] [+] Collected: {host}")
+        else:
+            print(f"  [{curr:>{pad}}/{total_elements}] [-] Failed: {host} (Tried {len(cmd_key_list)} keys)")
 
         # logging.info(f"Session finished for {host}\n")
 

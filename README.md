@@ -1,6 +1,6 @@
 # Network Data Extractor
 
-![Version](https://img.shields.io/badge/version-1.28.6-blue.svg)
+![Version](https://img.shields.io/badge/version-1.30.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8%2B-green.svg)
 
 **Network Data Extractor** is an automated orchestrator built for network engineers and NOCs (Network Operations Centers). It performs massive, parallel SSH polling across dozens or hundreds of network elements (Cisco, Datacom, Huawei, HP, etc.), extracting raw command outputs (`show interfaces`, `show lldp neighbors`, etc.) and consolidating this raw data into CSV spreadsheets and logical topology maps ready for structural analysis.
@@ -123,6 +123,8 @@ optional arguments:
   --key KEY            Path to SSH Private Key (Certificate) for passwordless authentication
   --force              Force execution even if data collection fails
   --offline DIR        Skip data collection and process existing files in the specified directory
+  --discovery          Enable recursive network discovery via LLDP neighbors
+  --hops HOPS          Number of recursive discovery hops to perform (default: 3)
 ```
 
 #### Examples
@@ -166,13 +168,25 @@ python3 network-data-extractor.py --skip-wizard --threads 10
 
 ---
 
+## 🔍 Recursive Network Discovery
+
+Starting with version 1.30.0, the tool can automatically expand your inventory:
+
+1.  **Hop-by-Hop Crawling**: Use `--discovery --hops X` to start a recursive search. At the end of each collection cycle, the script identifies unknown LLDP neighbors and targets them in the next "hop".
+2.  **Management IP Election**: Uses `preferred_management_subnets` from `settings.json` to choose the best IP (e.g., Loopbacks) for accessing discovered devices.
+3.  **Authentication Fallback**: Discovered devices are tested against a list of `fallback_cmd_keys`. The orchestrator tries each profile (Cisco, Huawei, Datacom) until it succeeds.
+4.  **Immutability**: Your original `elements.cfg` is never modified. New devices are saved to `discovery_hop_X.elements.cfg` within the output folder for your review.
+
+---
+
 ## 📂 Output Format (Directory Structure)
 
 Upon each execution, the entire ecosystem will be securely encapsulated in a folder named after the **Date and Time** of your extraction (Example: `infos/20261231_235959/`). Inside, you will find:
 
 - `/collect/`: The raw `.txt` files returned by the Switches and Routers, displaying pure SSH output logs.
+- `/collect/successful_keys.csv`: A simple mapping of which command profile (`cmd_key`) finally worked for each device.
 - `/resume/`: The valuable, consolidated, and sanitized tables (`.csv`) ready to be imported into a Grafana/PowerBI Dashboard or opened in Excel for quick network management decisions.
-- `/resume/status.elements.csv`: Who failed to respond, who was successfully accessed, and even rogue/undocumented ("NEW") equipment orbiting the analyzed topology.
+- `/resume/status.elements.csv`: Who failed to respond, who was successfully accessed, and a dedicated **working_key** column showing the successful authentication profile used.
 - `/connections/topology.connections.csv`: Formal A->B edge mapping, cross-checked without bidirectional redundancy biases.
 
 ---

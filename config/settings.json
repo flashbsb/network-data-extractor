@@ -65,7 +65,21 @@
         }
     },
     "discovery": {
-        "_help_discovery": "Filters out expected/known prefixes of client/external equipment when the Topology Checker hunts for undocumented neighbor devices.",
+        "_help_discovery": "Settings for recursive network crawler. default_hops determines depth; preferred_management_subnets prioritizes election for multi-IP nodes.",
+        "default_hops": 3,
+        "preferred_management_subnets": [
+            "10.0.1.0/24",
+            "172.17.2.0/23"
+        ],
+        "fallback_cmd_keys": [
+            "cisco_ios",
+            "cisco_ios_xe",
+            "cisco_nxos",
+            "cisco_ios_xr",
+            "datacom_dmos",
+            "huawei_vrp"
+        ],
+        "output_filename": "discovery.elements.cfg",
         "ignore_new_prefixes": [
             "CPE",
             "BR-",

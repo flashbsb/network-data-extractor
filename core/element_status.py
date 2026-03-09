@@ -55,7 +55,20 @@ def main():
     report_data = []
     found_elements = set()
 
-    # 2. Scan collect_dir for successful TXT extractions
+    # 2. Load Successful Keys from commands.py run (if any)
+    working_keys = {}
+    success_keys_file = os.path.join(args.collect_dir, "successful_keys.csv")
+    if os.path.isfile(success_keys_file):
+        with open(success_keys_file, 'r') as f:
+            for line in f:
+                parts = line.strip().split(';')
+                if len(parts) >= 3:
+                    working_keys[parts[0]] = parts[2]
+
+    report_data = []
+    found_elements = set()
+
+    # 3. Scan collect_dir for successful TXT extractions
     for expected in expected_elements:
         # Search for any file matching: {expected}.*.txt
         pattern = os.path.join(args.collect_dir, f"{expected}.*.txt")
@@ -97,7 +110,8 @@ def main():
                 "element_name": expected,
                 "real_hostname": real_hostname,
                 "timestamp": timestamp,
-                "status": "ok"
+                "status": "ok",
+                "working_key": working_keys.get(expected, "-")
             })
             found_elements.add(expected)
         else:
@@ -106,10 +120,11 @@ def main():
                 "element_name": expected,
                 "real_hostname": "-",
                 "timestamp": "-",
-                "status": "fail"
+                "status": "fail",
+                "working_key": "-"
             })
 
-    # 3. Scan LLDP Neighbors to find "New" elements
+    # 4. Scan LLDP Neighbors to find "New" elements
     lldp_csv = os.path.join(args.resume_dir, "show_lldp_neighbors_detail_all.csv")
     if os.path.isfile(lldp_csv):
         with open(lldp_csv, 'r', newline='', encoding='utf-8', errors='ignore') as f:
@@ -124,12 +139,13 @@ def main():
                             "element_name": sys_name,
                             "real_hostname": "-",
                             "timestamp": "-",
-                            "status": "new"
+                            "status": "new",
+                            "working_key": "-"
                         })
                         found_elements.add(sys_name) # Prevent duplicates
 
-    # 4. Write output to collect/status.elements.csv
-    headers = ["element_name", "real_hostname", "timestamp", "status"]
+    # 5. Write output to collect/status.elements.csv
+    headers = ["element_name", "real_hostname", "timestamp", "status", "working_key"]
     with open(out_csv, 'w', newline='', encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=headers, delimiter=';')
         writer.writeheader()
