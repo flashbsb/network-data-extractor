@@ -97,17 +97,13 @@ def parse_show_lldp_neighbors_detail(filename):
         m_ecaps = re.search(r'Enabled Capabilities:\s*(.+)', blk)
         enabled_caps = m_ecaps.group(1).strip() if m_ecaps else ''
 
-        # Management IPv4
-        m_ipv4 = re.search(r'IPv4 address:\s*([\d\.]+)', blk)
-        if not m_ipv4:
-            m_ipv4 = re.search(r'\bIP:\s*([\d\.]+)', blk)
-        mgmt_ipv4 = m_ipv4.group(1).strip() if m_ipv4 else ''
+        # Management IPv4 (Robust search for one or more addresses)
+        ipv4_list = re.findall(r'(?:IPv4 address|IP address|IP):\s*([\d\.]+)', blk, re.IGNORECASE)
+        mgmt_ipv4 = ','.join(sorted(list(set(ipv4_list)))) if ipv4_list else ''
 
         # Management IPv6
-        m_ipv6 = re.search(r'IPv6 address:\s*([0-9A-Fa-f:]+)', blk)
-        if not m_ipv6:
-            m_ipv6 = re.search(r'\bIPV6:\s*([0-9A-Fa-f:]+)', blk)
-        mgmt_ipv6 = m_ipv6.group(1).strip() if m_ipv6 else ''
+        ipv6_list = re.findall(r'(?:IPv6 address|IPV6):\s*([0-9A-Fa-f:]+)', blk, re.IGNORECASE)
+        mgmt_ipv6 = ','.join(sorted(list(set(ipv6_list)))) if ipv6_list else ''
 
         # Peer MAC (two possible labels, support : and . formats)
         m_peer = re.search(r'Peer (?:MAC Address|Source MAC):\s*([0-9A-Fa-f:\.]+)', blk)

@@ -33,9 +33,15 @@ def is_ip_in_subnets(ip, subnets):
         pass
     return False
 
+def normalize_hostname(name):
+    """Returns the short name (everything before the first dot) in uppercase."""
+    if not name:
+        return ""
+    return name.split('.')[0].strip().upper()
+
 def read_existing_elements(paths_str):
     existing_ips = set()
-    existing_names = set()
+    existing_names = set() # Store normalized names
     if not paths_str:
         return existing_ips, existing_names
     
@@ -52,7 +58,7 @@ def read_existing_elements(paths_str):
                     if len(parts) >= 2:
                         name = parts[0].strip()
                         ip = parts[1].strip()
-                        existing_names.add(name)
+                        existing_names.add(normalize_hostname(name))
                         existing_ips.add(ip)
     return existing_ips, existing_names
 
@@ -80,44 +86,58 @@ def main():
 
     existing_ips, existing_names = read_existing_elements(args.elements_cfg)
     
-    # Structure: { system_name: { 'ips': [ip1, ip2], 'best_ip': None } }
+    # Structure: { normalized_name: { 'original_name': '...', 'ips': {ip1, ip2} } }
     discovered_nodes = {}
 
     with open(csv_path, mode='r', encoding='utf-8') as f:
         reader = csv.DictReader(f, delimiter=';')
         for row in reader:
-            name = row.get('system_name', '').strip()
-            ip = row.get('mgmt_ipv4', '').strip()
+            raw_name = row.get('system_name', '').strip()
+            raw_ip = row.get('mgmt_ipv4', '').strip()
             
-            if not name or not ip or ip == '0.0.0.0':
+            # Split management IPs (might be comma separated from parser)
+            ips_from_row = [i.strip() for i in raw_ip.split(',') if i.strip()]
+            
+            if not raw_name or not ips_from_row:
                 continue
+            
+            norm_name = normalize_hostname(raw_name)
             
             # Filter by ignore prefixes
             should_ignore = False
             for pref in ignore_prefixes:
-                if name.startswith(pref):
+                if norm_name.startswith(pref.upper()):
                     should_ignore = True
                     break
             if should_ignore:
                 continue
 
-            # Skip if hostname OR ip is already known
-            if name in existing_names:
-                print(f"  [SKIP] {name} already exists in elements configuration.")
-                continue
-            if ip in existing_ips:
-                print(f"  [SKIP] {name} ({ip}) already exists in elements configuration (IP match).")
+            # Skip if normalized hostname is already known
+            if norm_name in existing_names:
                 continue
 
-            if name not in discovered_nodes:
-                discovered_nodes[name] = {'ips': set()}
+            if norm_name not in discovered_nodes:
+                discovered_nodes[norm_name] = {
+                    'original_name': raw_name,
+                    'ips': set()
+                }
             
-            discovered_nodes[name]['ips'].add(ip)
+            for i in ips_from_row:
+                # Skip if this specific IP is already known globally
+                if i in existing_ips:
+                    continue
+                discovered_nodes[norm_name]['ips'].add(i)
 
     # Multi-IP Export logic
     output_elements = []
-    for name, data in discovered_nodes.items():
+    # Drop nodes that ended up with no new IPs
+    for norm_name in list(discovered_nodes.keys()):
+        if not discovered_nodes[norm_name]['ips']:
+            del discovered_nodes[norm_name]
+
+    for norm_name, data in discovered_nodes.items():
         ips = list(data['ips'])
+        display_name = data['original_name']
         
         # Separate preferred IPs from others
         preferred = [ip for ip in ips if is_ip_in_subnets(ip, preferred_subnets)]
@@ -129,7 +149,7 @@ def main():
             
         # For discovery, we also provide the full list of fallback cmd_keys
         cmd_key = "|".join(fallback_keys)
-        output_elements.append(f"{name};{ips_str};{cmd_key}")
+        output_elements.append(f"{display_name};{ips_str};{cmd_key}")
 
     if output_elements:
         out_path = os.path.join(args.outdir, out_filename)

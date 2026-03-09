@@ -2,6 +2,12 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
  
+## [1.33.1] - 2026-03-09
+### Fixed
+- **Hostname Normalization**: Implemented `normalize_hostname` in `discovery.py` to correctly deduplicate FQDN vs short hostnames during discovery.
+- **Robust IP Extraction**: Improved the LLDP parser to capture management IPs across different indentation levels and labels (e.g., "Management Addresses" block).
+- **Multi-IP Aggregation**: Discovery now aggregates all reachable IPs found for a single node, ensuring better fallback availability.
+
 ## [1.33.0] - 2026-03-09
 ### Added
 - **Multi-IP Discovery Support**: The discovery process now exports all valid IPs found for a node (separated by `|`). The orchestrator then attempts to connect to each IP sequentially until a successful session is established. This significantly increases discovery success rates by trying alternative interfaces (e.g., physical vs. loopback) if the primary one fails.
