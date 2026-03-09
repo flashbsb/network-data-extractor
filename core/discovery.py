@@ -114,26 +114,22 @@ def main():
             
             discovered_nodes[name]['ips'].add(ip)
 
-    # IP Election logic
+    # Multi-IP Export logic
     output_elements = []
     for name, data in discovered_nodes.items():
         ips = list(data['ips'])
-        elected_ip = None
         
-        # 1. Try preferred subnets
-        for ip in ips:
-            if is_ip_in_subnets(ip, preferred_subnets):
-                elected_ip = ip
-                break
+        # Separate preferred IPs from others
+        preferred = [ip for ip in ips if is_ip_in_subnets(ip, preferred_subnets)]
+        others = [ip for ip in ips if ip not in preferred]
         
-        # 2. Fallback to the first discovered IP if none matched subnets
-        if not elected_ip:
-            elected_ip = ips[0]
+        # Combine (preferred first) and join by |
+        all_ips = preferred + others
+        ips_str = "|".join(all_ips)
             
-        # For discovery, we provide the full list of fallbacks joined by '|'
-        # core/commands.py will try them in order.
+        # For discovery, we also provide the full list of fallback cmd_keys
         cmd_key = "|".join(fallback_keys)
-        output_elements.append(f"{name};{elected_ip};{cmd_key}")
+        output_elements.append(f"{name};{ips_str};{cmd_key}")
 
     if output_elements:
         out_path = os.path.join(args.outdir, out_filename)

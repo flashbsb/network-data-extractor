@@ -2,6 +2,10 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
  
+## [1.33.0] - 2026-03-09
+### Added
+- **Multi-IP Discovery Support**: The discovery process now exports all valid IPs found for a node (separated by `|`). The orchestrator then attempts to connect to each IP sequentially until a successful session is established. This significantly increases discovery success rates by trying alternative interfaces (e.g., physical vs. loopback) if the primary one fails.
+
 ## [1.32.0] - 2026-03-09
 ### Added
 - **Discovery Optimization Mode**: When `--discovery` is enabled, the orchestrator now enters a "Discovery-Focus" mode. It automatically skips all non-essential parsers, consolidation scripts, and topology mapping, executing only `core/commands.py`, `parsers/show.lldp.neighbors.detail.py`, and `core/element_status.py`. This significantly speeds up multi-hop recursive discovery.

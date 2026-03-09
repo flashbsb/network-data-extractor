@@ -199,65 +199,69 @@ def main():
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         
-        # Support fallback cmd_keys by splitting by '|'
+        # Support multiple IPs and cmd_keys joined by '|'
+        ip_list = elem['ip'].split('|')
         cmd_key_list = elem['cmd_key'].split('|')
         success = False
         
         timestamp = datetime.datetime.now().strftime('%d%m%y%H%M%S')
-        for current_key in cmd_key_list:
-            cmds = commands_map.get(current_key)
-            if not cmds:
-                logging.warning(f"No commands found for key '{current_key}' on element '{host}'")
-                continue
-                
-            try:
-                connect_kwargs = {
-                    "username": user,
-                    "timeout": SSH_TIMEOUT,
-                    "look_for_keys": False,
-                    "allow_agent": False
-                }
-                if env_key:
-                    connect_kwargs['key_filename'] = env_key
-                elif password:
-                    connect_kwargs['password'] = password
-                else:
-                    connect_kwargs['look_for_keys'] = True
-                    connect_kwargs['allow_agent'] = True
+        
+        for current_ip in ip_list:
+            if success: break
+            for current_key in cmd_key_list:
+                cmds = commands_map.get(current_key)
+                if not cmds:
+                    logging.warning(f"No commands found for key '{current_key}' on element '{host}'")
+                    continue
                     
-                client.connect(ip, **connect_kwargs)
-                
-                # If we reached here, connection worked. Now try to execute.
-                outputs = execute_commands_shell(client, cmds)
-                client.close()
-                
-                # Save files
-                for cmd, out in outputs.items():
-                    fname = f"{host}.{timestamp}.{sanitize_filename(cmd)}.txt"
-                    try:
-                        with open(os.path.join(args.outdir, fname), 'w') as f:
-                            f.write(f"# Host: {host}\n# IP: {ip}\n# Command: {cmd}\n# Date: {timestamp}\n\n")
-                            f.write(out)
-                        with files_written_lock:
-                            files_written += 1
-                    except Exception as e:
-                        logging.error(f"Error saving '{fname}': {e}")
-                
-                # Log the successful key for the user (to adjust elements.cfg)
-                success_keys_file = os.path.join(args.outdir, "successful_keys.csv")
-                with files_written_lock:
-                    with open(success_keys_file, 'a') as skf:
-                        skf.write(f"{host};{ip};{current_key}\n")
+                try:
+                    connect_kwargs = {
+                        "username": user,
+                        "timeout": SSH_TIMEOUT,
+                        "look_for_keys": False,
+                        "allow_agent": False
+                    }
+                    if env_key:
+                        connect_kwargs['key_filename'] = env_key
+                    elif password:
+                        connect_kwargs['password'] = password
+                    else:
+                        connect_kwargs['look_for_keys'] = True
+                        connect_kwargs['allow_agent'] = True
+                        
+                    client.connect(current_ip, **connect_kwargs)
+                    
+                    # If we reached here, connection worked. Now try to execute.
+                    outputs = execute_commands_shell(client, cmds)
+                    client.close()
+                    
+                    # Save files
+                    for cmd, out in outputs.items():
+                        fname = f"{host}.{timestamp}.{sanitize_filename(cmd)}.txt"
+                        try:
+                            with open(os.path.join(args.outdir, fname), 'w') as f:
+                                f.write(f"# Host: {host}\n# IP: {current_ip}\n# Command: {cmd}\n# Date: {timestamp}\n\n")
+                                f.write(out)
+                            with files_written_lock:
+                                files_written += 1
+                        except Exception as e:
+                            logging.error(f"Error saving '{fname}': {e}")
+                    
+                    # Log the successful key for the user (to adjust elements.cfg)
+                    success_keys_file = os.path.join(args.outdir, "successful_keys.csv")
+                    with files_written_lock:
+                        with open(success_keys_file, 'a') as skf:
+                            skf.write(f"{host};{current_ip};{current_key}\n")
 
-                success = True
-                logging.info(f"Session finished for {host} using key '{current_key}'")
-                break # Exit the fallback loop
-                
-            except Exception as e:
-                logging.warning(f"Connection/Execution failed for {host} with key '{current_key}': {e}")
-                try: client.close()
-                except: pass
-                continue
+                    success = True
+                    logging.info(f"Session finished for {host} using IP {current_ip} and key '{current_key}'")
+                    break # Exit the key fallback loop
+                    
+                except Exception as e:
+                    logging.warning(f"Connection/Execution failed for {host} at {current_ip} with key '{current_key}': {e}")
+                    try: client.close()
+                    except: pass
+                    continue
 
         with counter_lock:
             counter += 1
@@ -266,7 +270,7 @@ def main():
         if success:
             print(f"  [{curr:>{pad}}/{total_elements}] [+] Collected: {host}")
         else:
-            print(f"  [{curr:>{pad}}/{total_elements}] [-] Failed: {host} (Tried {len(cmd_key_list)} keys)")
+            print(f"  [{curr:>{pad}}/{total_elements}] [-] Failed: {host} (Tried {len(ip_list)} IPs, {len(cmd_key_list)} keys)")
 
         # logging.info(f"Session finished for {host}\n")
 
