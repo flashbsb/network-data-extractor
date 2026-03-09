@@ -4,7 +4,7 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
-Version : 1.31.1
+Version : 1.32.0
 Date    : 2026-03-09
 Author  : flashbsb (and contributors)
 
@@ -447,6 +447,17 @@ consolidation_scripts = [
     "core/lldp_consistency_checker.py"
 ]
 
+# When discovery is active, we focus ONLY on essential scripts to map the network faster.
+if args.discovery:
+    # Whitelist of scripts needed for discovery
+    discovery_essential = [
+        "core/commands.py",
+        "parsers/show.lldp.neighbors.detail.py",
+        "core/element_status.py"
+    ]
+    SCRIPTS = [s for s in SCRIPTS if s in discovery_essential]
+    consolidation_scripts = [] # Skip all consolidation during discovery hops
+
 while True:
     log_orchestrator(f"--- STARTING HOP {current_hop} (Elements: {current_elements_file}) ---")
     if current_hop > 0:
@@ -638,6 +649,10 @@ while True:
             log_orchestrator(f"Skipped {s_name}: File not found at {s_abs}")
             continue
         
+        if args.discovery:
+            # Skip topology mapping during discovery hops to maximize speed
+            continue
+
         if not args.force and not check_data_presence(s_rel, COLLECT_DIR, RESUME_DIR):
             print(f"[*] {s_name:40s} {C_YELLOW}[SKIPPED - NO DATA]{C_RESET}")
             log_orchestrator(f"Skipped {s_name}: No data found to process.")

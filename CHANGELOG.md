@@ -1,7 +1,10 @@
 # Changelog
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
-
+ 
+## [1.32.0] - 2026-03-09
+### Added
+- **Discovery Optimization Mode**: When `--discovery` is enabled, the orchestrator now enters a "Discovery-Focus" mode. It automatically skips all non-essential parsers, consolidation scripts, and topology mapping, executing only `core/commands.py`, `parsers/show.lldp.neighbors.detail.py`, and `core/element_status.py`. This significantly speeds up multi-hop recursive discovery.
 
 ## [1.31.1] - 2026-03-09
 ### Added
