@@ -168,8 +168,8 @@ def main():
     password = None
     if env_key:
         logging.info(f"Using explicit SSH key provided via arguments: {env_key}")
-    elif env_pass:
-        logging.info("Using SSH password provided via arguments/environment.")
+    elif env_pass is not None:
+        logging.info("Using SSH password provided via environment.")
         password = env_pass
     else:
         password = getpass.getpass('SSH Password (leave blank to use local SSH Agent/Keys): ')

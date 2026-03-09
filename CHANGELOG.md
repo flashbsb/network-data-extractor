@@ -2,11 +2,21 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+
+## [1.31.1] - 2026-03-09
+### Added
+- **Persistent Interactive Authentication**: The orchestrator now prompts for the SSH password once at the start of execution and reuses it for all discovery hops, preventing multiple re-prompts.
+
+### Fixed
+- **Discovery I/O Error**: Fixed a bug that triggered "I/O operation on closed file" when writing logs for discovery sub-processes.
+- **Custom Settings Support**: Refactored `discovery.py`, `element_status.py`, and `interface2connection.py` to respect the `--settings` CLI argument passed to the orchestrator.
+
 ## [1.31.0] - 2026-03-09
 ### Added
 - **Output Compression**: Added a feature to automatically compress output folders (`collect/`, `log/`) into `.zip`, `.tar`, or `.gztar` archives at the end of the execution, saving significant disk space.
 - **Dependency Validation**: Implemented a pre-execution check to verify if the chosen compression format is supported by the environment.
 - **Improved install script**: Updated `installdep.sh` to include `zip` and `tar` packages.
+- **Improved Discovery Logic**: Fixed I/O errors and ensured custom settings are respected globally.
 
 ## [1.30.1] - 2026-03-09
 ### Fixed

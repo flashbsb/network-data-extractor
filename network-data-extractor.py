@@ -4,7 +4,7 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
-Version : 1.30.0
+Version : 1.31.1
 Date    : 2026-03-09
 Author  : flashbsb (and contributors)
 
@@ -22,6 +22,7 @@ import shutil
 import argparse
 import json
 import csv
+import getpass
 from datetime import datetime
 from glob import glob
 
@@ -148,6 +149,17 @@ else:
         args.hops = 0
 
 # 3. Authentication logical dependency
+if not args.offline and not args.password and not args.key:
+    # If we are going to run commands.py (online extraction), ask for password once here
+    # so we can reuse it for all discovery hops and prevent multiple interactive prompts.
+    try:
+        args.password = getpass.getpass('SSH Password (leave blank to use local SSH Agent/Keys): ')
+    except EOFError:
+        args.password = ""
+    except KeyboardInterrupt:
+        print(f"\n{C_RED}Execution cancelled by user.{C_RESET}")
+        sys.exit(130)
+
 if (args.password or args.key) and not args.user:
     print(f"{C_YELLOW}Warning: Automated authentication works best when --user is also provided.{C_RESET}")
 
@@ -482,7 +494,7 @@ while True:
                 cmd_env = os.environ.copy()
                 cmd_env["PYTHONIOENCODING"] = "utf-8"
                 if args.user: cmd_env["NDX_SSH_USER"] = args.user
-                if args.password: cmd_env["NDX_SSH_PASS"] = args.password
+                if args.password is not None: cmd_env["NDX_SSH_PASS"] = args.password
                 if args.key: cmd_env["NDX_SSH_KEY"] = args.key
                 
                 rc = subprocess.run(cmd, env=cmd_env)
