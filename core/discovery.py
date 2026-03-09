@@ -33,13 +33,15 @@ def is_ip_in_subnets(ip, subnets):
         pass
     return False
 
-def normalize_hostname(name):
-    """Returns the short name (everything before the first dot) in uppercase."""
+def normalize_hostname(name, fmt='simple'):
+    """Returns the name according to fmt: 'simple' (pre-dot) or 'fqdn' (full)."""
     if not name:
         return ""
+    if fmt == 'fqdn':
+        return name.strip().upper()
     return name.split('.')[0].strip().upper()
 
-def read_existing_elements(paths_str):
+def read_existing_elements(paths_str, hostname_fmt='simple'):
     existing_ips = set()
     existing_names = set() # Store normalized names
     if not paths_str:
@@ -58,7 +60,7 @@ def read_existing_elements(paths_str):
                     if len(parts) >= 2:
                         name = parts[0].strip()
                         ip = parts[1].strip()
-                        existing_names.add(normalize_hostname(name))
+                        existing_names.add(normalize_hostname(name, hostname_fmt))
                         existing_ips.add(ip)
     return existing_ips, existing_names
 
@@ -79,15 +81,16 @@ def main():
     ignore_prefixes = discovery_cfg.get("ignore_new_prefixes", [])
     fallback_keys = discovery_cfg.get("fallback_cmd_keys", ["cisco_ios"])
     out_filename = args.out_filename or discovery_cfg.get("output_filename", "discovery.elements.cfg")
+    hostname_fmt = discovery_cfg.get("hostname_format", "simple")
 
     csv_path = os.path.join(args.resume_dir, "show_lldp_neighbors_detail_all.csv")
     if not os.path.isfile(csv_path):
         print(f"Error: {csv_path} not found.")
         sys.exit(1)
 
-    existing_ips, existing_names = read_existing_elements(args.elements_cfg)
+    existing_ips, existing_names = read_existing_elements(args.elements_cfg, hostname_fmt)
     
-    # Structure: { normalized_name: { 'original_name': '...', 'ips': {ip1, ip2} } }
+    # Structure: { normalized_name: { 'display_name': '...', 'ips': {ip1, ip2} } }
     discovered_nodes = {}
 
     with open(csv_path, mode='r', encoding='utf-8') as f:
@@ -102,7 +105,7 @@ def main():
             if not raw_name or not ips_from_row:
                 continue
             
-            norm_name = normalize_hostname(raw_name)
+            norm_name = normalize_hostname(raw_name, hostname_fmt)
             
             # Filter by ignore prefixes
             should_ignore = False
@@ -119,7 +122,7 @@ def main():
 
             if norm_name not in discovered_nodes:
                 discovered_nodes[norm_name] = {
-                    'original_name': raw_name,
+                    'display_name': raw_name if hostname_fmt == 'fqdn' else raw_name.split('.')[0].strip(),
                     'ips': set()
                 }
             
@@ -138,7 +141,7 @@ def main():
 
     for norm_name, data in discovered_nodes.items():
         ips = list(data['ips'])
-        display_name = data['original_name']
+        display_name = data['display_name']
         
         # Separate preferred IPs from others
         preferred = [ip for ip in ips if is_ip_in_subnets(ip, preferred_subnets)]

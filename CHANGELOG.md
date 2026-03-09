@@ -2,6 +2,13 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
  
+## [1.34.1] - 2026-03-09
+### Fixed
+- **Clean Output (Discovery)**: The orchestrator now skips the creation of the `connections` folder when running in `--discovery` mode, as it is non-essential.
+- **Intermediate File Management**: Discovery hop files (`discovery_hop_X.elements.cfg`) are now stored within the `resume/` subdirectory instead of the output root, keeping the top-level cleaner.
+### Added
+- **Hostname Formatting**: Added `hostname_format` setting to `settings.json` (options: `simple`, `fqdn`). This allows controlling whether discovered nodes use their short names or full domain names (default is `simple`).
+
 ## [1.34.0] - 2026-03-09
 ### Changed
 - **Relocated Success Reports**: Moved `successful_keys.csv` from the raw data directory (`collect/`) to the summary directory (`resume/`) to keep `collect/` exclusively for raw command outputs.

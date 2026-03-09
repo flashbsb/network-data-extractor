@@ -4,7 +4,7 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
-Version : 1.34.0
+Version : 1.34.1
 Date    : 2026-03-09
 Author  : flashbsb (and contributors)
 
@@ -227,7 +227,8 @@ else:
     os.makedirs(LOG_DIR, exist_ok=True)
     os.makedirs(COLLECT_DIR, exist_ok=True)
     os.makedirs(RESUME_DIR, exist_ok=True)
-    os.makedirs(CONNECTIONS_DIR, exist_ok=True)
+    if not args.discovery:
+        os.makedirs(CONNECTIONS_DIR, exist_ok=True)
 
     orchestrator_log = os.path.join(LOG_DIR, "orchestrator.log")
     def log_orchestrator(msg):
@@ -693,11 +694,11 @@ while True:
         log_orchestrator(f"Running discovery for hop {current_hop+1}")
         disco_script = os.path.join(cwd, "core", "discovery.py")
         disco_fname = f"discovery_hop_{current_hop+1}.elements.cfg"
-        disco_out = os.path.join(TIMESTAMP_DIR, disco_fname)
+        disco_out = os.path.join(RESUME_DIR, disco_fname)
         
         # Pass ALL known elements files to the skip list
         elements_skip_str = ",".join(known_elements_chain)
-        cmd_disco = [sys.executable, disco_script, "--resume_dir", RESUME_DIR, "--resumedir", RESUME_DIR, "--elements_cfg", elements_skip_str, "--outdir", TIMESTAMP_DIR, "--out_filename", disco_fname, "--settings", args.settings]
+        cmd_disco = [sys.executable, disco_script, "--resume_dir", RESUME_DIR, "--resumedir", RESUME_DIR, "--elements_cfg", elements_skip_str, "--outdir", RESUME_DIR, "--out_filename", disco_fname, "--settings", args.settings]
         
         disco_log_path = os.path.join(LOG_DIR, f"discovery_hop_{current_hop+1}.log")
         

@@ -90,7 +90,8 @@
             "SDCE",
             "EDGE",
             "swti"
-        ]
+        ],
+        "hostname_format": "simple"
     },
     "compression": {
         "_help_compression": "Settings to minimize output size. Can compress large raw data (collect) or logs after completion.",
