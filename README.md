@@ -1,6 +1,6 @@
 # Network Data Extractor
 
-![Version](https://img.shields.io/badge/version-1.30.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.31.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8%2B-green.svg)
 
 **Network Data Extractor** is an automated orchestrator built for network engineers and NOCs (Network Operations Centers). It performs massive, parallel SSH polling across dozens or hundreds of network elements (Cisco, Datacom, Huawei, HP, etc.), extracting raw command outputs (`show interfaces`, `show lldp neighbors`, etc.) and consolidating this raw data into CSV spreadsheets and logical topology maps ready for structural analysis.
@@ -168,6 +168,24 @@ python3 network-data-extractor.py --skip-wizard --threads 10
 
 ---
 
+## 🗺️ Lógica de Descoberta de Topologia (Regex)
+
+O script `core/interface2connection.py` utiliza uma "Universal Blind Analyzer" para identificar conexões entre equipamentos sem depender de um cadastro rígido. Ele funciona da seguinte forma:
+
+1.  **Varredura de Descrições**: O script analisa o campo `description` de todas as interfaces físicas coletadas.
+2.  **Padrão de Nomenclatura (Regex)**: Ele busca por strings que correspondam ao padrão de hostnames da sua rede. O padrão padrão é:
+    - `((?:RT|SW|SM|PTT|DW)[A-Za-z0-9]+-[A-Za-z0-9-]+)`
+    - Isso significa que ele procura por nomes que comecem com prefixos conhecidos (como `RT-`, `SW-`, etc.), seguidos de caracteres alfanuméricos e hifens.
+3.  **Configuração Customizada**: Você pode ajustar quais prefixos o script deve reconhecer editando o arquivo `config/settings.json`:
+    ```json
+    "topology": {
+        "device_name_prefixes": ["RT", "SW", "SM", "PTT", "DW"]
+    }
+    ```
+4.  **Deduplicação Inteligente**: O script é inteligente o suficiente para entender que se o `Elemento A` diz estar conectado ao `Elemento B`, e o `Elemento B` diz o mesmo sobre o `A`, trata-se de um único cabo físico (deduplicação bidirecional).
+
+---
+
 ## 🔍 Recursive Network Discovery
 
 Starting with version 1.30.0, the tool can automatically expand your inventory:
@@ -176,6 +194,26 @@ Starting with version 1.30.0, the tool can automatically expand your inventory:
 2.  **Management IP Election**: Uses `preferred_management_subnets` from `settings.json` to choose the best IP (e.g., Loopbacks) for accessing discovered devices.
 3.  **Authentication Fallback**: Discovered devices are tested against a list of `fallback_cmd_keys`. The orchestrator tries each profile (Cisco, Huawei, Datacom) until it succeeds.
 4.  **Immutability**: Your original `elements.cfg` is never modified. New devices are saved to `discovery_hop_X.elements.cfg` within the output folder for your review.
+
+---
+
+## 🗜️ Compactação de Saída (Economia de Espaço)
+
+Para redes grandes, a pasta `collect/` pode crescer rapidamente com arquivos de texto brutos. O orquestrador agora suporta a compactação automática de pastas ao final da execução.
+
+Configure no `config/settings.json`:
+```json
+"compression": {
+    "enabled": true,
+    "format": "zip",
+    "delete_after_compression": true,
+    "folders": ["collect", "log"]
+}
+```
+- **enabled**: Ativa ou desativa a função.
+- **format**: Formatos suportados (`zip`, `tar`, `gztar`).
+- **delete_after_compression**: Se `true`, remove a pasta original após criar o arquivo compactado.
+- **folders**: Lista de subpastas para compactar (geralmente `collect` e `log`).
 
 ---
 

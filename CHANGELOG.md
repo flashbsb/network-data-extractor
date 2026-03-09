@@ -2,6 +2,18 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.31.0] - 2026-03-09
+### Added
+- **Output Compression**: Added a feature to automatically compress output folders (`collect/`, `log/`) into `.zip`, `.tar`, or `.gztar` archives at the end of the execution, saving significant disk space.
+- **Dependency Validation**: Implemented a pre-execution check to verify if the chosen compression format is supported by the environment.
+- **Improved install script**: Updated `installdep.sh` to include `zip` and `tar` packages.
+
+## [1.30.1] - 2026-03-09
+### Fixed
+- **Missing CSV Import**: Restored `import csv` in the main orchestrator, fixing a `NameError` during final report generation.
+- **Consolidated Parser Arguments**: Refactored the consolidation loop to correctly map specific CLI arguments (`--outdir` vs `--resume_dir`) for each sub-script, resolving failures in `system_asset.py`, `transceiver_matrix.py`, and others.
+- **Argument Dependencies**: Improved `argparse` logic to prevent conflicting flags (e.g., `--discovery` with `--offline`) and refined the `--help` output with contextual groupings.
+
 ## [1.30.0] - 2026-03-09
 ### Added
 - **Recursive Network Discovery (`--discovery`)**: Implemented multi-hop recursive crawling. The script now parses LLDP neighbors at the end of each cycle and generates a new target list for the next hop.

@@ -21,10 +21,11 @@ import os
 import shutil
 import argparse
 import json
+import csv
 from datetime import datetime
 from glob import glob
 
-APP_VERSION = "1.30.0"
+APP_VERSION = "1.31.0"
 APP_DATE = "2026-03-09"
 
 # ANSI Colors
@@ -153,6 +154,18 @@ if (args.password or args.key) and not args.user:
 # 4. Clear screen for password security
 if args.password:
     os.system('clear' if os.name == 'posix' else 'cls')
+
+# --- COMPRESSION VALIDATION ---
+comp_cfg = json_config.get("compression", {})
+if comp_cfg.get("enabled", False):
+    comp_format = comp_cfg.get("format", "zip")
+    supported_formats = [f[0] for f in shutil.get_archive_formats()]
+    if comp_format not in supported_formats:
+        print(f"{C_RED}ERROR: Compression format '{comp_format}' is not supported in this environment.{C_RESET}")
+        print(f"Supported formats: {', '.join(supported_formats)}")
+        print(f"{C_YELLOW}Disabling compression to prevent execution failure.{C_RESET}\n")
+        comp_cfg["enabled"] = False
+        json_config["compression"] = comp_cfg
 
 if args.offline:
     TIMESTAMP_DIR = os.path.abspath(args.offline)
@@ -575,7 +588,18 @@ while True:
             continue
         
         log_orchestrator(f"Executing {script_name}...")
-        cmd = [sys.executable, script_abs, "--collect_dir", COLLECT_DIR, "--resume_dir", RESUME_DIR, "--outdir", RESUME_DIR]
+        
+        # Determine specific arguments for each consolidation script
+        if script_name in ["generate_service_inventory.py", "lldp_consistency_checker.py"]:
+            cmd = [sys.executable, script_abs, "--resume_dir", RESUME_DIR]
+        elif script_name in ["subcomponents.py", "license_matrix.py", "show.bgp.vpnv4.unicast.all.summary.py"]:
+            cmd = [sys.executable, script_abs, "--collect_dir", COLLECT_DIR, "--outdir", RESUME_DIR]
+        elif script_name == "port_census.py":
+            cmd = [sys.executable, script_abs, "--resume_dir", RESUME_DIR, "--outdir", RESUME_DIR]
+        else:
+            # system_asset.py and transceiver_matrix.py use --collect_dir and --resume_dir
+            cmd = [sys.executable, script_abs, "--collect_dir", COLLECT_DIR, "--resume_dir", RESUME_DIR]
+
         out_log = os.path.join(LOG_DIR, f"{script_name.replace('.py','')}.log")
         
         script_start_time = datetime.now()
@@ -741,6 +765,30 @@ hours = total_seconds // 3600
 minutes = (total_seconds % 3600) // 60
 seconds = total_seconds % 60
 print(f"Total processing time: {hours:02d}:{minutes:02d}:{seconds:02d}")
+
+# --- OUTPUT COMPRESSION ---
+comp_cfg = json_config.get("compression", {})
+if comp_cfg.get("enabled", False):
+    print(f"\n{C_CYAN}--- Minimizing Output (Compression) ---{C_RESET}")
+    folders_to_compress = comp_cfg.get("folders", ["collect", "log"])
+    comp_format = comp_cfg.get("format", "zip")
+    delete_orig = comp_cfg.get("delete_after_compression", True)
+    
+    for f_name in folders_to_compress:
+        f_dir = os.path.join(TIMESTAMP_DIR, f_name)
+        if os.path.isdir(f_dir):
+            print(f"[*] Compressing {f_name:20s} -> {f_name}.{comp_format}...", end="", flush=True)
+            try:
+                # shutil.make_archive(base_name, format, root_dir)
+                archive_path = os.path.join(TIMESTAMP_DIR, f_name)
+                shutil.make_archive(archive_path, comp_format, f_dir)
+                print(f" {C_GREEN}[DONE]{C_RESET}")
+                
+                if delete_orig:
+                    shutil.rmtree(f_dir)
+            except Exception as e:
+                print(f" {C_RED}[FAILED]{C_RESET}: {e}")
+                log_orchestrator(f"Compression failed for {f_name}: {e}")
 
 print(f"\n{C_CYAN}🔗 Repository - Follow on GitHub for new versions and updates{C_RESET}")
 print(f"\n{C_GREEN}Generate topologies dynamically{C_RESET}")

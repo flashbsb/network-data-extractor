@@ -91,5 +91,15 @@
             "EDGE",
             "swti"
         ]
+    },
+    "compression": {
+        "_help_compression": "Settings to minimize output size. Can compress large raw data (collect) or logs after completion.",
+        "enabled": false,
+        "format": "zip",
+        "delete_after_compression": true,
+        "folders": [
+            "collect",
+            "log"
+        ]
     }
 }
