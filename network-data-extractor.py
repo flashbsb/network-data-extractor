@@ -505,7 +505,7 @@ while True:
                 log_orchestrator(f"{script_name} Error: {e}")
                 print(f"{step_prefix} {C_RED}[ERROR]{C_RESET}")
         elif script_name == "element_status.py":
-            cmd.extend(["--collect_dir", COLLECT_DIR, "--resume_dir", RESUME_DIR, "--elements_cfg", args.elements])
+            cmd.extend(["--collect_dir", COLLECT_DIR, "--resume_dir", RESUME_DIR, "--elements_cfg", args.elements, "--settings", args.settings])
             safe_name = "element_status"
             out_file_name = os.path.join(LOG_DIR, f"{safe_name}.log")
             
@@ -670,17 +670,19 @@ while True:
         
         # Pass ALL known elements files to the skip list
         elements_skip_str = ",".join(known_elements_chain)
-        cmd_disco = [sys.executable, disco_script, "--resume_dir", RESUME_DIR, "--elements_cfg", elements_skip_str, "--outdir", TIMESTAMP_DIR, "--out_filename", disco_fname]
+        cmd_disco = [sys.executable, disco_script, "--resume_dir", RESUME_DIR, "--elements_cfg", elements_skip_str, "--outdir", TIMESTAMP_DIR, "--out_filename", disco_fname, "--settings", args.settings]
         
         disco_log_path = os.path.join(LOG_DIR, f"discovery_hop_{current_hop+1}.log")
         
         try:
+            disco_start_time = datetime.now()
             with open(disco_log_path, "w", encoding="utf-8") as fh:
                 fh.write(f"COMMAND: {' '.join(cmd_disco)}\n")
                 fh.write("START: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n\n")
+                fh.flush() # Ensure header is written before subprocess starts
+                
+                rc_disco = subprocess.run(cmd_disco, stdout=fh, stderr=fh, text=True)
             
-            disco_start_time = datetime.now()
-            rc_disco = subprocess.run(cmd_disco, stdout=fh, stderr=fh, text=True)
             disco_duration = (datetime.now() - disco_start_time).total_seconds()
             
             with open(disco_log_path, "a", encoding="utf-8") as fh:

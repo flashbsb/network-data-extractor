@@ -8,24 +8,24 @@ import argparse
 import json
 from datetime import datetime
 
-# Load settings
-base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-config_path = os.path.join(base_path, "config", "settings.json")
-json_config = {}
-if os.path.exists(config_path):
-    try:
-        with open(config_path, "r") as f:
-            json_config = json.load(f)
-    except:
-        pass
+def load_settings(custom_path=None):
+    if custom_path:
+        config_path = custom_path
+    else:
+        base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        config_path = os.path.join(base_path, "config", "settings.json")
+    
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, "r") as f:
+                return json.load(f)
+        except:
+            pass
+    return {}
 
-discovery_cfg = json_config.get("discovery", {})
-_raw_prefixes = discovery_cfg.get("ignore_new_prefixes", ["JOAO", "MARIA"])
-IGNORE_NEW_PREFIXES = tuple(str(p).upper() for p in _raw_prefixes)
-
-def is_ignored(name):
+def is_ignored(name, ignore_prefixes):
     if not name: return True
-    return name.upper().startswith(IGNORE_NEW_PREFIXES)
+    return name.upper().startswith(ignore_prefixes)
 
 def clean_system_name(name):
     """Removes domain part from FQDN hostnames like ROUTER.xyz.com -> ROUTER"""
@@ -37,7 +37,13 @@ def main():
     parser.add_argument("--collect_dir", required=True, help="Directory containing the raw SSH text files.")
     parser.add_argument("--resume_dir", required=True, help="Directory containing the parsed CSV files.")
     parser.add_argument("--elements_cfg", required=True, help="Path to config/elements.cfg")
+    parser.add_argument("--settings", help="Path to settings.json")
     args = parser.parse_args()
+
+    json_config = load_settings(args.settings)
+    discovery_cfg = json_config.get("discovery", {})
+    _raw_prefixes = discovery_cfg.get("ignore_new_prefixes", [])
+    ignore_prefixes = tuple(str(p).upper() for p in _raw_prefixes)
 
     out_csv = os.path.join(args.resume_dir, "status.elements.csv")
 
@@ -134,7 +140,7 @@ def main():
                 
                 # If valid, not in our expected roster, and not in the ignore list
                 if sys_name and (sys_name not in expected_elements) and (sys_name not in found_elements):
-                    if not is_ignored(sys_name):
+                    if not is_ignored(sys_name, ignore_prefixes):
                         report_data.append({
                             "element_name": sys_name,
                             "real_hostname": "-",

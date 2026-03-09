@@ -8,8 +8,13 @@ import ipaddress
 import argparse
 import logging
 
-def load_settings():
-    settings_path = "config/settings.json"
+def load_settings(custom_path=None):
+    if custom_path:
+        settings_path = custom_path
+    else:
+        # Default relative to root
+        settings_path = "config/settings.json"
+        
     if os.path.exists(settings_path):
         try:
             with open(settings_path, "r") as f:
@@ -57,9 +62,10 @@ def main():
     parser.add_argument("--elements_cfg", default="config/elements.cfg", help="Current elements config to avoid duplicates")
     parser.add_argument("--outdir", required=True, help="Directory to save the discovery results")
     parser.add_argument("--out_filename", help="Filename for the discovered elements (overrides settings.json)")
+    parser.add_argument("--settings", help="Path to settings.json")
     args = parser.parse_args()
 
-    settings = load_settings()
+    settings = load_settings(args.settings)
     discovery_cfg = settings.get("discovery", {})
     
     preferred_subnets = discovery_cfg.get("preferred_management_subnets", [])

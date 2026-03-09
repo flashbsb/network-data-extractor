@@ -5,25 +5,32 @@ import os
 import argparse
 import json
 
-# Load Global Settings
-json_config = {}
-if os.path.exists("config/settings.json"):
-    try:
-        with open("config/settings.json", "r") as f:
-            json_config = json.load(f)
-    except:
-        pass
-
-topology_cfg = json_config.get("topology", {})
-IGNORE_VIRTUAL_PREFIXES = tuple(topology_cfg.get("ignore_virtual_prefixes", ["Bundle", "PW", "NULL", "Null", "Loopback", "Tunnel"]))
-NEIGHBOR_PREFIXES = topology_cfg.get("neighbor_regex_prefixes", ["CONEXAO_COM_", "PEERING_", "TRUNK_"])
-DEVICE_NAME_PREFIXES = topology_cfg.get("device_name_prefixes", ["RT", "SW", "SM", "PTT", "DW"])
-SPEED_COLORS = topology_cfg.get("speed_colors", {
+# Default prefixes if settings fail to load
+IGNORE_VIRTUAL_PREFIXES = ("Bundle", "PW", "NULL", "Null", "Loopback", "Tunnel")
+NEIGHBOR_PREFIXES = ["CONEXAO_COM_", "PEERING_", "TRUNK_"]
+DEVICE_NAME_PREFIXES = ["RT", "SW", "SM", "PTT", "DW"]
+SPEED_COLORS = {
     "1000000": {"width": 1, "color": "#800080"},
     "10000000": {"width": 2, "color": "#0085DA"},
     "100000000": {"width": 3, "color": "#006400"},
     "default": {"width": 4, "color": "#800080"}
-})
+}
+
+def load_settings(custom_path=None):
+    global IGNORE_VIRTUAL_PREFIXES, NEIGHBOR_PREFIXES, DEVICE_NAME_PREFIXES, SPEED_COLORS
+    config_path = custom_path if custom_path else "config/settings.json"
+    
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, "r") as f:
+                json_config = json.load(f)
+                topology_cfg = json_config.get("topology", {})
+                IGNORE_VIRTUAL_PREFIXES = tuple(topology_cfg.get("ignore_virtual_prefixes", IGNORE_VIRTUAL_PREFIXES))
+                NEIGHBOR_PREFIXES = topology_cfg.get("neighbor_regex_prefixes", NEIGHBOR_PREFIXES)
+                DEVICE_NAME_PREFIXES = topology_cfg.get("device_name_prefixes", DEVICE_NAME_PREFIXES)
+                SPEED_COLORS = topology_cfg.get("speed_colors", SPEED_COLORS)
+        except:
+            pass
 
 def parse_neighbor(description):
     """
@@ -108,7 +115,10 @@ def main():
     parser = argparse.ArgumentParser(description="Generates connections from interface CSV files.")
     parser.add_argument("--input", default=".", help="Input directory containing CSVs.")
     parser.add_argument("--output", default=".", help="Output directory for generated CSVs.")
+    parser.add_argument("--settings", help="Path to settings.json")
     args = parser.parse_args()
+
+    load_settings(args.settings)
 
     os.makedirs(args.output, exist_ok=True)
     files = glob.glob(os.path.join(args.input, '*interfaces_all.csv'))
