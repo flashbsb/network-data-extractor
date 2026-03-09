@@ -97,8 +97,8 @@ def parse_show_lldp_neighbors_detail(filename):
         m_ecaps = re.search(r'Enabled Capabilities:\s*(.+)', blk)
         enabled_caps = m_ecaps.group(1).strip() if m_ecaps else ''
 
-        # Management IPv4 (Robust search for one or more addresses)
-        ipv4_list = re.findall(r'(?:IPv4 address|IP address|IP):\s*([\d\.]+)', blk, re.IGNORECASE)
+        # Management IPv4 (Robust search for one or more addresses, handling indentation)
+        ipv4_list = re.findall(r'(?:IPv4 address|IP address|IP|IPv4):\s*([\d\.]+)', blk, re.IGNORECASE)
         mgmt_ipv4 = ','.join(sorted(list(set(ipv4_list)))) if ipv4_list else ''
 
         # Management IPv6

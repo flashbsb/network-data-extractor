@@ -90,7 +90,7 @@ def main():
 
     existing_ips, existing_names = read_existing_elements(args.elements_cfg, hostname_fmt)
     
-    # Structure: { normalized_name: { 'display_name': '...', 'ips': {ip1, ip2} } }
+    # Structure: { normalized_name: { 'display_name': '...', 'ips': {ip1, ip2}, 'sources': {source1, source2} } }
     discovered_nodes = {}
 
     with open(csv_path, mode='r', encoding='utf-8') as f:
@@ -98,6 +98,7 @@ def main():
         for row in reader:
             raw_name = row.get('system_name', '').strip()
             raw_ip = row.get('mgmt_ipv4', '').strip()
+            source_node = row.get('element', 'unknown').strip()
             
             # Split management IPs (might be comma separated from parser)
             ips_from_row = [i.strip() for i in raw_ip.split(',') if i.strip()]
@@ -123,9 +124,11 @@ def main():
             if norm_name not in discovered_nodes:
                 discovered_nodes[norm_name] = {
                     'display_name': raw_name if hostname_fmt == 'fqdn' else raw_name.split('.')[0].strip(),
-                    'ips': set()
+                    'ips': set(),
+                    'sources': set()
                 }
             
+            discovered_nodes[norm_name]['sources'].add(source_node)
             for i in ips_from_row:
                 # Skip if this specific IP is already known globally
                 if i in existing_ips:
@@ -133,15 +136,17 @@ def main():
                 discovered_nodes[norm_name]['ips'].add(i)
 
     # Multi-IP Export logic
-    output_elements = []
+    output_rows = [] # List of dicts for easier CSV handling
+    
     # Drop nodes that ended up with no new IPs
     for norm_name in list(discovered_nodes.keys()):
         if not discovered_nodes[norm_name]['ips']:
             del discovered_nodes[norm_name]
 
     for norm_name, data in discovered_nodes.items():
-        ips = list(data['ips'])
+        ips = sorted(list(data['ips'])) # Consistent order
         display_name = data['display_name']
+        sources = sorted(list(data['sources']))
         
         # Separate preferred IPs from others
         preferred = [ip for ip in ips if is_ip_in_subnets(ip, preferred_subnets)]
@@ -153,28 +158,33 @@ def main():
             
         # For discovery, we also provide the full list of fallback cmd_keys
         cmd_key = "|".join(fallback_keys)
-        output_elements.append(f"{display_name};{ips_str};{cmd_key}")
+        
+        output_rows.append({
+            'hostname': display_name,
+            'ips': ips_str,
+            'cmd_keys': cmd_key,
+            'discovered_by': "|".join(sources)
+        })
 
-    if output_elements:
+    if output_rows:
         out_path = os.path.join(args.outdir, out_filename)
         with open(out_path, 'w') as f:
             f.write("# Discovered Elements\n")
             f.write("# Format: hostname;ip;cmd_key\n\n")
-            for line in output_elements:
-                f.write(line + "\n")
-        print(f"Generated {len(output_elements)} potential new elements in {out_path}")
+            for row in output_rows:
+                f.write(f"{row['hostname']};{row['ips']};{row['cmd_keys']}\n")
+        print(f"Generated {len(output_rows)} potential new elements in {out_path}")
         
         # Also generate CSV report in resumedir
         report_dir = args.resumedir if args.resumedir else args.outdir
         csv_report_path = os.path.join(report_dir, "discovered_elements.csv")
-        csv_headers = ['hostname', 'ips', 'cmd_keys']
+        csv_headers = ['hostname', 'ips', 'cmd_keys', 'discovered_by']
         try:
             with open(csv_report_path, 'w', newline='') as csvfile:
-                writer = csv.writer(csvfile, delimiter=';')
-                writer.writerow(csv_headers)
-                for line in output_elements:
-                    parts = line.split(';')
-                    writer.writerow(parts)
+                writer = csv.DictWriter(csvfile, fieldnames=csv_headers, delimiter=';')
+                writer.writeheader()
+                for row in output_rows:
+                    writer.writerow(row)
             print(f"Discovery CSV report generated in {csv_report_path}")
         except Exception as e:
             print(f"Warning: Failed to generate discovery CSV report: {e}")

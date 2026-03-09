@@ -2,6 +2,15 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
  
+## [1.35.0] - 2026-03-09
+### Added
+- **Discovery Source Tracking**: The Discovery process now tracks which node(s) reported a specific neighbor. 
+- **New CSV Column**: Added `discovered_by` to the `discovered_elements.csv` report in the `resume/` directory.
+### Fixed
+- **Robust IP Extraction**: Refined the LLDP parser's regex to be more robust with variations in indentation and labels for management addresses (`IPv4 address`, `IP address`, `IP`, `IPv4`).
+- **IP Aggregation**: Improved the logic to correctly aggregate multiple management IPs for the same node even when discovered from multiple different sources.
+- **Reporting Consistency**: Internal sorting of IPs and sources in the final reports for better auditability.
+
 ## [1.34.1] - 2026-03-09
 ### Fixed
 - **Clean Output (Discovery)**: The orchestrator now skips the creation of the `connections` folder when running in `--discovery` mode, as it is non-essential.
