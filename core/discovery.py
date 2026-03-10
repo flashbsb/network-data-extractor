@@ -65,19 +65,21 @@ def read_existing_elements(paths_str, hostname_fmt='simple'):
     return existing_ips, existing_names
 
 def read_successful_keys(path):
-    """Returns a set of normalized hostnames that were successfully connected."""
-    success_names = set()
+    """Returns a dict of {normalized_hostname: successful_ip}."""
+    success_map = {}
     if path and os.path.isfile(path):
         try:
-            with open(path, 'r') as f:
+            with open(path, 'r', encoding='utf-8') as f:
                 # successful_keys.csv format: hostname;ip;key
                 for line in f:
                     parts = line.strip().split(';')
-                    if parts:
-                        success_names.add(parts[0].strip().upper())
+                    if len(parts) >= 2:
+                        name = parts[0].strip().upper()
+                        ip = parts[1].strip()
+                        success_map[name] = ip
         except Exception as e:
             print(f"Warning: Failed to read successful_keys.csv: {e}")
-    return success_names
+    return success_map
 
 def main():
     parser = argparse.ArgumentParser()
@@ -109,11 +111,11 @@ def main():
     _, seeds_names = read_existing_elements(args.seeds_cfg, hostname_fmt)
     
     # 2. Elements already successfully reached (Don't retry if they work)
-    # We use upper() comparison on hostnames
-    success_names = read_successful_keys(args.successful_keys)
+    # Map: { NORMALIZED_NAME: SUCCESSFUL_IP }
+    success_map = read_successful_keys(args.successful_keys)
     
     # 3. Elements currently in the "Chain" (Discovery hops)
-    # These might be re-discovered if they failed to connect previously but now have new IPs
+    # We also keep track of IPs already in the chain to avoid proposing them again
     chain_ips, chain_names = read_existing_elements(args.elements_cfg, hostname_fmt)
     
     # Structure: { normalized_name: { 'display_name': '...', 'ips': {ip1, ip2}, 'sources': {source1, source2} } }
@@ -147,12 +149,8 @@ def main():
             if norm_name in seeds_names:
                 continue
             
-            # Skip if it was ALREADY successfully connected
-            if norm_name.upper() in success_names:
-                continue
-
-            # Note: We do NOT skip if it's in chain_names, because it might have FAILED 
-            # in Hop 1 with one IP, but now Hop 2 found a DIFFERENT IP.
+            # Skip candidates for CONNECTION if already successfully connected
+            # But we might still want to record the discovery source for reporting (handled later)
 
             if norm_name not in discovered_nodes:
                 discovered_nodes[norm_name] = {
@@ -163,20 +161,20 @@ def main():
             
             discovered_nodes[norm_name]['sources'].add(source_node)
             for i in ips_from_row:
-                # Only add if it's NOT an IP we already have for this node in the CHAIN
-                # This ensures we only add NEW info to the recursion
-                if i not in chain_ips:
+                # Only add as candidate if it's NOT an IP we already tried/have for this node
+                # AND it's not the already known successful IP
+                if i not in chain_ips and i != success_map.get(norm_name.upper()):
                     discovered_nodes[norm_name]['ips'].add(i)
 
-    # Multi-IP Export logic
+    # Export candidates for NEXT HOP
     output_rows = [] 
-    
-    # Drop nodes that ended up with no NEW IPs (nothing new to try)
-    for norm_name in list(discovered_nodes.keys()):
-        if not discovered_nodes[norm_name]['ips']:
-            del discovered_nodes[norm_name]
-
     for norm_name, data in discovered_nodes.items():
+        if not data['ips']: continue # Nothing new to try
+        
+        # Also skip proposing NEW IPs if we ALREADY have a success for this node
+        if norm_name.upper() in success_map:
+            continue
+
         ips = sorted(list(data['ips'])) 
         display_name = data['display_name']
         sources = sorted(list(data['sources']))
@@ -184,12 +182,8 @@ def main():
         # Separate preferred IPs from others
         preferred = [ip for ip in ips if is_ip_in_subnets(ip, preferred_subnets)]
         others = [ip for ip in ips if ip not in preferred]
-        
-        # Combine (preferred first) and join by |
         all_ips = preferred + others
         ips_str = "|".join(all_ips)
-            
-        # For discovery, we also provide the full list of fallback cmd_keys
         cmd_key = "|".join(fallback_keys)
         
         output_rows.append({
@@ -199,62 +193,80 @@ def main():
             'discovered_by': "|".join(sources)
         })
 
-    # Sort output_rows for consistent file output
     output_rows.sort(key=lambda x: x['hostname'])
 
     if output_rows:
         out_path = os.path.join(args.outdir, out_filename)
-        with open(out_path, 'w') as f:
+        with open(out_path, 'w', encoding='utf-8') as f:
             f.write("# Discovered Elements (New IPs found in this hop)\n")
             f.write("# Format: hostname;ip;cmd_key\n\n")
             for row in output_rows:
                 f.write(f"{row['hostname']};{row['ips']};{row['cmd_keys']}\n")
         print(f"Generated {len(output_rows)} potential new elements in {out_path}")
-        
-        # Update or Create Cumulative CSV Report in resumedir
-        report_dir = args.resumedir if args.resumedir else args.outdir
-        csv_report_path = os.path.join(report_dir, "discovered_elements.csv")
-        csv_headers = ['hostname', 'ips', 'cmd_keys', 'discovered_by']
-        
-        existing_report = []
-        if os.path.isfile(csv_report_path):
-            try:
-                with open(csv_report_path, 'r', encoding='utf-8') as f:
-                    reader = csv.DictReader(f, delimiter=';')
-                    for r in reader: existing_report.append(r)
-            except: pass
-
-        # Merge Logic: If hostname exists, append unique IPs and Sources
-        for new_row in output_rows:
-            found = False
-            for old_row in existing_report:
-                if old_row['hostname'].strip().upper() == new_row['hostname'].strip().upper():
-                    # Merge IPs
-                    old_ips = set(old_row['ips'].split('|'))
-                    old_ips.update(new_row['ips'].split('|'))
-                    old_row['ips'] = "|".join(sorted(list(old_ips)))
-                    # Merge Sources
-                    old_src = set(old_row['discovered_by'].split('|'))
-                    old_src.update(new_row['discovered_by'].split('|'))
-                    old_row['discovered_by'] = "|".join(sorted(list(old_src)))
-                    found = True
-                    break
-            if not found:
-                existing_report.append(new_row)
-        
-        existing_report.sort(key=lambda x: x['hostname'])
-
+    
+    # ---------------------------------------------------------
+    # Update Cumulative CSV Report (The "Master List")
+    # ---------------------------------------------------------
+    report_dir = args.resumedir if args.resumedir else args.outdir
+    csv_report_path = os.path.join(report_dir, "discovered_elements.csv")
+    csv_headers = ['hostname', 'ips', 'cmd_keys', 'discovered_by']
+    
+    existing_report = []
+    if os.path.isfile(csv_report_path):
         try:
-            with open(csv_report_path, 'w', newline='') as csvfile:
-                writer = csv.DictWriter(csvfile, fieldnames=csv_headers, delimiter=';')
-                writer.writeheader()
-                for row in existing_report:
-                    writer.writerow(row)
-            print(f"Cumulative Discovery CSV report updated: {csv_report_path}")
-        except Exception as e:
-            print(f"Warning: Failed to update cumulative CSV report: {e}")
-    else:
-        print("No new elements or IPs discovered.")
+            with open(csv_report_path, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f, delimiter=';')
+                for r in reader: existing_report.append(r)
+        except: pass
+
+    # Merge Logic
+    # We use all discoveries (even those without new IPs for next hop) to populate the master report
+    for norm_name, data in discovered_nodes.items():
+        found = False
+        display_name = data['display_name']
+        
+        # If successfully connected, we ONLY want the successful IP in the final report
+        is_success = norm_name.upper() in success_map
+        final_ips = {success_map[norm_name.upper()]} if is_success else data['ips']
+        
+        # Important: merge with what was already in the IPs list from previous hops if it's not a success yet
+        for old_row in existing_report:
+            if old_row['hostname'].strip().upper() == display_name.strip().upper():
+                if is_success:
+                    # Prune to winner IP
+                    old_row['ips'] = success_map[norm_name.upper()]
+                else:
+                    # Append new potential IPs
+                    old_ips = set(old_row['ips'].split('|'))
+                    old_ips.update(data['ips'])
+                    old_row['ips'] = "|".join(sorted(list(old_ips)))
+                
+                # Always append Sources
+                old_src = set(old_row['discovered_by'].split('|'))
+                old_src.update(data['sources'])
+                old_row['discovered_by'] = "|".join(sorted(list(old_src)))
+                found = True
+                break
+        
+        if not found:
+            existing_report.append({
+                'hostname': display_name,
+                'ips': "|".join(sorted(list(final_ips))),
+                'cmd_keys': "|".join(fallback_keys),
+                'discovered_by': "|".join(sorted(list(data['sources'])))
+            })
+    
+    existing_report.sort(key=lambda x: x['hostname'])
+
+    try:
+        with open(csv_report_path, 'w', newline='', encoding='utf-8') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=csv_headers, delimiter=';')
+            writer.writeheader()
+            for row in existing_report:
+                writer.writerow(row)
+        print(f"Cumulative Discovery CSV report updated: {csv_report_path}")
+    except Exception as e:
+        print(f"Warning: Failed to update cumulative CSV report: {e}")
 
 if __name__ == "__main__":
     main()

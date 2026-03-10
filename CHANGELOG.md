@@ -2,6 +2,13 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
  
+## [1.37.0] - 2026-03-10
+### Added
+- **Smart Success IP Pruning**: The cumulative discovery report (`discovered_elements.csv`) now favors successful connections. If a node is successfully reached, all unsuccessful "candidate" IPs for that node are automatically pruned from the final report.
+- **Improved Source Tracking**: Sources are now aggregated cumulatively across all discovery hops.
+### Changed
+- **Mandatory Final Consolidation**: The orchestrator now runs a final discovery process after the hop loop finishes. This ensures that LLDP data collected from nodes in the very last hop is processed and integrated into the final CSV reports.
+
 ## [1.36.0] - 2026-03-10
 ### Added
 - **Discovery Intelligence**: The discovery process now distinguishes between "Success" and "Discovery" states.

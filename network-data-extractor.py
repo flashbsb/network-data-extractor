@@ -4,7 +4,7 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
-Version : 1.36.0
+Version : 1.37.0
 Date    : 2026-03-10
 Author  : flashbsb (and contributors)
 
@@ -760,7 +760,30 @@ while True:
             print(f"{C_RED}Discovery script failed or no new elements file generated. Ending recursion.{C_RESET}")
             log_orchestrator("Discovery script failed or no new elements file generated. Ending recursion.")
     
-    break # Exit the while loop if no discovery or no more hops
+    # FINAL DISCOVERY RUN (to process LLDP data from the VERY LAST hop)
+    if args.discovery:
+        print(f"\n{C_YELLOW}--- Final Discovery Consolidation ---{C_RESET}")
+        log_orchestrator("Running final discovery consolidation")
+        
+        elements_skip_str = ",".join(known_elements_chain)
+        success_keys_path = os.path.join(RESUME_DIR, "successful_keys.csv")
+        # We don't need a new .elements.cfg here, just updating the CSV report
+        cmd_final_disco = [
+            sys.executable, disco_script, 
+            "--resume_dir", RESUME_DIR, 
+            "--resumedir", RESUME_DIR, 
+            "--elements_cfg", elements_skip_str, 
+            "--seeds_cfg", args.elements,
+            "--successful_keys", success_keys_path,
+            "--outdir", RESUME_DIR, 
+            "--out_filename", "final_discovery_run.tmp",
+            "--settings", args.settings
+        ]
+        subprocess.run(cmd_final_disco, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if os.path.exists(os.path.join(RESUME_DIR, "final_discovery_run.tmp")):
+            os.remove(os.path.join(RESUME_DIR, "final_discovery_run.tmp"))
+
+    break # Exit the while loop
 
 print(f"\n{C_GREEN}============================================================{C_RESET}")
 print(f"Final Execution Finished. Output in: {TIMESTAMP_DIR}")
