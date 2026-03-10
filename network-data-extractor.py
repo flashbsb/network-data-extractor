@@ -26,8 +26,8 @@ import getpass
 from datetime import datetime
 from glob import glob
 
-APP_VERSION = "1.31.0"
-APP_DATE = "2026-03-09"
+APP_VERSION = "1.37.0"
+APP_DATE = "2026-03-10"
 
 # ANSI Colors
 C_GREEN = '\033[92m'
@@ -517,10 +517,15 @@ while True:
                 print(f"{step_prefix} {status_text} ({script_duration:5.1f}s)")
                 
                 if rc.returncode == 100 and not args.force:
-                    print(f"\n{C_RED}ERROR: No data collected from any element. Stopping here.{C_RESET}")
-                    print(f"Check {LOG_DIR}/commands.log for connection details.")
-                    log_orchestrator("Stopping orchestrator: No data collected.")
-                    sys.exit(100)
+                    if args.discovery and current_hop > 0:
+                        print(f"\n{C_YELLOW}WARNING: No data collected in Hop {current_hop}. Stopping recursion but proceeding to consolidation.{C_RESET}")
+                        log_orchestrator(f"Discovery hop {current_hop} failed to collect data. Breaking recursion.")
+                        break # Break the discovery while loop
+                    else:
+                        print(f"\n{C_RED}ERROR: No data collected from any element. Stopping here.{C_RESET}")
+                        print(f"Check {LOG_DIR}/commands.log for connection details.")
+                        log_orchestrator("Stopping orchestrator: No data collected.")
+                        sys.exit(100)
             except KeyboardInterrupt:
                 print(f"{step_prefix} {C_RED}[INTERRUPTED]{C_RESET}")
                 log_orchestrator("Orchestrator interrupted by user during commands.py")
