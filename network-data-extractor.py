@@ -4,8 +4,8 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
-Version : 1.35.0
-Date    : 2026-03-09
+Version : 1.36.0
+Date    : 2026-03-10
 Author  : flashbsb (and contributors)
 
 Behavior:
@@ -696,9 +696,20 @@ while True:
         disco_fname = f"discovery_hop_{current_hop+1}.elements.cfg"
         disco_out = os.path.join(RESUME_DIR, disco_fname)
         
-        # Pass ALL known elements files to the skip list
+        # Pass ALL known elements files to the skip list, but also keep the ORIGINAL SEEDS separate
         elements_skip_str = ",".join(known_elements_chain)
-        cmd_disco = [sys.executable, disco_script, "--resume_dir", RESUME_DIR, "--resumedir", RESUME_DIR, "--elements_cfg", elements_skip_str, "--outdir", RESUME_DIR, "--out_filename", disco_fname, "--settings", args.settings]
+        success_keys_path = os.path.join(RESUME_DIR, "successful_keys.csv")
+        cmd_disco = [
+            sys.executable, disco_script, 
+            "--resume_dir", RESUME_DIR, 
+            "--resumedir", RESUME_DIR, 
+            "--elements_cfg", elements_skip_str, 
+            "--seeds_cfg", args.elements,
+            "--successful_keys", success_keys_path,
+            "--outdir", RESUME_DIR, 
+            "--out_filename", disco_fname, 
+            "--settings", args.settings
+        ]
         
         disco_log_path = os.path.join(LOG_DIR, f"discovery_hop_{current_hop+1}.log")
         

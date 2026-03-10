@@ -2,6 +2,15 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
  
+## [1.36.0] - 2026-03-10
+### Added
+- **Discovery Intelligence**: The discovery process now distinguishes between "Success" and "Discovery" states.
+    - Nodes that failed to connect in one hop can be retried in the next hop if **new management IPs** are found.
+    - Nodes already successfully connected (`successful_keys.csv`) are automatically skipped to avoid redundant work.
+- **Cumulative Reporting**: The `discovered_elements.csv` report is now cumulative across all hops, aggregating all unique IPs and discovery sources found during the entire run.
+- **Improved Deduplication**: Original seed nodes (Hop 0) are strictly protected and never re-added to discovery, ensuring a clean "delta" output.
+- **Source Aggregation**: Multiple sources for the same discovered node are consolidated in the final reports.
+
 ## [1.35.0] - 2026-03-09
 ### Added
 - **Discovery Source Tracking**: The Discovery process now tracks which node(s) reported a specific neighbor. 
