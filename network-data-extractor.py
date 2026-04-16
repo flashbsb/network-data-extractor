@@ -111,6 +111,7 @@ group_ext.add_argument("--threads", type=int, default=def_threads, help=f"Number
 group_ext.add_argument("--outbase", type=str, default=def_outbase, help=f"Root directory for outputs (default: {def_outbase})")
 group_ext.add_argument("--elements", type=str, default=def_elements, help=f"Input elements file (default: {def_elements})")
 group_ext.add_argument("--commands", type=str, default=def_commands, help=f"Input commands file (default: {def_commands})")
+group_ext.add_argument("--ping-commands", type=str, default="config/commands.icmp.cfg", help="Input ICMP commands file for Ping Matrix (default: config/commands.icmp.cfg)")
 group_ext.add_argument("--randomize", action="store_true", default=def_randomize, help=f"Randomize connection order (default: {def_randomize})")
 group_ext.add_argument("--no-randomize", dest="randomize", action="store_false", help="Keep connection order sequential")
 
@@ -124,6 +125,7 @@ group_mode = parser.add_argument_group("Execution Modes")
 group_mode.add_argument("--skip-wizard", action="store_true", help="Skip configuration confirmation prompt")
 group_mode.add_argument("--force", action="store_true", help="Force execution even if collection fails")
 group_mode.add_argument("--offline", type=str, metavar="DIR", help="Process existing data in DIR (skips discovery/SSH)")
+group_mode.add_argument("--ping-matrix", action="store_true", help="Omitir testes regulares e executar Matriz de Ping ICMP")
 
 group_disco = parser.add_argument_group("Discovery Options (ignored in --offline)")
 group_disco.add_argument("--discovery", action="store_true", help="Enable recursive discovery via LLDP neighbors")
@@ -227,7 +229,7 @@ else:
     os.makedirs(LOG_DIR, exist_ok=True)
     os.makedirs(COLLECT_DIR, exist_ok=True)
     os.makedirs(RESUME_DIR, exist_ok=True)
-    if not args.discovery:
+    if not args.discovery and not args.ping_matrix:
         os.makedirs(CONNECTIONS_DIR, exist_ok=True)
 
     orchestrator_log = os.path.join(LOG_DIR, "orchestrator.log")
@@ -325,7 +327,8 @@ else:
         os.makedirs(LOG_DIR, exist_ok=True)
         os.makedirs(COLLECT_DIR, exist_ok=True)
         os.makedirs(RESUME_DIR, exist_ok=True)
-        os.makedirs(CONNECTIONS_DIR, exist_ok=True)
+        if not args.ping_matrix:
+            os.makedirs(CONNECTIONS_DIR, exist_ok=True)
         
         print(f"{C_CYAN}----------------------------------------{C_RESET}")
         print(f"Extraction initializing...")
@@ -449,7 +452,11 @@ consolidation_scripts = [
 ]
 
 # When discovery is active, we focus ONLY on essential scripts to map the network faster.
-if args.discovery:
+if args.ping_matrix:
+    # Exclusive Ping Matrix runner
+    SCRIPTS = ["core/ping_matrix.py"]
+    consolidation_scripts = []
+elif args.discovery:
     # Whitelist of scripts needed for discovery
     discovery_essential = [
         "core/commands.py",
@@ -558,6 +565,25 @@ while True:
             print(f"{step_prefix} {status_text} ({script_duration:5.1f}s)")
             if rc != 0:
                  print(f"    └─> {C_RED}Check log/{safe_name}.log for details.{C_RESET}")
+        elif script_name == "ping_matrix.py":
+            cmd.extend(["--collect_dir", COLLECT_DIR, "--resume_dir", RESUME_DIR, "--logdir", LOG_DIR, "--elements_cfg", current_elements_file, "--settings", args.settings, "--ping_commands", args.ping_commands])
+            safe_name = "ping_matrix"
+            out_file_name = os.path.join(LOG_DIR, f"{safe_name}.log")
+            
+            # Repassar environment auth info to ping_matrix similarly to commands.py
+            cmd_env = os.environ.copy()
+            if args.user: cmd_env["NDX_SSH_USER"] = args.user
+            if args.password is not None: cmd_env["NDX_SSH_PASS"] = args.password
+            if args.key: cmd_env["NDX_SSH_KEY"] = args.key
+            
+            print(f">>> {C_CYAN}core/ping_matrix.py{C_RESET} is running ICMP multithreading test.")
+            script_start_time = datetime.now()
+            rc_ping = subprocess.run(cmd, env=cmd_env)
+            script_duration = (datetime.now() - script_start_time).total_seconds()
+            status_text = f"{C_GREEN}[SUCCESS]{C_RESET}" if rc_ping.returncode == 0 else f"{C_RED}[FAILED ]{C_RESET}"
+            log_orchestrator(f"{script_name} Finished. Return Code: {rc_ping.returncode}")
+            print(f"{step_prefix} {status_text} ({script_duration:5.1f}s)")
+            
         else:
             cmd.extend(["--outdir", RESUME_DIR, "--indir", COLLECT_DIR])
             # Scripts output real-time to std and file automatically
@@ -601,7 +627,8 @@ while True:
                  print(f"    └─> {C_RED}Check log/orchestrator.log or log/{safe_name}.log for details.{C_RESET}")
 
     # Specialized consolidation scripts
-    print(f"\n{C_CYAN}--- Consolidating Parsers ---{C_RESET}")
+    if not args.ping_matrix:
+        print(f"\n{C_CYAN}--- Consolidating Parsers ---{C_RESET}")
     for script_rel in consolidation_scripts:
         script_name = os.path.basename(script_rel)
         script_abs = os.path.join(cwd, script_rel)
@@ -643,8 +670,11 @@ while True:
 
 
     # Final Topology Mapping
-    print(f"\n{C_CYAN}--- Final Topology Mapping ---{C_RESET}")
-    scripts_final = ["core/interface2connection.py", "core/topology_checker.py"]
+    if not args.ping_matrix:
+        print(f"\n{C_CYAN}--- Final Topology Mapping ---{C_RESET}")
+        scripts_final = ["core/interface2connection.py", "core/topology_checker.py"]
+    else:
+        scripts_final = []
     isolated_count = 0
     for s_rel in scripts_final:
         s_name = os.path.basename(s_rel)
@@ -812,16 +842,22 @@ if os.path.isfile(status_csv_path):
             elif st == "new": new_count += 1
 
 print("\n" + "=" * 60)
-print(f"{C_CYAN}                CONSOLIDATION SUMMARY{C_RESET}")
-print("=" * 60)
-print(f"  * Collected (OK)   : {C_GREEN}{ok_count}{C_RESET} elements")
-print(f"  * Failed (FAIL)    : {C_RED}{fail_count}{C_RESET} elements")
-print(f"  * Discovered (NEW) : {C_YELLOW}{new_count}{C_RESET} elements")
-if isolated_count > 0:
-    print(f"  * Topology Iso.    : {C_YELLOW}{isolated_count} WARNINGS{C_RESET} (missing from LLDP map)")
-print("  └─> View full report in: resume/status.elements.csv")
-if isolated_count > 0:
-    print("  └─> View isolation in  : resume/topology_warnings.isolated.csv")
+if args.ping_matrix:
+    print(f"{C_CYAN}                PING MATRIX SUMMARY{C_RESET}")
+    print("=" * 60)
+    print(f"  * Mode             : Origin x Destination Pings")
+    print(f"  └─> View Matrix in : resume/ping_matrix_list.csv")
+else:
+    print(f"{C_CYAN}                CONSOLIDATION SUMMARY{C_RESET}")
+    print("=" * 60)
+    print(f"  * Collected (OK)   : {C_GREEN}{ok_count}{C_RESET} elements")
+    print(f"  * Failed (FAIL)    : {C_RED}{fail_count}{C_RESET} elements")
+    print(f"  * Discovered (NEW) : {C_YELLOW}{new_count}{C_RESET} elements")
+    if isolated_count > 0:
+        print(f"  * Topology Iso.    : {C_YELLOW}{isolated_count} WARNINGS{C_RESET} (missing from LLDP map)")
+    print("  └─> View full report in: resume/status.elements.csv")
+    if isolated_count > 0:
+        print("  └─> View isolation in  : resume/topology_warnings.isolated.csv")
 print("=" * 60)
 
 log_orchestrator("Extraction Ended")

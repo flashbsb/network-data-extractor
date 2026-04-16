@@ -102,5 +102,15 @@
             "collect",
             "log"
         ]
+    },
+    "ping_matrix": {
+        "_help_ping_matrix": "Configurações específicas para o teste de latência Ping Matrix (quando --ping-matrix ativado).",
+        "count": 5,
+        "datagram_size": 100,
+        "timeout": 2,
+        "max_latency_warning": 200,
+        "parallel_sessions": 15,
+        "delay_between_commands": 1.0,
+        "asymmetric_threshold_pct": 25.0
     }
 }
