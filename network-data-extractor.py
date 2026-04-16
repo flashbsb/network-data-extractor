@@ -4,8 +4,8 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
-Version : 1.37.0
-Date    : 2026-03-10
+Version : 1.39.0
+Date    : 2026-04-16
 Author  : flashbsb (and contributors)
 
 Behavior:
@@ -112,6 +112,7 @@ group_ext.add_argument("--outbase", type=str, default=def_outbase, help=f"Root d
 group_ext.add_argument("--elements", type=str, default=def_elements, help=f"Input elements file (default: {def_elements})")
 group_ext.add_argument("--commands", type=str, default=def_commands, help=f"Input commands file (default: {def_commands})")
 group_ext.add_argument("--ping-commands", type=str, default="config/commands.icmp.cfg", help="Input ICMP commands file for Ping Matrix (default: config/commands.icmp.cfg)")
+group_ext.add_argument("--ping-format", type=str, default="csv", help="Saída do Ping Matrix: csv, json, html (separados por vírgula)")
 group_ext.add_argument("--randomize", action="store_true", default=def_randomize, help=f"Randomize connection order (default: {def_randomize})")
 group_ext.add_argument("--no-randomize", dest="randomize", action="store_false", help="Keep connection order sequential")
 
@@ -566,7 +567,7 @@ while True:
             if rc != 0:
                  print(f"    └─> {C_RED}Check log/{safe_name}.log for details.{C_RESET}")
         elif script_name == "ping_matrix.py":
-            cmd.extend(["--collect_dir", COLLECT_DIR, "--resume_dir", RESUME_DIR, "--logdir", LOG_DIR, "--elements_cfg", current_elements_file, "--settings", args.settings, "--ping_commands", args.ping_commands])
+            cmd.extend(["--collect_dir", COLLECT_DIR, "--resume_dir", RESUME_DIR, "--logdir", LOG_DIR, "--elements_cfg", current_elements_file, "--settings", args.settings, "--ping_commands", args.ping_commands, "--ping_format", args.ping_format])
             safe_name = "ping_matrix"
             out_file_name = os.path.join(LOG_DIR, f"{safe_name}.log")
             
