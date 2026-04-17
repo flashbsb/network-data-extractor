@@ -520,7 +520,7 @@ td:hover .tooltip { display: block; top: calc(100% + 10px); left: 50%; transform
         <option value="ba">View: Reverse (B ➟ A)</option>
     </select>
     <select id="viewMode" onchange="renderMatrix()">
-        <option value="tudo">Show ALL Values</option>
+        <option value="all">Show ALL Values</option>
         <option value="lat">Show Avg Latency</option>
         <option value="loss">Show Packet Loss</option>
         <option value="jit">Show Jitter Marks</option>
@@ -533,23 +533,23 @@ td:hover .tooltip { display: block; top: calc(100% + 10px); left: 50%; transform
 </div>
 <div class="legend-panel">
     <div class="legend-col">
-        <h4>🎨 Cores de Severidade (Cell Status)</h4>
-        <div class="legend-item"><span class="leg-box st-good"></span> Saúde Perfeita (0% Perda, sem alertas)</div>
-        <div class="legend-item"><span class="leg-box st-warn"></span> Atenção (Perda > 0% até 50% ou alertas Jitter/Asym)</div>
-        <div class="legend-item"><span class="leg-box st-crit"></span> Crítico (Perda > 50%)</div>
-        <div class="legend-item"><span class="leg-box st-dead"></span> Unreachable (Morte Súbita, BGP down, 100% loss)</div>
+        <h4>🎨 Severity Colors (Cell Status)</h4>
+        <div class="legend-item"><span class="leg-box st-good"></span> Healthy (0% Loss, no warnings)</div>
+        <div class="legend-item"><span class="leg-box st-warn"></span> Warning (Loss > 0% up to 50% or Jitter/Asym warn)</div>
+        <div class="legend-item"><span class="leg-box st-crit"></span> Critical (Loss > 50%)</div>
+        <div class="legend-item"><span class="leg-box st-dead"></span> Unreachable (Host/BGP down, 100% loss)</div>
     </div>
     <div class="legend-col">
-        <h4>👁️ Símbolos e Marcadores</h4>
-        <div class="legend-item"><span class="leg-border-j"></span> <b>Jitter Elevado (Trilha Laranja):</b> Variância extrema entre pacotes.</div>
-        <div class="legend-item"><span class="leg-border-a"></span> <b>Rota Assimétrica (Trilha Amarela):</b> Assimetria grave bidirecional.</div>
-        <div class="legend-item"><span style="text-decoration: line-through; color:#ccc">Txt</span> &nbsp;<b>Bloqueio ADM (Riscado):</b> Firewall Filters (Deny).</div>
+        <h4>👁️ Symbols & Markers</h4>
+        <div class="legend-item"><span class="leg-border-j"></span> <b>High Jitter (Orange Border):</b> High variance between packets.</div>
+        <div class="legend-item"><span class="leg-border-a"></span> <b>Asymmetric Route (Yellow Border):</b> Severe bidirecional asymmetry.</div>
+        <div class="legend-item"><span style="text-decoration: line-through; color:#ccc">Txt</span> &nbsp;<b>ADM Blocking (Strikethrough):</b> Firewall Filters (Deny).</div>
     </div>
     <div class="legend-col">
-        <h4>🔄 Modo Duplex (A ⇄ B)</h4>
-        <div class="legend-item"><span style="color:#00d2ff; font-weight:bold;">🡲</span> Métrica do Caminho <b>Direto</b> (A pingando B)</div>
-        <div class="legend-item"><span style="color:#ff007f; font-weight:bold;">🡰</span> Métrica do Caminho <b>Reverso</b> (B pingando A)</div>
-        <div class="legend-item"><i style="font-size:11px; color:#888;">*No Modo Híbrido Duplex, a cor de Fundo inteira reflete a MÃO mais debilitada (Worst-Case de ida e volta).</i></div>
+        <h4>🔄 Duplex Mode (A ⇄ B)</h4>
+        <div class="legend-item"><span style="color:#00d2ff; font-weight:bold;">🡲</span> <b>Direct</b> Path Metric (A pinging B)</div>
+        <div class="legend-item"><span style="color:#ff007f; font-weight:bold;">🡰</span> <b>Reverse</b> Path Metric (B pinging A)</div>
+        <div class="legend-item"><i style="font-size:11px; color:#888;">*In Hybrid Duplex Mode, the overall cell color reflects the WORST-CASE scenario of both directions.</i></div>
     </div>
 </div>
 <div style="text-align:center; padding: 20px; margin-top:10px; font-size: 13px; color: #64748b; font-weight: 600;">
@@ -648,7 +648,7 @@ function fmt(val, mode, prefix) {
     if (!val) return `<div class="split-item" style="color:#555">${prefix} N/A</div>`;
     if (val.is_unreachable) return `<div class="split-item st-crit">${prefix} FAIL</div>`;
     let txt = "";
-    if (mode === 'tudo') txt = `${val.avg}ms <span style="color:#aaa">|</span> ${val.loss_pct.toFixed(0)}% <span style="color:#aaa">|</span> J:${val.jitter_warning?'Y':'N'}`;
+    if (mode === 'all') txt = `${val.avg}ms <span style="color:#aaa">|</span> ${val.loss_pct.toFixed(0)}% <span style="color:#aaa">|</span> J:${val.jitter_warning?'Y':'N'}`;
     else if (mode === 'loss') txt = `${val.loss_pct.toFixed(1)}% Loss`;
     else if (mode === 'jit') txt = val.jitter_warning ? "WARN" : "OK";
     else txt = val.avg >= 0 ? `${val.avg}ms` : 'N/A';
