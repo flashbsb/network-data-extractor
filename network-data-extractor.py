@@ -4,7 +4,7 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
-Version : 1.41.1
+Version : 1.41.2
 Date    : 2026-04-17
 Author  : flashbsb (and contributors)
 
@@ -123,6 +123,7 @@ group_ext.add_argument("--ping-commands", type=str, default="config/commands.icm
 group_ext.add_argument("--ping-format", type=str, default="csv", help="Ping Matrix output format: csv, json, html (comma-separated)")
 group_ext.add_argument("--randomize", action="store_true", default=def_randomize, help=f"Randomize connection order (default: {def_randomize})")
 group_ext.add_argument("--no-randomize", dest="randomize", action="store_false", help="Keep connection order sequential")
+group_ext.add_argument("--filter", type=str, help="Filter elements by prefix (e.g. 'in:RT1;RT2' to include, 'rn:RT1;RT2' to exclude)")
 
 group_auth = parser.add_argument_group("Authentication (ignored in --offline)")
 group_auth.add_argument("--user", type=str, help="SSH Username (required for automated auth)")
@@ -265,6 +266,7 @@ else:
         print(f"  * Threads          : {args.threads}")
         print(f"  * Extractor Base   : {args.outbase}")
         print(f"  * Elements File    : {args.elements}")
+        print(f"  * Filter           : {args.filter if args.filter else 'None'}")
         print(f"  * Commands File    : {args.commands}")
         print(f"  * Randomize Order  : {args.randomize}")
         print(f"  * SSH Timeout      : {SSH_TIMEOUT}s")
@@ -295,6 +297,12 @@ else:
                 # Prompt for Commands File
                 inp_commands = input(f"  * Commands File    [{args.commands}]: ").strip()
                 if inp_commands: args.commands = inp_commands
+
+                # Prompt for Filter
+                inp_filter = input(f"  * Filter Mode      [{args.filter if args.filter else 'None'}]: ").strip()
+                if inp_filter: 
+                    if inp_filter.lower() == 'none': args.filter = None
+                    else: args.filter = inp_filter
                 
                 # Prompt for Randomize
                 inp_rand = input(f"  * Randomize Order  [{args.randomize}] (y/n): ").strip().lower()
@@ -444,7 +452,55 @@ def check_data_presence(script_path, collect_dir, resume_dir):
 
 # --- EXECUTION ENGINE ---
 current_elements_file = args.elements
-known_elements_chain = [args.elements]
+
+if getattr(args, 'filter', None):
+    log_orchestrator(f"Applying filter: {args.filter} to {args.elements}")
+    mode = "in"
+    f_str = args.filter.strip()
+    
+    if f_str.startswith("rn:"):
+        mode = "rn"
+        f_str = f_str[3:]
+    elif f_str.startswith("in:"):
+        mode = "in"
+        f_str = f_str[3:]
+    else:
+        # Default to 'in' if omitted as per user request
+        mode = "in"
+        
+    patterns = [p for p in f_str.split(';') if p]
+    filtered_file = os.path.join(TIMESTAMP_DIR, "filtered_elements.cfg")
+    keep_count = drop_count = 0
+    
+    try:
+        with open(args.elements, 'r', encoding='utf-8') as fin, open(filtered_file, 'w', encoding='utf-8') as fout:
+            for line in fin:
+                ln = line.strip()
+                if not ln or ln.startswith('#'):
+                    fout.write(line)
+                    continue
+                
+                hostname = ln.split(';')[0]
+                match = any(hostname.startswith(p) for p in patterns)
+                
+                keep = match if mode == "in" else not match
+                    
+                if keep:
+                    fout.write(line)
+                    keep_count += 1
+                else:
+                    drop_count += 1
+                    
+        print(f"{C_CYAN}>>> FILTER APPLIED: {mode.upper()} {patterns} <<<{C_RESET}")
+        print(f"Elements kept: {C_GREEN}{keep_count}{C_RESET} | Dropped: {C_YELLOW}{drop_count}{C_RESET}\n")
+        log_orchestrator(f"Filter applied. Kept: {keep_count}, Dropped: {drop_count}")
+        current_elements_file = filtered_file
+        
+    except Exception as e:
+        print(f"{C_RED}Error applying filter: {e}{C_RESET}")
+        log_orchestrator(f"Error applying filter: {e}")
+
+known_elements_chain = [current_elements_file]
 current_hop = 0
 max_hops = args.hops if args.discovery else 0
 
@@ -550,7 +606,7 @@ while True:
                 log_orchestrator(f"{script_name} Error: {e}")
                 print(f"{step_prefix} {C_RED}[ERROR]{C_RESET}")
         elif script_name == "element_status.py":
-            cmd.extend(["--collect_dir", COLLECT_DIR, "--resume_dir", RESUME_DIR, "--elements_cfg", args.elements, "--settings", args.settings])
+            cmd.extend(["--collect_dir", COLLECT_DIR, "--resume_dir", RESUME_DIR, "--elements_cfg", current_elements_file, "--settings", args.settings])
             safe_name = "element_status"
             out_file_name = os.path.join(LOG_DIR, f"{safe_name}.log")
             
