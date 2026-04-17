@@ -530,6 +530,14 @@ td:hover .tooltip { display: block; top: calc(100% + 10px); left: 50%; transform
         <option value="loss">Show Packet Loss</option>
         <option value="jit">Show Jitter Marks</option>
     </select>
+    <select id="severityFilter" onchange="renderMatrix()" style="border-color:#f87171">
+        <option value="all">Severity: Show All</option>
+        <option value="any_warn">🚨 Any Problem (Loss/Jitter/Asym)</option>
+        <option value="crit_only">❌ Critical & Unreachable Only</option>
+        <option value="loss_only">📉 Packet Loss Only</option>
+        <option value="jitter_only">〰️ High Jitter Only</option>
+        <option value="asym_only">⚖️ Asymmetric Routes Only</option>
+    </select>
     <input type="text" id="filterOrigin" placeholder="Filter Origin..." onkeyup="renderMatrix()">
     <input type="text" id="filterDest" placeholder="Filter Dest..." onkeyup="renderMatrix()">
 </div>
@@ -653,24 +661,36 @@ function fmt(val, mode, prefix) {
     if (!val) return `<div class="split-item" style="color:#555">${prefix} N/A</div>`;
     if (val.is_unreachable) return `<div class="split-item st-crit">${prefix} FAIL</div>`;
     let txt = "";
-    if (mode === 'all') txt = `${val.avg}ms <span style="color:#aaa">|</span> ${val.loss_pct.toFixed(0)}% <span style="color:#aaa">|</span> J:${val.jitter_warning?'Y':'N'}`;
+    if (mode === 'all') {
+        let wTags = "";
+        if (val.jitter_warning) wTags += "J";
+        if (val.asymmetric_warning) wTags += "A";
+        let htmlTags = wTags ? ` <span style="color:#aaa">|</span> <span class="st-warn" style="font-weight:bold">${wTags}</span>` : "";
+        txt = `${val.avg}ms <span style="color:#aaa">|</span> ${val.loss_pct.toFixed(0)}%${htmlTags}`;
+    }
     else if (mode === 'loss') txt = `${val.loss_pct.toFixed(1)}% Loss`;
     else if (mode === 'jit') txt = val.jitter_warning ? "WARN" : "OK";
     else txt = val.avg >= 0 ? `${val.avg}ms` : 'N/A';
     return `<div class="split-item">${prefix} ${txt}</div>`;
 }
 
+function checkCond(item, f) {
+    if (!item) return false;
+    if (f === 'any_warn') return item.loss_pct > 0 || item.jitter_warning || item.asymmetric_warning || item.is_unreachable || item.consistently_denied;
+    if (f === 'crit_only') return item.loss_pct > 50 || item.is_unreachable || item.consistently_denied;
+    if (f === 'loss_only') return item.loss_pct > 0;
+    if (f === 'jitter_only') return item.jitter_warning;
+    if (f === 'asym_only') return item.asymmetric_warning;
+    return true;
+}
+
 function renderMatrix() {
     if (!globalData) return;
     let mode = document.getElementById('viewMode').value;
     let perspective = document.getElementById('perspectiveMode').value;
+    let sevFilter = document.getElementById('severityFilter').value;
     let fOrig = document.getElementById('filterOrigin').value.toLowerCase();
     let fDest = document.getElementById('filterDest').value.toLowerCase();
-    let nodesSet = new Set();
-    globalData.data.forEach(d => { nodesSet.add(d.origin); nodesSet.add(d.dest); });
-    let nodes = Array.from(nodesSet).sort((a, b) => a.localeCompare(b));
-    let rowNodes = nodes.filter(n => n.toLowerCase().includes(fOrig));
-    let colNodes = nodes.filter(n => n.toLowerCase().includes(fDest));
     
     let stGood=0, stJitter=0, stAsym=0, stDead=0;
     let dataMap = {};
@@ -681,6 +701,35 @@ function renderMatrix() {
         else if (d.asymmetric_warning) stAsym++;
         else stGood++;
     });
+
+    let nodesSet = new Set();
+    let validPairs = new Set();
+    
+    globalData.data.forEach(d => {
+        let r = d.origin; let c = d.dest;
+        let dOut = d;
+        let dIn = dataMap[`${c}|${r}`];
+        
+        let isMatch = false;
+        if (sevFilter === 'all') {
+            isMatch = true;
+        } else {
+            if (perspective === 'ab') isMatch = checkCond(dOut, sevFilter);
+            else if (perspective === 'ba') isMatch = checkCond(dIn, sevFilter);
+            else isMatch = checkCond(dOut, sevFilter) || checkCond(dIn, sevFilter);
+        }
+
+        if (isMatch || sevFilter === 'all') {
+            nodesSet.add(r);
+            nodesSet.add(c);
+            validPairs.add(`${r}|${c}`);
+            validPairs.add(`${c}|${r}`);
+        }
+    });
+
+    let nodes = Array.from(nodesSet).sort((a, b) => a.localeCompare(b));
+    let rowNodes = nodes.filter(n => n.toLowerCase().includes(fOrig));
+    let colNodes = nodes.filter(n => n.toLowerCase().includes(fDest));
     document.getElementById('metricsbox').innerHTML = `
         <div class="metric-box"><h3>${nodes.length}</h3><span>Nodes Parsed</span></div>
         <div class="metric-box"><h3>${stGood}</h3><span>Healthy Connections</span></div>
@@ -737,8 +786,13 @@ function renderMatrix() {
                  display = fmt(dOut, mode, pOut) + fmt(dIn, mode, pIn);
              }
 
+             let styleStr = perspective === 'both' ? 'padding:0 4px;' : '';
+             if (sevFilter !== 'all' && !validPairs.has(`${r}|${c}`)) {
+                 styleStr += ' opacity:0.15;';
+             }
+
              let tip = `<div class="tooltip">${buildTooltip(r, c, dOut, dIn)}</div>`;
-             html += `<td class="${cssClass}${extClass}" style="${perspective==='both'?'padding:0 4px;':''}">${display}${tip}</td>`;
+             html += `<td class="${cssClass}${extClass}" style="${styleStr}">${display}${tip}</td>`;
         });
         html += '</tr>';
     });
