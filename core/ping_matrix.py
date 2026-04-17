@@ -552,6 +552,10 @@ td:hover .tooltip { display: block; top: calc(100% + 10px); left: 50%; transform
         <div class="legend-item"><i style="font-size:11px; color:#888;">*No Modo Híbrido Duplex, a cor de Fundo inteira reflete a MÃO mais debilitada (Worst-Case de ida e volta).</i></div>
     </div>
 </div>
+<div style="text-align:center; padding: 20px; margin-top:10px; font-size: 13px; color: #64748b; font-weight: 600;">
+    🔗 Powered by <a href="https://github.com/flashbsb/network-data-extractor" target="_blank" style="color: #38bdf8; text-decoration: none; border-bottom: 1px dashed #38bdf8;">network-data-extractor</a> &nbsp;|&nbsp; 
+    Contribute or check for <a href="https://github.com/flashbsb/network-data-extractor" target="_blank" style="color: #38bdf8; text-decoration: none; border-bottom: 1px dashed #38bdf8;">new versions on GitHub</a>.
+</div>
 <script>
 let globalData = null;
 async function loadData() {
