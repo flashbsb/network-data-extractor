@@ -382,48 +382,175 @@ def main():
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ping Matrix Dashboard</title>
+<title>Ping Matrix Dashboard - PRO</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
-body { background: #121212; color: #e0e0e0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; }
-.header { text-align: center; margin-bottom: 20px; }
-.filters { display: flex; justify-content: center; gap: 20px; margin-bottom: 20px; }
-.filters input { padding: 8px; background: #2c2c2c; border: 1px solid #444; color: #fff; border-radius: 4px; width: 250px;}
-.dashboard-metrics { display: flex; justify-content: space-around; background: #1e1e1e; padding: 15px; border-radius: 8px; margin-bottom: 20px;}
+/* Base Theme & Glassmorphism */
+body { 
+    background: radial-gradient(circle at top, #0f172a 0%, #020617 100%); 
+    color: #e2e8f0; 
+    font-family: 'Inter', sans-serif; 
+    margin: 0; 
+    padding: 30px; 
+    min-height: 100vh;
+}
+h1, h2, h3, h4, .outfit { font-family: 'Outfit', sans-serif; }
+
+.header { text-align: center; margin-bottom: 30px; animation: fadeIn 0.8s ease; }
+.header h1 { font-size: 38px; font-weight: 800; margin: 0; background: linear-gradient(90deg, #38bdf8, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 10px rgba(56,189,248,0.3)); }
+#sub-header { color: #94a3b8; font-size: 14px; margin-top: 5px; }
+
+/* Dashboard UI Panels */
+.dashboard-metrics { 
+    display: flex; justify-content: space-around; 
+    background: rgba(30, 41, 59, 0.4); 
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.05); 
+    border-radius: 16px; padding: 20px; margin-bottom: 25px; 
+    box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5);
+    animation: slideDown 0.5s ease;
+}
 .metric-box { text-align: center; }
-.metric-box h3 { margin: 0 0 5px 0; font-size: 24px; color: #00d2ff; }
-.metric-box span { font-size: 14px; color: #888; }
-.matrix-wrapper { overflow-x: auto; max-height: 70vh; }
-table { border-collapse: collapse; margin: 0 auto; background: #1e1e1e; }
-th, td { border: 1px solid #333; min-width: 60px; height: 60px; text-align: center; position: relative; cursor: default; }
-th { background: #2c2c2c; position: sticky; padding: 5px; font-size: 12px; }
-th.row-head { left: 0; z-index: 2; }
-th.col-head { top: 0; z-index: 1; writing-mode: vertical-lr; transform: rotate(180deg); text-align: right; }
-td { font-size: 12px; font-weight: bold;}
-.st-good { background: #1a4223; color: #5eff84; }
-.st-warn { background: #544414; color: #ffd64f; }
-.st-crit { background: #4a1515; color: #ff5e5e; }
-.st-dead { background: #1a1a1a; color: #555; }
-.st-self { background: #2c2c2c; }
-.marker-jitter { border-bottom: 4px solid #ff9800; }
-.marker-asym { border-right: 4px solid #ffeb3b; }
-.marker-deny { text-decoration: line-through; }
-.tooltip { display: none; position: absolute; background: rgba(0,0,0,0.9); padding: 15px; border-radius: 6px; border: 1px solid #444; z-index: 100; text-align: left; width: 220px; box-shadow: 0 8px 16px rgba(0,0,0,0.5); pointer-events: none;}
-td:hover .tooltip { display: block; top: 100%; left: 50%; transform: translateX(-50%); }
+.metric-box h3 { margin: 0 0 5px 0; font-size: 28px; color: #38bdf8; text-shadow: 0 0 15px rgba(56,189,248,0.4); }
+.metric-box span { font-size: 13px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;}
+
+/* Controls */
+.controls { display: flex; justify-content: center; gap: 15px; margin-bottom: 25px; }
+.controls input, .controls select { 
+    padding: 10px 15px; background: rgba(15, 23, 42, 0.6); 
+    border: 1px solid rgba(255,255,255,0.1); color: #f8fafc; 
+    border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 14px;
+    transition: all 0.3s ease; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+}
+.controls input:focus, .controls select:focus { outline: none; border-color: #38bdf8; box-shadow: 0 0 0 2px rgba(56,189,248,0.2); }
+
+/* Matrix Table */
+.matrix-wrapper { 
+    overflow: auto; max-height: 65vh; 
+    border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+    background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(8px);
+}
+table { border-collapse: separate; border-spacing: 0; margin: 0 auto; width: max-content;}
+th, td { border: 1px solid rgba(255,255,255,0.03); min-width: 65px; height: 60px; text-align: center; position: relative; cursor: default; }
+
+/* Sticky Glass Headers */
+th { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(10px); position: sticky; padding: 8px; font-size: 12px; z-index: 5; color: #cbd5e1; font-weight: 600;}
+th.row-head { left: 0; z-index: 6; border-right: 2px solid rgba(255,255,255,0.1); }
+th.col-head { top: 0; z-index: 5; writing-mode: vertical-lr; transform: rotate(180deg); text-align: left; border-bottom: 2px solid rgba(255,255,255,0.1); padding-left: 15px;}
+td { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* Crosshair Highlight Hover effect */
+tr:hover td { background-color: rgba(255, 255, 255, 0.05); }
+td:hover::after { content: ""; position: absolute; background-color: rgba(255, 255, 255, 0.05); left: 0; top: -5000px; height: 10000px; width: 100%; z-index: -1; pointer-events: none; }
+td:hover { background-color: rgba(255,255,255,0.1) !important; transform: scale(1.02); z-index: 4; box-shadow: 0 0 10px rgba(0,0,0,0.5); border-radius: 6px;}
+
+/* Cell Themes */
+.st-good { color: #4ade80; }
+.st-warn { color: #fbbf24; text-shadow: 0 0 5px rgba(251, 191, 36, 0.4); }
+.st-crit { color: #f87171; background: rgba(127, 29, 29, 0.3); text-shadow: 0 0 5px rgba(248, 113, 113, 0.5); }
+.st-dead { background: rgba(0,0,0,0.4) !important; color: #475569; }
+.st-self { background: rgba(30,41,59,0.3) !important; color: #334155; }
+
+/* Split cell */
+.split-item { padding: 4px 0; border-bottom: 1px dashed rgba(255,255,255,0.1); }
+.split-item:last-child { border-bottom: none; }
+
+/* Markers */
+.marker-jitter { border-bottom: 3px solid #f97316; }
+.marker-asym { border-right: 3px solid #eab308; }
+.marker-deny { text-decoration: line-through; opacity: 0.5; }
+
+/* Floating Tooltip */
+.tooltip { 
+    display: none; position: absolute; 
+    background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.15); 
+    z-index: 100; text-align: left; width: 270px; 
+    box-shadow: 0 20px 40px rgba(0,0,0,0.7); pointer-events: none;
+    color: #e2e8f0; font-weight: 400; line-height: 1.4;
+    animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+td:hover .tooltip { display: block; top: calc(100% + 10px); left: 50%; transform: translateX(-50%); }
+
+/* Sub Panels (Analytics, Legend) */
+.analytics-panel, .legend-panel { 
+    margin-top: 25px; background: rgba(30, 41, 59, 0.4); 
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; 
+    padding: 20px; display: flex; flex-wrap: wrap; gap: 20px; box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5);
+}
+.analytics-card, .legend-col { flex: 1; min-width: 250px; }
+.analytics-card h4, .legend-col h4 { border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-top: 0; color: #38bdf8; letter-spacing: 0.5px;}
+.analytics-card ul { margin: 0; padding-left: 20px; font-size: 13px; color: #cbd5e1;}
+.analytics-card li { margin-bottom: 8px; line-height: 1.5; }
+.analytics-card li b { color: #f8fafc; }
+
+/* Legend details */
+.legend-item { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; font-size: 13px; color: #94a3b8; }
+.leg-box { width: 14px; height: 14px; border-radius: 50%; display: inline-block; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3); }
+.leg-box.st-good { background: #4ade80; }
+.leg-box.st-warn { background: #fbbf24; }
+.leg-box.st-crit { background: #f87171; }
+.leg-box.st-dead { background: #475569; }
+.leg-border-j { border-bottom: 3px solid #f97316; width: 14px; height: 10px; display: inline-block; background: rgba(255,255,255,0.05); border-radius:2px;}
+.leg-border-a { border-right: 3px solid #eab308; width: 10px; height: 14px; display: inline-block; background: rgba(255,255,255,0.05); border-radius:2px;}
+
+/* Animations */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes popIn { 0% { opacity: 0; transform: translateX(-50%) scale(0.9); } 100% { opacity: 1; transform: translateX(-50%) scale(1); } }
+
+/* Drag Overlay */
+#dropOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(2, 6, 23, 0.9); backdrop-filter: blur(10px); z-index: 9999; justify-content: center; align-items: center; color: #38bdf8; font-size: 48px; border: 4px dashed rgba(56,189,248,0.5); box-sizing: border-box; font-family:'Outfit'; font-weight:800; text-shadow: 0 0 30px rgba(56,189,248,0.6);}
 </style>
 </head>
 <body>
+<div id="dropOverlay">Drop JSON file to load!</div>
 <div class="header">
-    <h1>📡 Network Ping Matrix Dashboard</h1>
+    <h1>📡 Network Ping Matrix 2.0</h1>
     <p id="sub-header">Loading local data...</p>
 </div>
 <div class="dashboard-metrics" id="metricsbox"></div>
-<div class="filters">
+<div class="analytics-panel" id="analyticsPanels" style="display:none;"></div>
+<div class="controls">
+    <select id="perspectiveMode" onchange="renderMatrix()" style="border-color:#00d2ff">
+        <option value="both">View: Full Duplex (A ⇄ B)</option>
+        <option value="ab">View: Direct (A ➟ B)</option>
+        <option value="ba">View: Reverse (B ➟ A)</option>
+    </select>
+    <select id="viewMode" onchange="renderMatrix()">
+        <option value="tudo">Show ALL Values</option>
+        <option value="lat">Show Avg Latency</option>
+        <option value="loss">Show Packet Loss</option>
+        <option value="jit">Show Jitter Marks</option>
+    </select>
     <input type="text" id="filterOrigin" placeholder="Filter Origin..." onkeyup="renderMatrix()">
     <input type="text" id="filterDest" placeholder="Filter Dest..." onkeyup="renderMatrix()">
 </div>
 <div class="matrix-wrapper">
     <table id="matrixTable"></table>
+</div>
+<div class="legend-panel">
+    <div class="legend-col">
+        <h4>🎨 Cores de Severidade (Cell Status)</h4>
+        <div class="legend-item"><span class="leg-box st-good"></span> Saúde Perfeita (0% Perda, sem alertas)</div>
+        <div class="legend-item"><span class="leg-box st-warn"></span> Atenção (Perda > 0% até 50% ou alertas Jitter/Asym)</div>
+        <div class="legend-item"><span class="leg-box st-crit"></span> Crítico (Perda > 50%)</div>
+        <div class="legend-item"><span class="leg-box st-dead"></span> Unreachable (Morte Súbita, BGP down, 100% loss)</div>
+    </div>
+    <div class="legend-col">
+        <h4>👁️ Símbolos e Marcadores</h4>
+        <div class="legend-item"><span class="leg-border-j"></span> <b>Jitter Elevado (Trilha Laranja):</b> Variância extrema entre pacotes.</div>
+        <div class="legend-item"><span class="leg-border-a"></span> <b>Rota Assimétrica (Trilha Amarela):</b> Assimetria grave bidirecional.</div>
+        <div class="legend-item"><span style="text-decoration: line-through; color:#ccc">Txt</span> &nbsp;<b>Bloqueio ADM (Riscado):</b> Firewall Filters (Deny).</div>
+    </div>
+    <div class="legend-col">
+        <h4>🔄 Modo Duplex (A ⇄ B)</h4>
+        <div class="legend-item"><span style="color:#00d2ff; font-weight:bold;">🡲</span> Métrica do Caminho <b>Direto</b> (A pingando B)</div>
+        <div class="legend-item"><span style="color:#ff007f; font-weight:bold;">🡰</span> Métrica do Caminho <b>Reverso</b> (B pingando A)</div>
+        <div class="legend-item"><i style="font-size:11px; color:#888;">*No Modo Híbrido Duplex, a cor de Fundo inteira reflete a MÃO mais debilitada (Worst-Case de ida e volta).</i></div>
+    </div>
 </div>
 <script>
 let globalData = null;
@@ -432,42 +559,110 @@ async function loadData() {
         const response = await fetch('ping_matrix_list.json');
         if (!response.ok) throw new Error('File not found or CORS blocked');
         globalData = await response.json();
-        let md = globalData.metadata;
-        document.getElementById('sub-header').innerHTML = `Last Updated: ${md.datetime} | Size: ${md.config.datagram_size}B | Ping Count: ${md.config.count}`;
-        renderMatrix();
+        buildHeader(); renderMatrix(); buildAnalytics();
     } catch(err) {
         document.getElementById('sub-header').innerHTML = `<span style="color:#ff5e5e">Local File Load Disabled by Browser Security.</span>
         <br><label style="cursor:pointer; background:#333; padding:5px 15px; border-radius:5px; font-size:13px; margin-top:10px; display:inline-block; border: 1px solid #555;">
-        📂 Browse and Load <b>ping_matrix_list.json</b>
+        📂 Browse or Drag <b>ping_matrix_list.json</b> anywhere
         <input type="file" accept=".json" style="display:none;" onchange="handleFileSelect(event)">
         </label>`;
     }
 }
-function handleFileSelect(event) {
-    const file = event.target.files[0];
+function buildHeader() {
+    let md = globalData.metadata;
+    document.getElementById('sub-header').innerHTML = `<span style="color:#5eff84">&#10003; Loaded Successfully</span> | Last Updated: ${md.datetime} | Size: ${md.config.datagram_size}B | Threads: ${md.config.threads}`;
+}
+function handleFileSelect(event) { processFile(event.target.files[0]); }
+function processFile(file) {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = function(e) {
         try {
             globalData = JSON.parse(e.target.result);
-            let md = globalData.metadata;
-            document.getElementById('sub-header').innerHTML = `<span style="color:#5eff84">Loaded Manually!</span> Last Updated: ${md.datetime} | Size: ${md.config.datagram_size}B`;
-            renderMatrix();
-        } catch (err) {
-            alert("Error parsing JSON file: " + err.message);
-        }
+            buildHeader(); renderMatrix(); buildAnalytics();
+        } catch (err) { alert("Error parsing JSON file: " + err.message); }
     };
     reader.readAsText(file);
 }
+
+// Drag functionality
+document.body.addEventListener('dragover', (e) => { e.preventDefault(); document.getElementById('dropOverlay').style.display = 'flex'; });
+document.getElementById('dropOverlay').addEventListener('dragleave', (e) => { e.preventDefault(); document.getElementById('dropOverlay').style.display = 'none'; });
+document.getElementById('dropOverlay').addEventListener('drop', (e) => {
+    e.preventDefault(); document.getElementById('dropOverlay').style.display = 'none';
+    processFile(e.dataTransfer.files[0]);
+});
+
+function buildAnalytics() {
+    if (!globalData) return;
+    document.getElementById('analyticsPanels').style.display = 'flex';
+    let validLinks = globalData.data.filter(d => !d.is_unreachable && d.loss_pct < 100);
+    let topLatency = [...validLinks].sort((a,b) => b.avg - a.avg).slice(0, 5);
+    let topJitter = [...validLinks].sort((a,b) => (b.max - b.min) - (a.max - a.min)).slice(0, 5);
+    
+    let h = `<div class="analytics-card"><h4>⏱️ High Latency Links (Top 5)</h4><ul>`;
+    topLatency.forEach(t => h += `<li><b>${t.origin} &rarr; ${t.dest}</b>: <span class="st-crit">${t.avg}ms</span></li>`);
+    h += `</ul></div><div class="analytics-card"><h4>〰️ Highest Variance (Jitter Top 5)</h4><ul>`;
+    topJitter.forEach(t => {
+        let v = t.max - t.min;
+        let c = t.jitter_warning ? 'st-crit' : 'st-warn';
+        h += `<li><b>${t.origin} &rarr; ${t.dest}</b>: <span class="${c}">+${v}ms span</span> (Min ${t.min} / Max ${t.max})</li>`;
+    });
+    h += `</ul></div>`;
+    document.getElementById('analyticsPanels').innerHTML = h;
+}
+
+function buildTooltip(o, d, dOut, dIn) {
+    let html = `<b>${o} ⇄ ${d}</b><hr style="border-color:#444;margin:5px 0;">`;
+    if (dOut) {
+        html += `<span style="color:#00d2ff">🡲 <b>Direct Route (${o} &rarr; ${d})</b></span><br>`;
+        html += `&nbsp;&nbsp; Time: ${dOut.min>=0?dOut.min:'-'} / ${dOut.avg>=0?dOut.avg:'-'} / ${dOut.max>=0?dOut.max:'-'} ms<br>`;
+        html += `&nbsp;&nbsp; Loss: ${dOut.loss_pct.toFixed(1)}% | Warns: ${dOut.jitter_warning?'<span class="st-warn">J</span>':'_'}${dOut.asymmetric_warning?'<span class="st-warn">A</span>':'_'}<br>`;
+    } else {
+        html += `<span style="color:#00d2ff">🡲 Direct Route</span>: No data<br>`;
+    }
+    html += `<hr style="border-color:#333;margin:4px 0; border-top: 1px dashed #333;">`;
+    if (dIn) {
+        html += `<span style="color:#ff007f">🡰 <b>Reverse Route (${d} &rarr; ${o})</b></span><br>`;
+        html += `&nbsp;&nbsp; Time: ${dIn.min>=0?dIn.min:'-'} / ${dIn.avg>=0?dIn.avg:'-'} / ${dIn.max>=0?dIn.max:'-'} ms<br>`;
+        html += `&nbsp;&nbsp; Loss: ${dIn.loss_pct.toFixed(1)}% | Warns: ${dIn.jitter_warning?'<span class="st-warn">J</span>':'_'}${dIn.asymmetric_warning?'<span class="st-warn">A</span>':'_'}<br>`;
+    } else {
+        html += `<span style="color:#ff007f">🡰 Reverse Route</span>: No data<br>`;
+    }
+    return html;
+}
+
+function evalCss(val) {
+    if (!val) return 'st-dead';
+    if (val.is_unreachable || val.loss_pct == 100 || val.consistently_denied) return 'st-dead';
+    if (val.loss_pct > 50) return 'st-crit';
+    if (val.loss_pct > 0 || val.jitter_warning || val.asymmetric_warning) return 'st-warn';
+    return 'st-good';
+}
+
+function fmt(val, mode, prefix) {
+    if (!val) return `<div class="split-item" style="color:#555">${prefix} N/A</div>`;
+    if (val.is_unreachable) return `<div class="split-item st-crit">${prefix} FAIL</div>`;
+    let txt = "";
+    if (mode === 'tudo') txt = `${val.avg}ms <span style="color:#aaa">|</span> ${val.loss_pct.toFixed(0)}% <span style="color:#aaa">|</span> J:${val.jitter_warning?'Y':'N'}`;
+    else if (mode === 'loss') txt = `${val.loss_pct.toFixed(1)}% Loss`;
+    else if (mode === 'jit') txt = val.jitter_warning ? "WARN" : "OK";
+    else txt = val.avg >= 0 ? `${val.avg}ms` : 'N/A';
+    return `<div class="split-item">${prefix} ${txt}</div>`;
+}
+
 function renderMatrix() {
     if (!globalData) return;
+    let mode = document.getElementById('viewMode').value;
+    let perspective = document.getElementById('perspectiveMode').value;
     let fOrig = document.getElementById('filterOrigin').value.toLowerCase();
     let fDest = document.getElementById('filterDest').value.toLowerCase();
     let nodesSet = new Set();
     globalData.data.forEach(d => { nodesSet.add(d.origin); nodesSet.add(d.dest); });
-    let nodes = Array.from(nodesSet).sort();
+    let nodes = Array.from(nodesSet).sort((a, b) => a.localeCompare(b));
     let rowNodes = nodes.filter(n => n.toLowerCase().includes(fOrig));
     let colNodes = nodes.filter(n => n.toLowerCase().includes(fDest));
+    
     let stGood=0, stJitter=0, stAsym=0, stDead=0;
     let dataMap = {};
     globalData.data.forEach(d => { 
@@ -480,9 +675,9 @@ function renderMatrix() {
     document.getElementById('metricsbox').innerHTML = `
         <div class="metric-box"><h3>${nodes.length}</h3><span>Nodes Parsed</span></div>
         <div class="metric-box"><h3>${stGood}</h3><span>Healthy Connections</span></div>
-        <div class="metric-box"><h3>${stJitter}</h3><span style="color:#ff9800">Jitter Warnings</span></div>
-        <div class="metric-box"><h3>${stAsym}</h3><span style="color:#ffeb3b">Asymmetry Warnings</span></div>
-        <div class="metric-box"><h3>${stDead}</h3><span style="color:#ff5e5e">Dead Links / Loss</span></div>
+        <div class="metric-box"><h3>${stJitter}</h3><span class="st-warn">Jitter Warnings</span></div>
+        <div class="metric-box"><h3>${stAsym}</h3><span class="st-warn">Asymmetry Warnings</span></div>
+        <div class="metric-box"><h3>${stDead}</h3><span class="st-crit">Dead Links / Loss</span></div>
     `;
     let html = '<tr><th class="row-head">O &#92; D</th>';
     colNodes.forEach(c => { html += `<th class="col-head">${c}</th>` });
@@ -491,29 +686,50 @@ function renderMatrix() {
         html += `<tr><th class="row-head">${r}</th>`;
         colNodes.forEach(c => {
              if (r === c) { html += '<td class="st-self">-</td>'; return; }
-             let val = dataMap[`${r}|${c}`];
-             if (!val) { html += '<td class="st-dead">N/A</td>'; return; }
+             
+             let dOut = dataMap[`${r}|${c}`];
+             let dIn = dataMap[`${c}|${r}`];
+             
+             if (!dOut && !dIn) { html += '<td class="st-dead">N/A</td>'; return; }
+             
+             let primary = dOut;
+             if (perspective === 'ba') primary = dIn;
+             if (perspective === 'both' && !primary) primary = dIn;
+             
+             // Definir Fundo da Celula (Modo Both julga o cenário mais danificado)
              let cssClass = 'st-good';
-             if (val.is_unreachable || val.loss_pct == 100 || val.consistently_denied) cssClass = 'st-dead';
-             else if (val.loss_pct > 0 && val.loss_pct <= 50) cssClass = 'st-warn';
-             else if (val.loss_pct > 50) cssClass = 'st-crit';
-             else if (val.jitter_warning || val.asymmetric_warning) cssClass = 'st-warn';
+             if (perspective === 'ab') cssClass = evalCss(dOut);
+             else if (perspective === 'ba') cssClass = evalCss(dIn);
+             else {
+                 let cOut = evalCss(dOut);
+                 let cIn = evalCss(dIn);
+                 let wgt = { 'st-dead':4, 'st-crit':3, 'st-warn':2, 'st-good':1 };
+                 let wOut = dOut ? wgt[cOut] : 0;
+                 let wIn = dIn ? wgt[cIn] : 0;
+                 cssClass = wOut >= wIn ? cOut : cIn;
+             }
+             
              let extClass = '';
-             if (val.jitter_warning) extClass += ' marker-jitter';
-             if (val.asymmetric_warning) extClass += ' marker-asym';
-             if (val.consistently_denied) extClass += ' marker-deny';
-             let display = val.is_unreachable ? "FAIL" : (val.avg >= 0 ? val.avg + "ms" : "N/A");
-             let tip = `<div class="tooltip">
-                <b>${r} &rarr; ${c}</b><hr style="border-color:#444;margin:5px 0;">
-                <span class="st-good">T_Min:</span> ${val.min >= 0 ? val.min+'ms' : '-'}<br>
-                <span class="st-warn">T_Avg:</span> ${val.avg >= 0 ? val.avg+'ms' : '-'}<br>
-                <span class="st-crit">T_Max:</span> ${val.max >= 0 ? val.max+'ms' : '-'}<br>
-                Loss: ${val.loss_pct.toFixed(1)}% (${val.rx}/${val.tx})<br><br>
-                Jitter Warn: ${val.jitter_warning ? '<span style="color:#ff9800">YES</span>':'NO'}<br>
-                Asym Warn: ${val.asymmetric_warning ? '<span style="color:#ffeb3b">YES</span>':'NO'}<br>
-                Denied: ${val.consistently_denied ? 'YES':'NO'}<br>
-             </div>`;
-             html += `<td class="${cssClass}${extClass}">${display}${tip}</td>`;
+             if (primary && primary.jitter_warning) extClass += ' marker-jitter';
+             if (primary && primary.asymmetric_warning) extClass += ' marker-asym';
+             if (primary && primary.consistently_denied) extClass += ' marker-deny';
+             // No modo hibrido, adiciona Warning se QUALQUER perna tiver jitter
+             if (perspective === 'both') {
+                 if (dIn && dIn.jitter_warning && !extClass.includes('marker-jitter')) extClass += ' marker-jitter';
+                 if (dIn && dIn.asymmetric_warning && !extClass.includes('marker-asym')) extClass += ' marker-asym';
+             }
+             
+             let display = "";
+             if (perspective === 'ab') display = fmt(dOut, mode, '');
+             else if (perspective === 'ba') display = fmt(dIn, mode, '');
+             else {
+                 let pOut = '<span style="color:#00d2ff">🡲</span>';
+                 let pIn = '<span style="color:#ff007f">🡰</span>';
+                 display = fmt(dOut, mode, pOut) + fmt(dIn, mode, pIn);
+             }
+
+             let tip = `<div class="tooltip">${buildTooltip(r, c, dOut, dIn)}</div>`;
+             html += `<td class="${cssClass}${extClass}" style="${perspective==='both'?'padding:0 4px;':''}">${display}${tip}</td>`;
         });
         html += '</tr>';
     });
