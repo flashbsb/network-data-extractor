@@ -263,13 +263,18 @@ def main():
                 with results_lock:
                     all_results.append(parsed)
                     
-                time.sleep(delay_between_commands)
+                # Visual feedback loop (progress simulator)
+                print(".", end="", flush=True)
+                
+                # Ping Matrix Accelerator: Override the global SSH delay if it's too high. ICMP is low-cost.
+                local_delay = min(delay_between_commands, 0.2)
+                time.sleep(local_delay)
 
             client.close()
             with results_lock:
                 counter += 1
                 curr = counter
-            print(f"  [{curr:>{len(str(total_elements))}}/{total_elements}] [+] Ping Matrix from {origin_host} done.")
+            print(f"\n  [{curr:>{len(str(total_elements))}}/{total_elements}] [+] Ping Matrix from {origin_host} done.")
             logging.info(f"Ping Matrix from {origin_host} done.")
             
         except Exception as e:
@@ -277,7 +282,7 @@ def main():
             with results_lock:
                 counter += 1
                 curr = counter
-            print(f"  [{curr:>{len(str(total_elements))}}/{total_elements}] [-] Ping Matrix from {origin_host} failed.")
+            print(f"\n  [{curr:>{len(str(total_elements))}}/{total_elements}] [-] Ping Matrix from {origin_host} failed.")
 
     print(f"Starting ICMP requests concurrently (Threads: {thread_count})...")
     with concurrent.futures.ThreadPoolExecutor(max_workers=thread_count) as executor:
