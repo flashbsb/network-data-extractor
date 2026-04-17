@@ -187,21 +187,21 @@ python3 network-data-extractor.py --skip-wizard --threads 10
 
 ---
 
-## 🗺️ Lógica de Descoberta de Topologia (Regex)
+## 🗺️ Topology Discovery Logic (Regex)
 
-O script `core/interface2connection.py` utiliza uma "Universal Blind Analyzer" para identificar conexões entre equipamentos sem depender de um cadastro rígido. Ele funciona da seguinte forma:
+The `core/interface2connection.py` script relies on a "Universal Blind Analyzer" to identify interconnects between equipment without requiring a rigid registration database. Here's how it works:
 
-1.  **Varredura de Descrições**: O script analisa o campo `description` de todas as interfaces físicas coletadas.
-2.  **Padrão de Nomenclatura (Regex)**: Ele busca por strings que correspondam ao padrão de hostnames da sua rede. O padrão padrão é:
+1.  **Description Scanning**: The script analyzes the `description` fields of all collected physical interfaces.
+2.  **Naming Convention Pattern (Regex)**: It hunts for strings matching your network's hostname standard. By default, it looks for:
     - `((?:RT|SW|SM|PTT|DW)[A-Za-z0-9]+-[A-Za-z0-9-]+)`
-    - Isso significa que ele procura por nomes que comecem com prefixos conhecidos (como `RT-`, `SW-`, etc.), seguidos de caracteres alfanuméricos e hifens.
-3.  **Configuração Customizada**: Você pode ajustar quais prefixos o script deve reconhecer editando o arquivo `config/settings.json`:
+    - This means it expects names starting with known prefixes (like `RT-`, `SW-`, etc.), followed by alphanumerics and hyphens.
+3.  **Custom Configuration**: You can easily adjust which prefixes the tool recognizes by editing the `config/settings.json` file:
     ```json
     "topology": {
         "device_name_prefixes": ["RT", "SW", "SM", "PTT", "DW"]
     }
     ```
-4.  **Deduplicação Inteligente**: O script é inteligente o suficiente para entender que se o `Elemento A` diz estar conectado ao `Elemento B`, e o `Elemento B` diz o mesmo sobre o `A`, trata-se de um único cabo físico (deduplicação bidirecional).
+4.  **Intelligent Deduplication**: The engine naturally understands that if `Node A` sees `Node B`, and `Node B` sees `Node A`, they both represent a single physical cable (bidirectional deduplication).
 
 ---
 
@@ -216,11 +216,11 @@ Starting with version 1.30.0, the tool can automatically expand your inventory:
 
 ---
 
-## 🗜️ Compactação de Saída (Economia de Espaço)
+## 🗜️ Output Compression (Space Saving)
 
-Para redes grandes, a pasta `collect/` pode crescer rapidamente com arquivos de texto brutos. O orquestrador agora suporta a compactação automática de pastas ao final da execução.
+For massive networks, the `collect/` folder might rapidly consume disk space with thousands of raw text files. Because of this, the orchestrator features automatic post-execution folder compression.
 
-Configure no `config/settings.json`:
+Configure it inside `config/settings.json`:
 ```json
 "compression": {
     "enabled": true,
@@ -229,10 +229,10 @@ Configure no `config/settings.json`:
     "folders": ["collect", "log"]
 }
 ```
-- **enabled**: Ativa ou desativa a função.
-- **format**: Formatos suportados (`zip`, `tar`, `gztar`).
-- **delete_after_compression**: Se `true`, remove a pasta original após criar o arquivo compactado.
-- **folders**: Lista de subpastas para compactar (geralmente `collect` e `log`).
+- **enabled**: Enables or disables the feature.
+- **format**: Supported archive formats (`zip`, `tar`, `gztar`).
+- **delete_after_compression**: If set to `true`, permanently deletes the original raw folder immediately after creating the archive.
+- **folders**: The array subset of output folders to target (usually `collect` and `log`).
 
 ---
 

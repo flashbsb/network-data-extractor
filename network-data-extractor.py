@@ -4,7 +4,7 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
-Version : 1.41.0
+Version : 1.41.1
 Date    : 2026-04-17
 Author  : flashbsb (and contributors)
 
@@ -120,7 +120,7 @@ group_ext.add_argument("--outbase", type=str, default=def_outbase, help=f"Root d
 group_ext.add_argument("--elements", type=str, default=def_elements, help=f"Input elements file (default: {def_elements})")
 group_ext.add_argument("--commands", type=str, default=def_commands, help=f"Input commands file (default: {def_commands})")
 group_ext.add_argument("--ping-commands", type=str, default="config/commands.icmp.cfg", help="Input ICMP commands file for Ping Matrix (default: config/commands.icmp.cfg)")
-group_ext.add_argument("--ping-format", type=str, default="csv", help="Saída do Ping Matrix: csv, json, html (separados por vírgula)")
+group_ext.add_argument("--ping-format", type=str, default="csv", help="Ping Matrix output format: csv, json, html (comma-separated)")
 group_ext.add_argument("--randomize", action="store_true", default=def_randomize, help=f"Randomize connection order (default: {def_randomize})")
 group_ext.add_argument("--no-randomize", dest="randomize", action="store_false", help="Keep connection order sequential")
 
@@ -134,7 +134,7 @@ group_mode = parser.add_argument_group("Execution Modes")
 group_mode.add_argument("--skip-wizard", action="store_true", help="Skip configuration confirmation prompt")
 group_mode.add_argument("--force", action="store_true", help="Force execution even if collection fails")
 group_mode.add_argument("--offline", type=str, metavar="DIR", help="Process existing data in DIR (skips discovery/SSH)")
-group_mode.add_argument("--ping-matrix", action="store_true", help="Omitir testes regulares e executar Matriz de Ping ICMP")
+group_mode.add_argument("--ping-matrix", action="store_true", help="Omit regular tests and execute ICMP Ping Matrix")
 
 group_disco = parser.add_argument_group("Discovery Options (ignored in --offline)")
 group_disco.add_argument("--discovery", action="store_true", help="Enable recursive discovery via LLDP neighbors")
