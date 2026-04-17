@@ -4,8 +4,8 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
-Version : 1.40.2
-Date    : 2026-04-16
+Version : 1.41.0
+Date    : 2026-04-17
 Author  : flashbsb (and contributors)
 
 Behavior:
@@ -59,13 +59,21 @@ This script automates the execution of multiple data collection and parsing
 scripts against network elements defined in 'config/elements.cfg', using the
 commands outlined in 'config/commands.cfg'.
 
-Workflow:
-  1. Prompts for SSH credentials interactively.
-  2. Executes 'core/commands.py' concurrently to gather raw CLI outputs into '<outbase>/YYYYMMDD_HHMMSS/collect/'.
-  3. Sequentially process all parsing scripts (parsers/*.py) to generate CSV structures into '<outbase>/YYYYMMDD_HHMMSS/resume/'.
-  4. Runs 'core/element_status.py' to generate 'status.elements.csv' inside 'collect/'.
-  5. Finally runs 'core/interface2connection.py' to map the physical topology connections.
-  6. All execution logs are silently stored in '<outbase>/YYYYMMDD_HHMMSS/log/'.
+Workflow Options:
+  [A] Standard Extraction Mode:
+      1. Validates SSH credentials interactively or via flags.
+      2. Concurrently gathers raw CLI outputs into '<outbase>/YYYYMMDD_HHMMSS/collect/'.
+      3. Process parsing scripts sequentially to generate CSV structures.
+      4. Executes network health, isolation checks, and physical topology mapping.
+
+  [B] Ping Matrix Mode (--ping-matrix):
+      1. Bypasses regular SSH scraping.
+      2. Tests ICMP reachability from all configured origins to all destinations.
+      3. Generates statistical analysis and builds a High-Performance HTML/JSON Dashboard.
+
+  [C] Discovery Mode (--discovery):
+      1. Follows Standard Mode but iterates continuously over LLDP neighbors.
+      2. Discovers missing routers and creates a new pool file iteratively automatically.
 """
 
 # --- PRE-PARSING TO LOAD SETTINGS ---

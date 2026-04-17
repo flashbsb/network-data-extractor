@@ -21,28 +21,47 @@ Its main goal is to eliminate the need for manual inventories or box-by-box acce
 
 ## ⚙️ Operational Workflow
 
-The tool operates on the principle of *Raw Ingestion -> Data Processing -> Analytical Consolidation*.
+The tool operates on a modular routing engine tailored for *Raw Ingestion -> Data Processing -> Consolidation*, and exclusively branches when specific diagnostic modes (like Matrix or Discovery) are invoked.
 
 ```mermaid
 graph TD
-    A[Wizard / ArgParse] --> B{Discovery Ping}
-    B -->|elements.cfg| C[Multithreaded SSH Engine]
-    C -->|Connects, extracts TXT, bypasses pagers| D(Folder /infos/DATA/collect)
+    %% Styling Definitions
+    classDef mainEngine fill:#3b82f6,stroke:#1e3a8a,stroke-width:2px,color:#fff,rx:8px,ry:8px;
+    classDef branch fill:#8b5cf6,stroke:#4c1d95,stroke-width:2px,color:#fff,rx:8px,ry:8px;
+    classDef module fill:#f59e0b,stroke:#b45309,stroke-width:2px,color:#fff,rx:8px,ry:8px;
+    classDef pingmod fill:#ec4899,stroke:#831843,stroke-width:2px,color:#fff,rx:8px,ry:8px;
+    classDef folder fill:#10b981,stroke:#064e3b,stroke-width:2px,color:#fff,rx:8px,ry:8px;
+    classDef csvout fill:#374151,stroke:#1f2937,stroke-width:2px,color:#4ade80,rx:50px,ry:50px;
+    classDef htmldash fill:#0f172a,stroke:#38bdf8,stroke-width:3px,color:#38bdf8,rx:5px,ry:5px;
+
+    %% Entry
+    A[⚡ CLI Args / Wizard]:::mainEngine --> B{Execution Mode}:::branch
     
-    D --> E[element_status.py]
-    E -->|Analyzes Timeout/OK/New Hostnames| F((status.elements.csv))
+    %% Branch 1: Normal Extraction
+    B -->|Normal / --discovery| C[Multithreaded SSH Engine]:::mainEngine
+    C -->|Extracts RAW Logs| D(📁 /infos/TIMESTAMP/collect):::folder
     
-    D --> G{Specific Parsers}
-    G -.->|LLDP Parser| H[show_lldp_neighbors_detail_all.csv]
-    G -.->|Interfaces Parser| I[interfaces_all.csv]
+    D --> E[element_status.py]:::module
+    E -->|Up/Down State| F(((status.elements.csv))):::csvout
     
-    I --> J[interface2connection.py]
-    J -->|String Cross-referencing/Topological Regex| K((topology.connections.csv))
+    D --> G{Data Parsers}:::module
+    G -.->|LLDP Regex| H[lldp_neighbors.csv]:::csvout
+    G -.->|Int. Regex| I[interfaces_all.csv]:::csvout
     
-    K --> L[topology_checker.py]
+    I --> J[interface2connection.py]:::module
+    J -->|Topology Mapping| K(((topology.connections.csv))):::csvout
+    
+    K --> L[topology_checker.py]:::module
     H --> L
     F --> L
-    L -->|Hunts Isolated Nodes & Ghost Links| M((topology_warnings.isolated.csv))
+    L -->|Isolations Identified| M(((topology_warnings.csv))):::csvout
+
+    %% Branch 2: Ping Matrix
+    B -->|--ping-matrix| P[ICMP Diagnostic Motor]:::pingmod
+    P -->|All-to-All Test| Q(📁 /infos/TIMESTAMP/resume):::folder
+    Q --> R(((ping_matrix_list.csv))):::csvout
+    Q --> S(((ping_matrix_list.json))):::csvout
+    Q --> T{{📲 Interactive HTML Dashboard}}:::htmldash
 ```
 
 ---
