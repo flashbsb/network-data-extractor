@@ -2,6 +2,19 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
  
+## [1.42.0] - 2026-04-23
+### Added
+- **Ping Matrix Accelerator**: Implemented an override in ICMP Ping module that ignores excessive system delays configured in `settings.json`, reducing the ping collection time significantly.
+- **Selective Discovery Filtering**: Added the `--filter` parameter to `ping_matrix.py` enabling filtering nodes by prefix strings through Inclusion (`in:`) or Exclusion (`rn:`).
+- **Console Feedback in Matrix Mode**: Added granular visual progress feedback (`.`) during matrix execution to avoid freezing impression on large node counts.
+
+### Changed
+- **Ping Matrix Dashboard 2.0 (HTML)**: Complete redesign of the Ping Matrix UI transforming it into a high-performance NOC-ready Dashboard.
+- **Glassmorphism Aesthetics**: Introduced Neon glow, modern typography (Inter/Outfit), and dark-mode by default.
+- **SPA Local Support**: Refactored dashboard to ingest static JSON gracefully via JS Fetch and Drag&Drop, avoiding CORS limitations on local environments.
+- **Collapsible Panels (Sanfonas)**: Refactored the advanced metrics panel (Top latency/jitter) and Legends into space-saving expandable components.
+- **Dynamic Multi-Value Filters**: Destroyed the monolithic `<select>` dropdowns and replaced them with Checkboxes/Toggles for Perspective, Path Metrics, and Severities (`Critical`, `Loss`, `Jitter`, `Asym`, `Healthy`).
+- **Dimming Mechanics**: Refactored Severity parsing (`checkCond()`) to support combinatorial combinatorial OR filters, dynamically isolating the filtered conditions while muting irrelevant connections with opacity changes.
 ## [1.37.0] - 2026-03-10
 ### Added
 - **Smart Success IP Pruning**: The cumulative discovery report (`discovered_elements.csv`) now favors successful connections. If a node is successfully reached, all unsuccessful "candidate" IPs for that node are automatically pruned from the final report.

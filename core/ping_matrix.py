@@ -421,13 +421,27 @@ h1, h2, h3, h4, .outfit { font-family: 'Outfit', sans-serif; }
 
 /* Controls */
 .controls { display: flex; justify-content: center; gap: 15px; margin-bottom: 25px; }
-.controls input, .controls select { 
+.controls input[type="text"], .controls select { 
     padding: 10px 15px; background: rgba(15, 23, 42, 0.6); 
     border: 1px solid rgba(255,255,255,0.1); color: #f8fafc; 
     border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 14px;
     transition: all 0.3s ease; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
 }
-.controls input:focus, .controls select:focus { outline: none; border-color: #38bdf8; box-shadow: 0 0 0 2px rgba(56,189,248,0.2); }
+.controls input[type="text"]:focus, .controls select:focus { outline: none; border-color: #38bdf8; box-shadow: 0 0 0 2px rgba(56,189,248,0.2); }
+
+/* Toggle Checkboxes */
+.filter-group { display: flex; align-items: center; gap: 8px; background: rgba(15,23,42,0.4); padding: 5px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); }
+.filter-group > span { font-size: 12px; color: #94a3b8; font-weight: 600; margin-right: 5px; text-transform: uppercase; letter-spacing: 0.5px;}
+.toggle-btn { cursor: pointer; padding: 6px 12px; font-size: 13px; font-weight: 600; color: #64748b; border-radius: 6px; transition: all 0.2s ease; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02); display: flex; align-items: center; gap: 5px; user-select: none; }
+.toggle-btn input[type="checkbox"] { display: none; }
+.toggle-btn:has(input:checked) { background: rgba(56,189,248,0.1); color: #38bdf8; border-color: rgba(56,189,248,0.4); text-shadow: 0 0 8px rgba(56,189,248,0.5); box-shadow: inset 0 0 10px rgba(56,189,248,0.1); }
+.toggle-btn:hover { background: rgba(255,255,255,0.08); }
+
+/* Analytics Collapse */
+.analytics-header { width: 100%; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: all 0.3s ease;}
+.analytics-header h3 { margin: 0; color: #38bdf8; font-size: 20px; transition: all 0.3s ease; }
+.analytics-header:hover h3 { text-shadow: 0 0 15px rgba(56,189,248,0.6); }
+.analytics-content { width: 100%; display: flex; flex-wrap: wrap; gap: 20px; margin-top: 20px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 20px; }
 
 /* Matrix Table */
 .matrix-wrapper { 
@@ -519,25 +533,25 @@ td:hover .tooltip { display: block; top: calc(100% + 10px); left: 50%; transform
 <div class="dashboard-metrics" id="metricsbox"></div>
 <div class="analytics-panel" id="analyticsPanels" style="display:none;"></div>
 <div class="controls">
-    <select id="perspectiveMode" onchange="renderMatrix()" style="border-color:#00d2ff">
-        <option value="both">View: Full Duplex (A ⇄ B)</option>
-        <option value="ab">View: Direct (A ➟ B)</option>
-        <option value="ba">View: Reverse (B ➟ A)</option>
-    </select>
-    <select id="viewMode" onchange="renderMatrix()">
-        <option value="all">Show ALL Values</option>
-        <option value="lat">Show Avg Latency</option>
-        <option value="loss">Show Packet Loss</option>
-        <option value="jit">Show Jitter Marks</option>
-    </select>
-    <select id="severityFilter" onchange="renderMatrix()" style="border-color:#f87171">
-        <option value="all">Severity: Show All</option>
-        <option value="any_warn">🚨 Any Problem (Loss/Jitter/Asym)</option>
-        <option value="crit_only">❌ Critical & Unreachable Only</option>
-        <option value="loss_only">📉 Packet Loss Only</option>
-        <option value="jitter_only">〰️ High Jitter Only</option>
-        <option value="asym_only">⚖️ Asymmetric Routes Only</option>
-    </select>
+    <div class="filter-group">
+        <span>Path:</span>
+        <label class="toggle-btn"><input type="checkbox" id="chkDirect" checked onchange="renderMatrix()"> Direct 🡲</label>
+        <label class="toggle-btn"><input type="checkbox" id="chkReverse" checked onchange="renderMatrix()"> Reverse 🡰</label>
+    </div>
+    <div class="filter-group">
+        <span>Metrics:</span>
+        <label class="toggle-btn"><input type="checkbox" id="chkLat" checked onchange="renderMatrix()"> Latency</label>
+        <label class="toggle-btn"><input type="checkbox" id="chkLoss" checked onchange="renderMatrix()"> Loss</label>
+        <label class="toggle-btn"><input type="checkbox" id="chkWarn" checked onchange="renderMatrix()"> Warns</label>
+    </div>
+    <div class="filter-group" style="border-color: rgba(248, 113, 113, 0.3);">
+        <span style="color: #f87171;">Severity:</span>
+        <label class="toggle-btn" style="border-color: rgba(248, 113, 113, 0.4);"><input type="checkbox" id="sevCrit" checked onchange="renderMatrix()"> ❌ Critical</label>
+        <label class="toggle-btn" style="border-color: rgba(248, 113, 113, 0.4);"><input type="checkbox" id="sevLoss" checked onchange="renderMatrix()"> 📉 Loss</label>
+        <label class="toggle-btn" style="border-color: rgba(248, 113, 113, 0.4);"><input type="checkbox" id="sevJit" checked onchange="renderMatrix()"> 〰️ Jitter</label>
+        <label class="toggle-btn" style="border-color: rgba(248, 113, 113, 0.4);"><input type="checkbox" id="sevAsym" checked onchange="renderMatrix()"> ⚖️ Asym</label>
+        <label class="toggle-btn" style="border-color: rgba(74, 222, 128, 0.4);"><input type="checkbox" id="sevHealthy" checked onchange="renderMatrix()"> ✅ Healthy</label>
+    </div>
     <input type="text" id="filterOrigin" placeholder="Filter Origin..." onkeyup="renderMatrix()">
     <input type="text" id="filterDest" placeholder="Filter Dest..." onkeyup="renderMatrix()">
 </div>
@@ -545,24 +559,30 @@ td:hover .tooltip { display: block; top: calc(100% + 10px); left: 50%; transform
     <table id="matrixTable"></table>
 </div>
 <div class="legend-panel">
-    <div class="legend-col">
-        <h4>🎨 Severity Colors (Cell Status)</h4>
-        <div class="legend-item"><span class="leg-box st-good"></span> Healthy (0% Loss, no warnings)</div>
-        <div class="legend-item"><span class="leg-box st-warn"></span> Warning (Loss > 0% up to 50% or Jitter/Asym warn)</div>
-        <div class="legend-item"><span class="leg-box st-crit"></span> Critical (Loss > 50%)</div>
-        <div class="legend-item"><span class="leg-box st-dead"></span> Unreachable (Host/BGP down, 100% loss)</div>
+    <div class="analytics-header" onclick="toggleLegend()">
+        <h3>📖 Documentation & Legend</h3>
+        <span id="legendToggleIcon" style="color:#38bdf8; font-size:16px;">▼</span>
     </div>
-    <div class="legend-col">
-        <h4>👁️ Symbols & Markers</h4>
-        <div class="legend-item"><span class="leg-border-j"></span> <b>High Jitter (Orange Border):</b> High variance between packets.</div>
-        <div class="legend-item"><span class="leg-border-a"></span> <b>Asymmetric Route (Yellow Border):</b> Severe bidirecional asymmetry.</div>
-        <div class="legend-item"><span style="text-decoration: line-through; color:#ccc">Txt</span> &nbsp;<b>ADM Blocking (Strikethrough):</b> Firewall Filters (Deny).</div>
-    </div>
-    <div class="legend-col">
-        <h4>🔄 Duplex Mode (A ⇄ B)</h4>
-        <div class="legend-item"><span style="color:#00d2ff; font-weight:bold;">🡲</span> <b>Direct</b> Path Metric (A pinging B)</div>
-        <div class="legend-item"><span style="color:#ff007f; font-weight:bold;">🡰</span> <b>Reverse</b> Path Metric (B pinging A)</div>
-        <div class="legend-item"><i style="font-size:11px; color:#888;">*In Hybrid Duplex Mode, the overall cell color reflects the WORST-CASE scenario of both directions.</i></div>
+    <div id="legendContent" class="analytics-content" style="display:none; margin-top: 5px; padding-top: 15px;">
+        <div class="legend-col">
+            <h4>🎨 Severity Colors (Cell Status)</h4>
+            <div class="legend-item"><span class="leg-box st-good"></span> Healthy (0% Loss, no warnings)</div>
+            <div class="legend-item"><span class="leg-box st-warn"></span> Warning (Loss > 0% up to 50% or Jitter/Asym warn)</div>
+            <div class="legend-item"><span class="leg-box st-crit"></span> Critical (Loss > 50%)</div>
+            <div class="legend-item"><span class="leg-box st-dead"></span> Unreachable (Host/BGP down, 100% loss)</div>
+        </div>
+        <div class="legend-col">
+            <h4>👁️ Symbols & Markers</h4>
+            <div class="legend-item"><span class="leg-border-j"></span> <b>High Jitter (Orange Border):</b> High variance between packets.</div>
+            <div class="legend-item"><span class="leg-border-a"></span> <b>Asymmetric Route (Yellow Border):</b> Severe bidirecional asymmetry.</div>
+            <div class="legend-item"><span style="text-decoration: line-through; color:#ccc">Txt</span> &nbsp;<b>ADM Blocking (Strikethrough):</b> Firewall Filters (Deny).</div>
+        </div>
+        <div class="legend-col">
+            <h4>🔄 Duplex Mode (A ⇄ B)</h4>
+            <div class="legend-item"><span style="color:#00d2ff; font-weight:bold;">🡲</span> <b>Direct</b> Path Metric (A pinging B)</div>
+            <div class="legend-item"><span style="color:#ff007f; font-weight:bold;">🡰</span> <b>Reverse</b> Path Metric (B pinging A)</div>
+            <div class="legend-item"><i style="font-size:11px; color:#888;">*In Hybrid Duplex Mode, the overall cell color reflects the WORST-CASE scenario of both directions.</i></div>
+        </div>
     </div>
 </div>
 <div style="text-align:center; padding: 20px; margin-top:10px; font-size: 13px; color: #64748b; font-weight: 600;">
@@ -610,14 +630,43 @@ document.getElementById('dropOverlay').addEventListener('drop', (e) => {
     processFile(e.dataTransfer.files[0]);
 });
 
+function toggleAnalytics() {
+    let content = document.getElementById('analyticsContent');
+    let icon = document.getElementById('analyticsToggleIcon');
+    if (content.style.display === 'none') {
+        content.style.display = 'flex';
+        icon.innerHTML = '▲';
+    } else {
+        content.style.display = 'none';
+        icon.innerHTML = '▼';
+    }
+}
+
+function toggleLegend() {
+    let content = document.getElementById('legendContent');
+    let icon = document.getElementById('legendToggleIcon');
+    if (content.style.display === 'none') {
+        content.style.display = 'flex';
+        icon.innerHTML = '▲';
+    } else {
+        content.style.display = 'none';
+        icon.innerHTML = '▼';
+    }
+}
+
 function buildAnalytics() {
     if (!globalData) return;
-    document.getElementById('analyticsPanels').style.display = 'flex';
     let validLinks = globalData.data.filter(d => !d.is_unreachable && d.loss_pct < 100);
     let topLatency = [...validLinks].sort((a,b) => b.avg - a.avg).slice(0, 5);
     let topJitter = [...validLinks].sort((a,b) => (b.max - b.min) - (a.max - a.min)).slice(0, 5);
     
-    let h = `<div class="analytics-card"><h4>⏱️ High Latency Links (Top 5)</h4><ul>`;
+    let h = `
+    <div class="analytics-header" onclick="toggleAnalytics()">
+        <h3>📊 Advanced Analytics</h3>
+        <span id="analyticsToggleIcon" style="color:#38bdf8; font-size:16px;">▼</span>
+    </div>
+    <div id="analyticsContent" class="analytics-content" style="display:none;">
+        <div class="analytics-card"><h4>⏱️ High Latency Links (Top 5)</h4><ul>`;
     topLatency.forEach(t => h += `<li><b>${t.origin} &rarr; ${t.dest}</b>: <span class="st-crit">${t.avg}ms</span></li>`);
     h += `</ul></div><div class="analytics-card"><h4>〰️ Highest Variance (Jitter Top 5)</h4><ul>`;
     topJitter.forEach(t => {
@@ -625,8 +674,12 @@ function buildAnalytics() {
         let c = t.jitter_warning ? 'st-crit' : 'st-warn';
         h += `<li><b>${t.origin} &rarr; ${t.dest}</b>: <span class="${c}">+${v}ms span</span> (Min ${t.min} / Max ${t.max})</li>`;
     });
-    h += `</ul></div>`;
-    document.getElementById('analyticsPanels').innerHTML = h;
+    h += `</ul></div></div>`;
+    
+    let panel = document.getElementById('analyticsPanels');
+    panel.innerHTML = h;
+    panel.style.display = 'block';
+    panel.style.padding = '15px 20px';
 }
 
 function buildTooltip(o, d, dOut, dIn) {
@@ -657,38 +710,69 @@ function evalCss(val) {
     return 'st-good';
 }
 
-function fmt(val, mode, prefix) {
+function fmt(val, prefix) {
     if (!val) return `<div class="split-item" style="color:#555">${prefix} N/A</div>`;
     if (val.is_unreachable) return `<div class="split-item st-crit">${prefix} FAIL</div>`;
-    let txt = "";
-    if (mode === 'all') {
+    
+    let showLat = document.getElementById('chkLat').checked;
+    let showLoss = document.getElementById('chkLoss').checked;
+    let showWarn = document.getElementById('chkWarn').checked;
+    
+    let parts = [];
+    if (showLat) parts.push(val.avg >= 0 ? `${val.avg}ms` : 'N/A');
+    if (showLoss) parts.push(`${val.loss_pct.toFixed(0)}%`);
+    if (showWarn) {
         let wTags = "";
         if (val.jitter_warning) wTags += "J";
         if (val.asymmetric_warning) wTags += "A";
-        let htmlTags = wTags ? ` <span style="color:#aaa">|</span> <span class="st-warn" style="font-weight:bold">${wTags}</span>` : "";
-        txt = `${val.avg}ms <span style="color:#aaa">|</span> ${val.loss_pct.toFixed(0)}%${htmlTags}`;
+        if (wTags) parts.push(`<span class="st-warn" style="font-weight:bold">${wTags}</span>`);
     }
-    else if (mode === 'loss') txt = `${val.loss_pct.toFixed(1)}% Loss`;
-    else if (mode === 'jit') txt = val.jitter_warning ? "WARN" : "OK";
-    else txt = val.avg >= 0 ? `${val.avg}ms` : 'N/A';
+    
+    let txt = parts.join(' <span style="color:#aaa">|</span> ');
+    if (parts.length === 0) txt = "-";
+    
     return `<div class="split-item">${prefix} ${txt}</div>`;
 }
 
-function checkCond(item, f) {
+function checkCond(item) {
     if (!item) return false;
-    if (f === 'any_warn') return item.loss_pct > 0 || item.jitter_warning || item.asymmetric_warning || item.is_unreachable || item.consistently_denied;
-    if (f === 'crit_only') return item.loss_pct > 50 || item.is_unreachable || item.consistently_denied;
-    if (f === 'loss_only') return item.loss_pct > 0;
-    if (f === 'jitter_only') return item.jitter_warning;
-    if (f === 'asym_only') return item.asymmetric_warning;
-    return true;
+    let sCrit = document.getElementById('sevCrit').checked;
+    let sLoss = document.getElementById('sevLoss').checked;
+    let sJit = document.getElementById('sevJit').checked;
+    let sAsym = document.getElementById('sevAsym').checked;
+    let sHealth = document.getElementById('sevHealthy').checked;
+    
+    let isCrit = item.loss_pct > 50 || item.is_unreachable || item.consistently_denied;
+    let isLoss = item.loss_pct > 0 && item.loss_pct <= 50;
+    let isJit = item.jitter_warning;
+    let isAsym = item.asymmetric_warning;
+    let isHealthy = !isCrit && !isLoss && !isJit && !isAsym;
+    
+    if (isCrit && sCrit) return true;
+    if (isLoss && sLoss) return true;
+    if (isJit && sJit) return true;
+    if (isAsym && sAsym) return true;
+    if (isHealthy && sHealth) return true;
+    
+    return false;
 }
 
 function renderMatrix() {
     if (!globalData) return;
-    let mode = document.getElementById('viewMode').value;
-    let perspective = document.getElementById('perspectiveMode').value;
-    let sevFilter = document.getElementById('severityFilter').value;
+    
+    let showDirect = document.getElementById('chkDirect').checked;
+    let showReverse = document.getElementById('chkReverse').checked;
+    let perspective = 'none';
+    if (showDirect && showReverse) perspective = 'both';
+    else if (showDirect) perspective = 'ab';
+    else if (showReverse) perspective = 'ba';
+    
+    let isAllSelected = document.getElementById('sevCrit').checked && 
+                        document.getElementById('sevLoss').checked && 
+                        document.getElementById('sevJit').checked && 
+                        document.getElementById('sevAsym').checked && 
+                        document.getElementById('sevHealthy').checked;
+                        
     let fOrig = document.getElementById('filterOrigin').value.toLowerCase();
     let fDest = document.getElementById('filterDest').value.toLowerCase();
     
@@ -711,15 +795,11 @@ function renderMatrix() {
         let dIn = dataMap[`${c}|${r}`];
         
         let isMatch = false;
-        if (sevFilter === 'all') {
-            isMatch = true;
-        } else {
-            if (perspective === 'ab') isMatch = checkCond(dOut, sevFilter);
-            else if (perspective === 'ba') isMatch = checkCond(dIn, sevFilter);
-            else isMatch = checkCond(dOut, sevFilter) || checkCond(dIn, sevFilter);
-        }
+        if (perspective === 'ab') isMatch = checkCond(dOut);
+        else if (perspective === 'ba') isMatch = checkCond(dIn);
+        else isMatch = checkCond(dOut) || checkCond(dIn);
 
-        if (isMatch || sevFilter === 'all') {
+        if (isMatch) {
             nodesSet.add(r);
             nodesSet.add(c);
             validPairs.add(`${r}|${c}`);
@@ -778,16 +858,18 @@ function renderMatrix() {
              }
              
              let display = "";
-             if (perspective === 'ab') display = fmt(dOut, mode, '');
-             else if (perspective === 'ba') display = fmt(dIn, mode, '');
-             else {
+             if (perspective === 'ab') display = fmt(dOut, '');
+             else if (perspective === 'ba') display = fmt(dIn, '');
+             else if (perspective === 'both') {
                  let pOut = '<span style="color:#00d2ff">🡲</span>';
                  let pIn = '<span style="color:#ff007f">🡰</span>';
-                 display = fmt(dOut, mode, pOut) + fmt(dIn, mode, pIn);
+                 display = fmt(dOut, pOut) + fmt(dIn, pIn);
+             } else {
+                 display = '<div class="split-item" style="color:#555">-</div>';
              }
 
              let styleStr = perspective === 'both' ? 'padding:0 4px;' : '';
-             if (sevFilter !== 'all' && !validPairs.has(`${r}|${c}`)) {
+             if (!isAllSelected && !validPairs.has(`${r}|${c}`)) {
                  styleStr += ' opacity:0.15;';
              }
 
