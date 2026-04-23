@@ -4,7 +4,7 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
-Version : 1.42.0
+Version : 1.43.0
 Date    : 2026-04-23
 Author  : flashbsb (and contributors)
 

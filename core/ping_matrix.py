@@ -284,6 +284,31 @@ def main():
                 curr = counter
             print(f"\n  [{curr:>{len(str(total_elements))}}/{total_elements}] [-] Ping Matrix from {origin_host} failed.")
 
+    import math
+    total_origins = len(elements)
+    pings_per_origin = total_origins - 1 if total_origins > 0 else 0
+    total_pings = total_origins * pings_per_origin
+    
+    batches = math.ceil(total_origins / thread_count) if thread_count > 0 else 1
+    local_delay = min(delay_between_commands, 0.2)
+    time_per_dest = (10 * count) / 1000.0 + local_delay
+    ssh_overhead = 1.5 
+    time_per_batch = ssh_overhead + (pings_per_origin * time_per_dest)
+    est_total_seconds = batches * time_per_batch
+    
+    m, s = divmod(int(est_total_seconds), 60)
+    h, m = divmod(m, 60)
+    est_str = f"{h}h {m}m {s}s" if h > 0 else f"{m}m {s}s"
+    
+    print("\n" + "="*60)
+    print(" 📡 PING MATRIX EXECUTION PLAN")
+    print("="*60)
+    print(f" • Origin Elements : {total_origins}")
+    print(f" • Targets per Node: {pings_per_origin} (Sending {count} packets each)")
+    print(f" • Total Pings     : {total_pings}")
+    print(f" • Est. Duration   : ~{est_str} (Based on 10ms avg latency)")
+    print("   * Note: Actual time will fluctuate depending on real network latency.")
+    print("="*60)
     print(f"Starting ICMP requests concurrently (Threads: {thread_count})...")
     with concurrent.futures.ThreadPoolExecutor(max_workers=thread_count) as executor:
         executor.map(execute_ping_matrix_for_origin, elements)
