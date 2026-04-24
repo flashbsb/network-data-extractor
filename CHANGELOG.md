@@ -2,6 +2,17 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
  
+## [1.44.0] - 2026-04-24
+### Added
+- **Multi-Value Search Engine**: Origin and Destination text filters in Ping Matrix Dashboard now support multiple parallel queries separated by semicolons (`eg. bsa; gti`).
+- **Advanced Predictive Engine**: The Orchestrator now pre-calculates and displays a complete `Ping Matrix Execution Plan` in the terminal before triggering threads, estimating time based on network overhead and local latency.
+- **Top 5 Asymmetric Routes**: Analytics Panel now automatically calculates and flags route deviations ($|A \rightarrow B - B \rightarrow A|$) highlighting massive path discrepancies.
+- **Top 5 High Packet Loss**: Analytics Panel now ranks actively degrading links that have not yet failed completely ($1\%$ to $99\%$ loss).
+- **Most Isolated Nodes**: Ping Extractor script now calculates a `Reachability Score` for each router in the backend and displays the most blackholed origins in the HTML dashboard.
+- **Global Network Health**: JSON metadata now carries total counters for `Healthy`, `Warning`, `Critical`, and `Dead` links, protecting browser CPU by executing aggregations in Python.
+
+### Changed
+- **Responsive Analytics CSS**: Rewrote the `.analytics-content` as a flex-wrap container with `min-width` parameters for `.analytics-card`, allowing the new 5 sub-reports to stack gracefully on smaller screens without horizontal scrolling issues.
 ## [1.42.0] - 2026-04-23
 ### Added
 - **Ping Matrix Accelerator**: Implemented an override in ICMP Ping module that ignores excessive system delays configured in `settings.json`, reducing the ping collection time significantly.

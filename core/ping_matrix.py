@@ -379,6 +379,53 @@ def main():
         ])
         final_output_data.append(r)
 
+    # Agregações Analíticas de Saúde
+    matrix_health = {
+        "total_links": len(final_output_data),
+        "healthy": 0,
+        "warning": 0,
+        "critical": 0,
+        "dead": 0
+    }
+    
+    node_stats = {}
+    for elem in elements:
+        node_stats[elem['hostname']] = {
+            "total_targets": 0,
+            "success_targets": 0,
+            "sum_latency": 0.0,
+            "valid_latency_count": 0,
+            "reachability_pct": 0.0,
+            "avg_global_latency": -1.0
+        }
+        
+    for r in final_output_data:
+        # Matrix Health
+        if r['is_unreachable'] or r['loss_pct'] == 100 or r['consistently_denied']:
+            matrix_health["dead"] += 1
+        elif r['loss_pct'] > 50:
+            matrix_health["critical"] += 1
+        elif r['loss_pct'] > 0 or r['jitter_warning'] or r['asymmetric_warning']:
+            matrix_health["warning"] += 1
+        else:
+            matrix_health["healthy"] += 1
+            
+        # Node Stats
+        o = r['origin']
+        if o in node_stats:
+            node_stats[o]["total_targets"] += 1
+            if not r['is_unreachable'] and r['loss_pct'] < 100:
+                node_stats[o]["success_targets"] += 1
+            if r['avg'] > 0:
+                node_stats[o]["sum_latency"] += r['avg']
+                node_stats[o]["valid_latency_count"] += 1
+
+    for o, stats in node_stats.items():
+        if stats["total_targets"] > 0:
+            stats["reachability_pct"] = round((stats["success_targets"] / stats["total_targets"]) * 100.0, 1)
+        if stats["valid_latency_count"] > 0:
+            stats["avg_global_latency"] = round(stats["sum_latency"] / stats["valid_latency_count"], 1)
+
     if ex_csv:
         csv_path = os.path.join(args.resume_dir, "ping_matrix_list.csv")
         with open(csv_path, 'w', encoding='utf-8', newline='') as f:
@@ -398,7 +445,9 @@ def main():
                     "datagram_size": size,
                     "timeout": timeout_ping,
                     "threads": thread_count
-                }
+                },
+                "network_health": matrix_health,
+                "node_stats": node_stats
             },
             "data": final_output_data
         }
@@ -467,6 +516,10 @@ h1, h2, h3, h4, .outfit { font-family: 'Outfit', sans-serif; }
 .analytics-header h3 { margin: 0; color: #38bdf8; font-size: 20px; transition: all 0.3s ease; }
 .analytics-header:hover h3 { text-shadow: 0 0 15px rgba(56,189,248,0.6); }
 .analytics-content { width: 100%; display: flex; flex-wrap: wrap; gap: 20px; margin-top: 20px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 20px; }
+.analytics-card { flex: 1 1 300px; min-width: 250px; background: rgba(15, 23, 42, 0.5); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); }
+.analytics-card h4 { margin-top: 0; color: #cbd5e1; font-size: 14px; }
+.analytics-card ul { padding-left: 20px; margin: 0; font-size: 13px; color: #94a3b8; }
+.analytics-card li { margin-bottom: 5px; }
 
 /* Matrix Table */
 .matrix-wrapper { 
@@ -577,8 +630,8 @@ td:hover .tooltip { display: block; top: calc(100% + 10px); left: 50%; transform
         <label class="toggle-btn" style="border-color: rgba(248, 113, 113, 0.4);"><input type="checkbox" id="sevAsym" checked onchange="renderMatrix()"> ⚖️ Asym</label>
         <label class="toggle-btn" style="border-color: rgba(74, 222, 128, 0.4);"><input type="checkbox" id="sevHealthy" checked onchange="renderMatrix()"> ✅ Healthy</label>
     </div>
-    <input type="text" id="filterOrigin" placeholder="Filter Origin..." onkeyup="renderMatrix()">
-    <input type="text" id="filterDest" placeholder="Filter Dest..." onkeyup="renderMatrix()">
+    <input type="text" id="filterOrigin" placeholder="Filter Origin (eg. bsa;gti)..." onkeyup="renderMatrix()">
+    <input type="text" id="filterDest" placeholder="Filter Dest (eg. bsa;gti)..." onkeyup="renderMatrix()">
 </div>
 <div class="matrix-wrapper">
     <table id="matrixTable"></table>
@@ -682,8 +735,43 @@ function toggleLegend() {
 function buildAnalytics() {
     if (!globalData) return;
     let validLinks = globalData.data.filter(d => !d.is_unreachable && d.loss_pct < 100);
-    let topLatency = [...validLinks].sort((a,b) => b.avg - a.avg).slice(0, 5);
-    let topJitter = [...validLinks].sort((a,b) => (b.max - b.min) - (a.max - a.min)).slice(0, 5);
+    
+    let latencyLinks = validLinks.filter(d => d.avg > 0);
+    let topLatency = [...latencyLinks].sort((a,b) => b.avg - a.avg).slice(0, 5);
+    
+    let jitterLinks = validLinks.filter(d => (d.max - d.min) > 0);
+    let topJitter = [...jitterLinks].sort((a,b) => (b.max - b.min) - (a.max - a.min)).slice(0, 5);
+    
+    let degradedLinks = globalData.data.filter(d => d.loss_pct > 0 && d.loss_pct < 100);
+    let topLoss = [...degradedLinks].sort((a,b) => b.loss_pct - a.loss_pct).slice(0, 5);
+    
+    let asymLinks = globalData.data.filter(d => d.asymmetric_warning);
+    let lookup = {};
+    globalData.data.forEach(d => lookup[`${d.origin}|${d.dest}`] = d);
+    let asymDeltas = [];
+    let seenPairs = new Set();
+    asymLinks.forEach(d => {
+        let inv = lookup[`${d.dest}|${d.origin}`];
+        if (inv && !inv.is_unreachable && inv.avg >= 0 && d.avg >= 0) {
+            let p1 = `${d.origin}|${d.dest}`;
+            let p2 = `${d.dest}|${d.origin}`;
+            if (!seenPairs.has(p1) && !seenPairs.has(p2)) {
+                asymDeltas.push({ o: d.origin, d: d.dest, delta: Math.abs(d.avg - inv.avg), oAvg: d.avg, iAvg: inv.avg });
+                seenPairs.add(p1);
+            }
+        }
+    });
+    let topAsym = asymDeltas.sort((a,b) => b.delta - a.delta).slice(0, 5);
+    
+    let md = globalData.metadata;
+    let isolatedNodes = [];
+    if (md && md.node_stats) {
+        isolatedNodes = Object.entries(md.node_stats)
+            .map(([node, stats]) => ({ node, pct: stats.reachability_pct }))
+            .filter(t => t.pct < 100)
+            .sort((a,b) => a.pct - b.pct)
+            .slice(0, 5);
+    }
     
     let h = `
     <div class="analytics-header" onclick="toggleAnalytics()">
@@ -691,14 +779,56 @@ function buildAnalytics() {
         <span id="analyticsToggleIcon" style="color:#38bdf8; font-size:16px;">▼</span>
     </div>
     <div id="analyticsContent" class="analytics-content" style="display:none;">
-        <div class="analytics-card"><h4>⏱️ High Latency Links (Top 5)</h4><ul>`;
-    topLatency.forEach(t => h += `<li><b>${t.origin} &rarr; ${t.dest}</b>: <span class="st-crit">${t.avg}ms</span></li>`);
-    h += `</ul></div><div class="analytics-card"><h4>〰️ Highest Variance (Jitter Top 5)</h4><ul>`;
-    topJitter.forEach(t => {
-        let v = t.max - t.min;
-        let c = t.jitter_warning ? 'st-crit' : 'st-warn';
-        h += `<li><b>${t.origin} &rarr; ${t.dest}</b>: <span class="${c}">+${v}ms span</span> (Min ${t.min} / Max ${t.max})</li>`;
-    });
+        <div class="analytics-card"><h4>⏱️ High Latency Links</h4><ul>`;
+        
+    if (topLatency.length > 0) {
+        topLatency.forEach(t => h += `<li><b>${t.origin} &rarr; ${t.dest}</b>: <span class="st-crit">${t.avg}ms</span></li>`);
+    } else {
+        h += `<li><span class="st-good">No latency data available</span></li>`;
+    }
+    
+    h += `</ul></div><div class="analytics-card"><h4>〰️ Highest Jitter Variance</h4><ul>`;
+    if (topJitter.length > 0) {
+        topJitter.forEach(t => {
+            let v = (t.max - t.min).toFixed(1);
+            let c = t.jitter_warning ? 'st-crit' : 'st-warn';
+            h += `<li><b>${t.origin} &rarr; ${t.dest}</b>: <span class="${c}">+${v}ms span</span> (Min ${t.min} / Max ${t.max})</li>`;
+        });
+    } else {
+        h += `<li><span class="st-good">No variance detected</span></li>`;
+    }
+    
+    h += `</ul></div><div class="analytics-card"><h4>📉 Highest Packet Loss</h4><ul>`;
+    if (topLoss.length > 0) {
+        topLoss.forEach(t => {
+            let c = t.loss_pct > 50 ? 'st-crit' : 'st-warn';
+            h += `<li><b>${t.origin} &rarr; ${t.dest}</b>: <span class="${c}">${t.loss_pct.toFixed(1)}% Loss</span></li>`;
+        });
+    } else {
+        h += `<li><span class="st-good">All reachable links have 0% loss!</span></li>`;
+    }
+    
+    h += `</ul></div><div class="analytics-card"><h4>⚖️ Most Asymmetric Routes</h4><ul>`;
+    if (topAsym.length > 0) {
+        topAsym.forEach(t => {
+            h += `<li><b>${t.o} ⇄ ${t.d}</b>: <span class="st-warn">&Delta; ${t.delta.toFixed(1)}ms</span> (Ida: ${t.oAvg} | Volta: ${t.iAvg})</li>`;
+        });
+    } else {
+        h += `<li><span class="st-good">No severe asymmetry detected!</span></li>`;
+    }
+    
+    h += `</ul></div><div class="analytics-card"><h4>🏝️ Most Isolated Nodes</h4><ul>`;
+    if (isolatedNodes.length > 0) {
+        isolatedNodes.forEach(t => {
+            let c = t.pct < 50 ? 'st-crit' : (t.pct < 95 ? 'st-warn' : 'st-good');
+            h += `<li><b>${t.node}</b>: Reachability <span class="${c}">${t.pct}%</span></li>`;
+        });
+    } else if (md && md.node_stats) {
+        h += `<li><span class="st-good">All nodes are 100% reachable!</span></li>`;
+    } else {
+        h += `<li><span class="st-good">Data not available</span></li>`;
+    }
+    
     h += `</ul></div></div>`;
     
     let panel = document.getElementById('analyticsPanels');
@@ -757,6 +887,16 @@ function fmt(val, prefix) {
     if (parts.length === 0) txt = "-";
     
     return `<div class="split-item">${prefix} ${txt}</div>`;
+}
+
+function multiMatch(nodeName, filterValue) {
+    let parts = filterValue.toLowerCase().split(';').map(s => s.trim()).filter(s => s.length > 0);
+    if (parts.length === 0) return true;
+    let nodeLower = nodeName.toLowerCase();
+    for (let p of parts) {
+        if (nodeLower.includes(p)) return true;
+    }
+    return false;
 }
 
 function checkCond(item) {
@@ -833,8 +973,8 @@ function renderMatrix() {
     });
 
     let nodes = Array.from(nodesSet).sort((a, b) => a.localeCompare(b));
-    let rowNodes = nodes.filter(n => n.toLowerCase().includes(fOrig));
-    let colNodes = nodes.filter(n => n.toLowerCase().includes(fDest));
+    let rowNodes = nodes.filter(n => multiMatch(n, fOrig));
+    let colNodes = nodes.filter(n => multiMatch(n, fDest));
     document.getElementById('metricsbox').innerHTML = `
         <div class="metric-box"><h3>${nodes.length}</h3><span>Nodes Parsed</span></div>
         <div class="metric-box"><h3>${stGood}</h3><span>Healthy Connections</span></div>

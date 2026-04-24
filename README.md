@@ -1,6 +1,6 @@
 # Network Data Extractor
 
-![Version](https://img.shields.io/badge/version-1.37.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.44.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8%2B-green.svg)
 
 **Network Data Extractor** is an automated orchestrator built for network engineers and NOCs (Network Operations Centers). It performs massive, parallel SSH polling across dozens or hundreds of network elements (Cisco, Datacom, Huawei, HP, etc.), extracting raw command outputs (`show interfaces`, `show lldp neighbors`, etc.) and consolidating this raw data into CSV spreadsheets and logical topology maps ready for structural analysis.
@@ -12,6 +12,7 @@ Its main goal is to eliminate the need for manual inventories or box-by-box acce
 ## 🌟 Key Features & Strengths
 
 - **Massive Concurrency (Multi-Threading)**: Supports asynchronous extraction of multiple nodes simultaneously, reducing maintenance windows from hours to minutes.
+- **Ping Matrix Dashboard**: Embedded high-performance HTML/JS SPA Dashboard generating visual heatmaps and advanced analytical insights (Latency, Jitter, Packet Loss, Asymmetry, Node Isolation) from ICMP sweeps.
 - **Multivendor by Design**: Not restricted to Cisco syntax. The script handles the native injection of pagination suppressors (`terminal length 0`, `terminal pager 0`, `screen-length 0 disable`), ensuring long outputs aren't swallowed by `--More--` prompts on Datacom, HP, or Huawei equipment.
 - **Universal Blind Analyzer (Regex)**: Features robust parsing and consolidation engines based on regular expressions, ignoring and bypassing human typos that frequently break interface "Descriptions" when building topologies.
 - **Interactive & Parameterized Wizard**: Can run "headless" via shell flags for cronjobs, but also includes an Interactive Configuration Wizard in the terminal at the start of each execution.
@@ -61,7 +62,7 @@ graph TD
     P -->|All-to-All Test| Q(📁 /infos/TIMESTAMP/resume):::folder
     Q --> R(((ping_matrix_list.csv))):::csvout
     Q --> S(((ping_matrix_list.json))):::csvout
-    Q --> T{{📲 Interactive HTML Dashboard}}:::htmldash
+    S --> T{{📲 Ping Matrix HTML Dashboard}}:::htmldash
 ```
 
 ---

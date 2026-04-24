@@ -4,8 +4,8 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
-Version : 1.43.0
-Date    : 2026-04-23
+Version : 1.44.0
+Date    : 2026-04-24
 Author  : flashbsb (and contributors)
 
 Behavior:
@@ -26,8 +26,8 @@ import getpass
 from datetime import datetime
 from glob import glob
 
-APP_VERSION = "1.38.0"
-APP_DATE = "2026-04-23"
+APP_VERSION = "1.44.0"
+APP_DATE = "2026-04-24"
 
 # ANSI Colors
 C_GREEN = '\033[92m'
