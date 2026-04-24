@@ -4,7 +4,7 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
-Version : 1.44.0
+Version : 1.46.0
 Date    : 2026-04-24
 Author  : flashbsb (and contributors)
 
@@ -26,7 +26,7 @@ import getpass
 from datetime import datetime
 from glob import glob
 
-APP_VERSION = "1.44.0"
+APP_VERSION = "1.46.0"
 APP_DATE = "2026-04-24"
 
 # ANSI Colors
@@ -935,6 +935,120 @@ hours = total_seconds // 3600
 minutes = (total_seconds % 3600) // 60
 seconds = total_seconds % 60
 print(f"Total processing time: {hours:02d}:{minutes:02d}:{seconds:02d}")
+
+# --- MASTER INDEX DASHBOARD ---
+def generate_master_dashboard(outbase):
+    index_path = os.path.join(outbase, "index.html")
+    directories = glob(os.path.join(outbase, "20*_*"))
+    directories.sort(reverse=True)
+    
+    runs = []
+    for d in directories:
+        basename = os.path.basename(d)
+        json_file = os.path.join(d, "resume", "ping_matrix_list.json")
+        html_file = os.path.join(d, "resume", "ping_matrix_dashboard.html")
+        if os.path.exists(json_file) and os.path.exists(html_file):
+            try:
+                with open(json_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    md = data.get("metadata", {})
+                    metrics = md.get("execution_metrics", {})
+                    health = md.get("network_health", {})
+                    
+                    runs.append({
+                        "id": basename,
+                        "date": md.get("datetime", basename),
+                        "nodes": metrics.get("total_origins", md.get("nodes_connected", 0)),
+                        "healthy": health.get("healthy", 0),
+                        "warning": health.get("warning", 0),
+                        "critical": health.get("critical", 0),
+                        "dead": health.get("dead", 0),
+                        "path": f"{basename}/resume/ping_matrix_dashboard.html"
+                    })
+            except:
+                pass
+                
+    if not runs:
+        return
+        
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Ping Matrix - Master Index</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@600;800&display=swap" rel="stylesheet">
+    <style>
+        body {{ margin: 0; padding: 0; display: flex; height: 100vh; background: #0f172a; color: #e2e8f0; font-family: 'Inter', sans-serif; overflow: hidden; }}
+        .sidebar {{ width: 340px; background: #1e293b; border-right: 1px solid #334155; display: flex; flex-direction: column; z-index: 10; box-shadow: 2px 0 10px rgba(0,0,0,0.5); }}
+        .header {{ padding: 25px 20px; background: #020617; border-bottom: 1px solid #334155; text-align: center; }}
+        .header h2 {{ margin: 0; color: #38bdf8; font-size: 22px; font-family: 'Outfit', sans-serif; letter-spacing: 1px; }}
+        .list {{ flex: 1; overflow-y: auto; }}
+        .list::-webkit-scrollbar {{ width: 8px; }}
+        .list::-webkit-scrollbar-thumb {{ background: #475569; border-radius: 4px; }}
+        .run-item {{ padding: 15px 20px; border-bottom: 1px solid #334155; cursor: pointer; transition: all 0.2s; border-left: 4px solid transparent; }}
+        .run-item:hover {{ background: #334155; border-left: 4px solid #38bdf8; }}
+        .run-item.active {{ background: #0f172a; border-left: 4px solid #38bdf8; }}
+        .run-date {{ font-weight: 600; font-size: 15px; margin-bottom: 8px; color: #f8fafc; font-family: 'Outfit', sans-serif; }}
+        .run-meta {{ font-size: 13px; color: #94a3b8; display: flex; justify-content: space-between; margin-bottom: 8px; }}
+        .health-badges {{ font-size: 12px; display: flex; gap: 6px; }}
+        .h-badge {{ padding: 2px 8px; border-radius: 4px; font-weight: 600; }}
+        .b-good {{ background: rgba(74, 222, 128, 0.15); color: #4ade80; border: 1px solid rgba(74,222,128,0.3); }}
+        .b-warn {{ background: rgba(251, 191, 36, 0.15); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); }}
+        .b-crit {{ background: rgba(248, 113, 113, 0.15); color: #f87171; border: 1px solid rgba(248,113,113,0.3); }}
+        .b-dead {{ background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148,163,184,0.3); }}
+        .main-content {{ flex: 1; display: flex; flex-direction: column; background: #0f172a; }}
+        iframe {{ flex: 1; border: none; width: 100%; height: 100%; }}
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="header">
+            <h2>📡 Ping Matrix Index</h2>
+        </div>
+        <div class="list" id="runList">
+"""
+    for r in runs:
+        health_html = ""
+        if r['healthy'] > 0: health_html += f'<span class="h-badge b-good">{r["healthy"]} OK</span>'
+        if r['warning'] > 0: health_html += f'<span class="h-badge b-warn">{r["warning"]} W</span>'
+        if r['critical'] > 0: health_html += f'<span class="h-badge b-crit">{r["critical"]} C</span>'
+        if r['dead'] > 0: health_html += f'<span class="h-badge b-dead">{r["dead"]} D</span>'
+        if not health_html: health_html = '<span style="color:#64748b">No health data</span>'
+        
+        html += f"""            <div class="run-item" onclick="loadRun('{r['path']}', this)">
+                <div class="run-date">{r['date']}</div>
+                <div class="run-meta"><span>Nodes: {r['nodes']}</span></div>
+                <div class="health-badges">{health_html}</div>
+            </div>
+"""
+    
+    html += """        </div>
+    </div>
+    <div class="main-content">
+        <iframe id="dashboardFrame" src="about:blank"></iframe>
+    </div>
+    <script>
+        function loadRun(path, el) {
+            document.getElementById('dashboardFrame').src = path;
+            document.querySelectorAll('.run-item').forEach(e => e.classList.remove('active'));
+            if(el) el.classList.add('active');
+        }
+        let first = document.querySelector('.run-item');
+        if(first) first.click();
+    </script>
+</body>
+</html>
+"""
+    try:
+        with open(index_path, 'w', encoding='utf-8') as f:
+            f.write(html)
+        print(f"\\n{C_CYAN}--- Master Index Generated ---{C_RESET}")
+        print(f"[*] Portal available at: {index_path}")
+    except Exception as e:
+        print(f"\\n{C_RED}[!] Failed to generate Master Index: {e}{C_RESET}")
+
+if args.ping_matrix:
+    generate_master_dashboard(args.outbase)
 
 # --- OUTPUT COMPRESSION ---
 comp_cfg = json_config.get("compression", {})

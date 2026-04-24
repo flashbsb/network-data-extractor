@@ -310,8 +310,10 @@ def main():
     print("   * Note: Actual time will fluctuate depending on real network latency.")
     print("="*60)
     print(f"Starting ICMP requests concurrently (Threads: {thread_count})...")
+    matrix_start_time = time.time()
     with concurrent.futures.ThreadPoolExecutor(max_workers=thread_count) as executor:
         executor.map(execute_ping_matrix_for_origin, elements)
+    actual_duration_seconds = round(time.time() - matrix_start_time, 1)
 
     # Post processing: Asymmetry and Jitter Warning
     print("Generating statistical analysis and List CSV...")
@@ -446,6 +448,13 @@ def main():
                     "timeout": timeout_ping,
                     "threads": thread_count
                 },
+                "execution_metrics": {
+                    "total_origins": total_origins,
+                    "pings_per_origin": pings_per_origin,
+                    "total_pings_expected": total_pings,
+                    "estimated_duration_seconds": round(est_total_seconds, 1),
+                    "actual_duration_seconds": actual_duration_seconds
+                },
                 "network_health": matrix_health,
                 "node_stats": node_stats
             },
@@ -477,7 +486,7 @@ h1, h2, h3, h4, .outfit { font-family: 'Outfit', sans-serif; }
 
 .header { text-align: center; margin-bottom: 30px; animation: fadeIn 0.8s ease; }
 .header h1 { font-size: 38px; font-weight: 800; margin: 0; background: linear-gradient(90deg, #38bdf8, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 10px rgba(56,189,248,0.3)); }
-#sub-header { color: #94a3b8; font-size: 14px; margin-top: 5px; }
+#sub-header { color: #94a3b8; font-size: 14px; margin-top: 5px; line-height: 1.4; }
 
 /* Dashboard UI Panels */
 .dashboard-metrics { 
@@ -668,24 +677,21 @@ td:hover .tooltip { display: block; top: calc(100% + 10px); left: 50%; transform
     Contribute or check for <a href="https://github.com/flashbsb/network-data-extractor" target="_blank" style="color: #38bdf8; text-decoration: none; border-bottom: 1px dashed #38bdf8;">new versions on GitHub</a>.
 </div>
 <script>
-let globalData = null;
-async function loadData() {
-    try {
-        const response = await fetch('ping_matrix_list.json');
-        if (!response.ok) throw new Error('File not found or CORS blocked');
-        globalData = await response.json();
-        buildHeader(); renderMatrix(); buildAnalytics();
-    } catch(err) {
-        document.getElementById('sub-header').innerHTML = `<span style="color:#ff5e5e">Local File Load Disabled by Browser Security.</span>
-        <br><label style="cursor:pointer; background:#333; padding:5px 15px; border-radius:5px; font-size:13px; margin-top:10px; display:inline-block; border: 1px solid #555;">
-        📂 Browse or Drag <b>ping_matrix_list.json</b> anywhere
-        <input type="file" accept=".json" style="display:none;" onchange="handleFileSelect(event)">
-        </label>`;
-    }
+let globalData = __JSON_PAYLOAD_HERE__;
+
+function loadData() {
+    buildHeader(); renderMatrix(); buildAnalytics();
 }
 function buildHeader() {
     let md = globalData.metadata;
-    document.getElementById('sub-header').innerHTML = `<span style="color:#5eff84">&#10003; Loaded Successfully</span> | Last Updated: ${md.datetime} | Size: ${md.config.datagram_size}B | Threads: ${md.config.threads}`;
+    let html = `<span style="color:#5eff84">&#10003; Loaded Successfully</span> | <b>Run Date:</b> ${md.datetime}`;
+    if (md.execution_metrics) {
+        let em = md.execution_metrics;
+        html += `<br><span style="font-size:12px; color:#64748b; margin-top:4px; display:inline-block;"><b>Scope:</b> ${em.total_origins} Nodes &nbsp;|&nbsp; <b>Total Tests:</b> ${em.total_pings_expected} &nbsp;|&nbsp; <b>Threads:</b> ${md.config.threads} &nbsp;|&nbsp; <b>Time Taken:</b> ${em.actual_duration_seconds}s (Est: ${em.estimated_duration_seconds}s)</span>`;
+    } else {
+        html += ` | Size: ${md.config.datagram_size}B | Threads: ${md.config.threads}`;
+    }
+    document.getElementById('sub-header').innerHTML = html;
 }
 function handleFileSelect(event) { processFile(event.target.files[0]); }
 function processFile(file) {
@@ -1049,8 +1055,9 @@ loadData();
 </script>
 </body>
 </html>"""
+        html_content = html_template.replace("__JSON_PAYLOAD_HERE__", json.dumps(json_payload, indent=None))
         with open(html_path, 'w', encoding='utf-8') as f:
-            f.write(html_template)
+            f.write(html_content)
         print(f"Done. Interactive HTML saved to {html_path}")
 
 if __name__ == "__main__":

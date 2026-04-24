@@ -2,6 +2,19 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
  
+## [1.46.0] - 2026-04-24
+### Added
+- **Single File Dashboard (Portable)**: The `ping_matrix_dashboard.html` now fully embeds the JSON data payload at generation time, replacing asynchronous HTTP `fetch()` logic. This allows the dashboard to be perfectly portable and executable entirely offline (e.g. sent via email or USB) without triggering browser CORS security blockers.
+- **Master Index Portal**: The Orchestrator now generates a dynamic `index.html` at the root of the output directory (e.g., `/infos/index.html`) after every Ping Matrix execution. This portal features a left-side navigation sidebar displaying the chronological history of all matrix executions, allowing users to quickly switch between interactive dashboards using an embedded `iframe`.
+
+## [1.45.0] - 2026-04-24
+### Added
+- **Audit Trail (Execution Metrics)**: The JSON metadata now permanently captures the exact execution scope (`total origins`, `total pings`, `threads`) and the real duration taken by the ICMP Motor (`actual duration vs estimated duration`).
+- **Dashboard Audit Header**: The HTML Dashboard now automatically reads the execution metrics and generates a professional, printable Audit Header displaying the execution parameters below the main title.
+
+### Fixed
+- **Analytics Empty States**: Refactored the internal filtering of the Ping Matrix Advanced Analytics. Panels like "Most Isolated Nodes" or "Highest Packet Loss" will no longer display healthy routes as false-positives when the entire network is 100% operational, returning clean text strings instead (e.g., "All nodes are 100% reachable!").
+
 ## [1.44.0] - 2026-04-24
 ### Added
 - **Multi-Value Search Engine**: Origin and Destination text filters in Ping Matrix Dashboard now support multiple parallel queries separated by semicolons (`eg. bsa; gti`).
