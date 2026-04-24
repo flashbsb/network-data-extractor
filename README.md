@@ -33,38 +33,38 @@ graph TD
     classDef module fill:#f59e0b,stroke:#b45309,stroke-width:2px,color:#fff,rx:8px,ry:8px;
     classDef pingmod fill:#ec4899,stroke:#831843,stroke-width:2px,color:#fff,rx:8px,ry:8px;
     classDef folder fill:#10b981,stroke:#064e3b,stroke-width:2px,color:#fff,rx:8px,ry:8px;
-    classDef csvout fill:#374151,stroke:#1f2937,stroke-width:2px,color:#4ade80,rx:50px,ry:50px;
-    classDef htmldash fill:#0f172a,stroke:#38bdf8,stroke-width:3px,color:#38bdf8,rx:5px,ry:5px;
+    classDef csvout fill:#374151,stroke:#1f2937,stroke-width:2px,color:#4ade80;
+    classDef htmldash fill:#0f172a,stroke:#38bdf8,stroke-width:3px,color:#38bdf8;
 
     %% Entry
-    A[⚡ CLI Args / Wizard]:::mainEngine --> B{Execution Mode}:::branch
+    A["⚡ CLI Args / Wizard"]:::mainEngine --> B{Execution Mode}:::branch
     
     %% Branch 1: Normal Extraction
     B -->|Normal / --discovery| C[Multithreaded SSH Engine]:::mainEngine
-    C -->|Extracts RAW Logs| D(📁 /infos/TIMESTAMP/collect):::folder
+    C -->|"Extracts RAW Logs"| D("📁 /infos/TIMESTAMP/collect"):::folder
     
     D --> E[element_status.py]:::module
-    E -->|Up/Down State| F(((status.elements.csv))):::csvout
+    E -->|"Up/Down State"| F(("status.elements.csv")):::csvout
     
     D --> G{Data Parsers}:::module
-    G -.->|LLDP Regex| H[lldp_neighbors.csv]:::csvout
-    G -.->|Int. Regex| I[interfaces_all.csv]:::csvout
+    G -.->|LLDP Regex| H["lldp_neighbors.csv"]:::csvout
+    G -.->|Int. Regex| I["interfaces_all.csv"]:::csvout
     
     I --> J[interface2connection.py]:::module
-    J -->|Topology Mapping| K(((topology.connections.csv))):::csvout
+    J -->|"Topology Mapping"| K(("topology.connections.csv")):::csvout
     
     K --> L[topology_checker.py]:::module
     H --> L
     F --> L
-    L -->|Isolations Identified| M(((topology_warnings.csv))):::csvout
+    L -->|"Isolations Identified"| M(("topology_warnings.csv")):::csvout
 
     %% Branch 2: Ping Matrix
     B -->|--ping-matrix| P[ICMP Diagnostic Motor]:::pingmod
-    P -->|All-to-All Test| Q(📁 /infos/TIMESTAMP/resume):::folder
-    Q --> R(((ping_matrix_list.csv))):::csvout
-    Q --> S(((ping_matrix_list.json))):::csvout
-    S --> T{{📲 ping_matrix_dashboard.html}}:::htmldash
-    T -.->|Chronological Compilation| U{{🌐 infos/index.html (Master Portal)}}:::htmldash
+    P -->|"All-to-All Test"| Q("📁 /infos/TIMESTAMP/resume"):::folder
+    Q --> R(("ping_matrix_list.csv")):::csvout
+    Q --> S(("ping_matrix_list.json")):::csvout
+    S --> T{{"📲 ping_matrix_dashboard.html"}}:::htmldash
+    T -.->|"Chronological Compilation"| U{{"🌐 infos/index.html (Master Portal)"}}:::htmldash
 ```
 
 ---
