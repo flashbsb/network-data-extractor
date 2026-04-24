@@ -519,6 +519,13 @@ h1, h2, h3, h4, .outfit { font-family: 'Outfit', sans-serif; }
 .toggle-btn input[type="checkbox"] { display: none; }
 .toggle-btn:has(input:checked) { background: rgba(56,189,248,0.1); color: #38bdf8; border-color: rgba(56,189,248,0.4); text-shadow: 0 0 8px rgba(56,189,248,0.5); box-shadow: inset 0 0 10px rgba(56,189,248,0.1); }
 .toggle-btn:hover { background: rgba(255,255,255,0.08); }
+.reset-btn { 
+    padding: 10px 15px; background: rgba(248, 113, 113, 0.1); 
+    border: 1px solid rgba(248, 113, 113, 0.3); color: #f87171; 
+    border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 13px;
+    font-weight: 600; cursor: pointer; transition: all 0.3s ease;
+}
+.reset-btn:hover { background: rgba(248, 113, 113, 0.2); border-color: #f87171; box-shadow: 0 0 15px rgba(248, 113, 113, 0.2); }
 
 /* Analytics Collapse */
 .analytics-header { width: 100%; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: all 0.3s ease;}
@@ -641,6 +648,7 @@ td:hover .tooltip { display: block; top: calc(100% + 10px); left: 50%; transform
     </div>
     <input type="text" id="filterOrigin" placeholder="Filter Origin (eg. bsa;gti)..." onkeyup="renderMatrix()">
     <input type="text" id="filterDest" placeholder="Filter Dest (eg. bsa;gti)..." onkeyup="renderMatrix()">
+    <button class="reset-btn" onclick="resetFilters()">🧹 Reset</button>
 </div>
 <div class="matrix-wrapper">
     <table id="matrixTable"></table>
@@ -736,6 +744,19 @@ function toggleLegend() {
         content.style.display = 'none';
         icon.innerHTML = '▼';
     }
+}
+
+function resetFilters() {
+    const ids = ['chkDirect', 'chkReverse', 'chkLat', 'chkLoss', 'chkWarn', 'sevCrit', 'sevLoss', 'sevJit', 'sevAsym', 'sevHealthy'];
+    ids.forEach(id => {
+        let el = document.getElementById(id);
+        if (el) el.checked = true;
+    });
+    let fOrig = document.getElementById('filterOrigin');
+    if (fOrig) fOrig.value = '';
+    let fDest = document.getElementById('filterDest');
+    if (fDest) fDest.value = '';
+    renderMatrix();
 }
 
 function buildAnalytics() {
@@ -1041,7 +1062,8 @@ function renderMatrix() {
 
              let styleStr = perspective === 'both' ? 'padding:0 4px;' : '';
              if (!isAllSelected && !validPairs.has(`${r}|${c}`)) {
-                 styleStr += ' opacity:0.15;';
+                 html += '<td style="background:transparent; border:none; opacity:0"></td>';
+                 return;
              }
 
              let tip = `<div class="tooltip">${buildTooltip(r, c, dOut, dIn)}</div>`;
