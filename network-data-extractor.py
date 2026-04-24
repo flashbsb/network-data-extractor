@@ -1014,7 +1014,7 @@ def generate_master_dashboard(outbase):
         .b-warn {{ background: rgba(251, 191, 36, 0.15); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); }}
         .b-crit {{ background: rgba(248, 113, 113, 0.15); color: #f87171; border: 1px solid rgba(248,113,113,0.3); }}
         .b-dead {{ background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148,163,184,0.3); }}
-        .main-content {{ flex: 1; height: 100vh; background: #0f172a; overflow: hidden; display: flex; flex-direction: column; }}
+        .main-content {{ flex: 1; height: 100vh; background: #0f172a; overflow: hidden; display: flex; flex-direction: column; min-width: 0; }}
         iframe {{ width: 100%; height: 100%; border: none; flex: 1; }}
     </style>
 </head>

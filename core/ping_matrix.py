@@ -503,7 +503,7 @@ h1, h2, h3, h4, .outfit { font-family: 'Outfit', sans-serif; }
 .metric-box span { font-size: 13px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;}
 
 /* Controls */
-.controls { display: flex; justify-content: center; gap: 15px; margin-bottom: 25px; }
+.controls { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 25px; flex-wrap: wrap; }
 .controls input[type="text"], .controls select { 
     padding: 10px 15px; background: rgba(15, 23, 42, 0.6); 
     border: 1px solid rgba(255,255,255,0.1); color: #f8fafc; 
