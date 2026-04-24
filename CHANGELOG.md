@@ -7,6 +7,12 @@ All notable changes to the **Network Data Extractor** project will be documented
 - **Single File Dashboard (Portable)**: The `ping_matrix_dashboard.html` now fully embeds the JSON data payload at generation time, replacing asynchronous HTTP `fetch()` logic. This allows the dashboard to be perfectly portable and executable entirely offline (e.g. sent via email or USB) without triggering browser CORS security blockers.
 - **Master Index Portal**: The Orchestrator now generates a dynamic `index.html` at the root of the output directory (e.g., `/infos/index.html`) after every Ping Matrix execution. This portal features a left-side navigation sidebar displaying the chronological history of all matrix executions, allowing users to quickly switch between interactive dashboards using an embedded `iframe`.
 
+### Fixed
+- **Iframe Visibility (Master Index)**: Refactored CSS to use absolute positioning on the dashboard iframe, ensuring it fills 100% of the viewport and resolves content cutoff issues on specific resolutions.
+- **Visual Cleanup**: Removed legacy "2.0" versioning string from the Ping Matrix Dashboard header for a cleaner, unified UI.
+- **Metadata Fallback**: Implemented a Regex-based JSON extractor for the Master Index, allowing it to index historical runs even when the standalone `.json` file is missing, by mining the embedded payload directly from the HTML source.
+- **Python Indentation**: Fixed a syntax error in the orchestrator's index generation logic.
+
 ## [1.45.0] - 2026-04-24
 ### Added
 - **Audit Trail (Execution Metrics)**: The JSON metadata now permanently captures the exact execution scope (`total origins`, `total pings`, `threads`) and the real duration taken by the ICMP Motor (`actual duration vs estimated duration`).

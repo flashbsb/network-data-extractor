@@ -436,34 +436,34 @@ def main():
             writer.writerows(final_csv_dados)
         print(f"Done. CSV saved to {csv_path}")
 
+    json_payload = {
+        "metadata": {
+            "datetime": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "nodes_connected": total_elements,
+            "config": {
+                "count": count,
+                "datagram_size": size,
+                "timeout": timeout_ping,
+                "threads": thread_count
+            },
+            "execution_metrics": {
+                "total_origins": total_origins,
+                "pings_per_origin": pings_per_origin,
+                "total_pings_expected": total_pings,
+                "estimated_duration_seconds": round(est_total_seconds, 1),
+                "actual_duration_seconds": actual_duration_seconds
+            },
+            "network_health": matrix_health,
+            "node_stats": node_stats
+        },
+        "data": final_output_data
+    }
+
     if ex_json:
         json_path = os.path.join(args.resume_dir, "ping_matrix_list.json")
-        json_payload = {
-            "metadata": {
-                "datetime": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "nodes_connected": total_elements,
-                "config": {
-                    "count": count,
-                    "datagram_size": size,
-                    "timeout": timeout_ping,
-                    "threads": thread_count
-                },
-                "execution_metrics": {
-                    "total_origins": total_origins,
-                    "pings_per_origin": pings_per_origin,
-                    "total_pings_expected": total_pings,
-                    "estimated_duration_seconds": round(est_total_seconds, 1),
-                    "actual_duration_seconds": actual_duration_seconds
-                },
-                "network_health": matrix_health,
-                "node_stats": node_stats
-            },
-            "data": final_output_data
-        }
         with open(json_path, 'w', encoding='utf-8') as f:
             json.dump(json_payload, f, indent=4)
         print(f"Done. JSON saved to {json_path}")
-        
     if ex_html:
         html_path = os.path.join(args.resume_dir, "ping_matrix_dashboard.html")
         html_template = """<!DOCTYPE html>
@@ -614,7 +614,7 @@ td:hover .tooltip { display: block; top: calc(100% + 10px); left: 50%; transform
 <body>
 <div id="dropOverlay">Drop JSON file to load!</div>
 <div class="header">
-    <h1>📡 Network Ping Matrix 2.0</h1>
+    <h1>📡 Network Ping Matrix</h1>
     <p id="sub-header">Loading local data...</p>
 </div>
 <div class="dashboard-metrics" id="metricsbox"></div>
