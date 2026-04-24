@@ -970,19 +970,19 @@ def generate_master_dashboard(outbase):
         if data and os.path.exists(html_file):
             try:
                 md = data.get("metadata", {})
-                    metrics = md.get("execution_metrics", {})
-                    health = md.get("network_health", {})
-                    
-                    runs.append({
-                        "id": basename,
-                        "date": md.get("datetime", basename),
-                        "nodes": metrics.get("total_origins", md.get("nodes_connected", 0)),
-                        "healthy": health.get("healthy", 0),
-                        "warning": health.get("warning", 0),
-                        "critical": health.get("critical", 0),
-                        "dead": health.get("dead", 0),
-                        "path": f"{basename}/resume/ping_matrix_dashboard.html"
-                    })
+                metrics = md.get("execution_metrics", {})
+                health = md.get("network_health", {})
+                
+                runs.append({
+                    "id": basename,
+                    "date": md.get("datetime", basename),
+                    "nodes": metrics.get("total_origins", md.get("nodes_connected", 0)),
+                    "healthy": health.get("healthy", 0),
+                    "warning": health.get("warning", 0),
+                    "critical": health.get("critical", 0),
+                    "dead": health.get("dead", 0),
+                    "path": f"{basename}/resume/ping_matrix_dashboard.html"
+                })
             except:
                 pass
                 
