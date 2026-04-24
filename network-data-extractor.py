@@ -996,8 +996,8 @@ def generate_master_dashboard(outbase):
     <title>Ping Matrix - Master Index</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@600;800&display=swap" rel="stylesheet">
     <style>
-        body {{ margin: 0; padding: 0; display: flex; height: 100vh; background: #0f172a; color: #e2e8f0; font-family: 'Inter', sans-serif; overflow: hidden; }}
-        .sidebar {{ width: 340px; background: #1e293b; border-right: 1px solid #334155; display: flex; flex-direction: column; z-index: 10; box-shadow: 2px 0 10px rgba(0,0,0,0.5); }}
+        body {{ margin: 0; padding: 0; display: flex; height: 100vh; width: 100vw; background: #0f172a; color: #e2e8f0; font-family: 'Inter', sans-serif; overflow: hidden; }}
+        .sidebar {{ width: 300px; min-width: 300px; background: #1e293b; border-right: 1px solid #334155; display: flex; flex-direction: column; z-index: 10; box-shadow: 2px 0 10px rgba(0,0,0,0.5); }}
         .header {{ padding: 25px 20px; background: #020617; border-bottom: 1px solid #334155; text-align: center; }}
         .header h2 {{ margin: 0; color: #38bdf8; font-size: 22px; font-family: 'Outfit', sans-serif; letter-spacing: 1px; }}
         .list {{ flex: 1; overflow-y: auto; }}
@@ -1014,8 +1014,8 @@ def generate_master_dashboard(outbase):
         .b-warn {{ background: rgba(251, 191, 36, 0.15); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); }}
         .b-crit {{ background: rgba(248, 113, 113, 0.15); color: #f87171; border: 1px solid rgba(248,113,113,0.3); }}
         .b-dead {{ background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148,163,184,0.3); }}
-        .main-content {{ flex: 1; background: #0f172a; position: relative; }}
-        iframe {{ width: 100%; height: 100%; border: none; display: block; position: absolute; top: 0; left: 0; }}
+        .main-content {{ flex: 1; height: 100vh; background: #0f172a; overflow: hidden; display: flex; flex-direction: column; }}
+        iframe {{ width: 100%; height: 100%; border: none; flex: 1; }}
     </style>
 </head>
 <body>
