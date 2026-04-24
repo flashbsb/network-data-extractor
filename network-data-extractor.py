@@ -1027,10 +1027,10 @@ def generate_master_dashboard(outbase):
 """
     for r in runs:
         health_html = ""
-        if r['healthy'] > 0: health_html += f'<span class="h-badge b-good">{r["healthy"]} OK</span>'
-        if r['warning'] > 0: health_html += f'<span class="h-badge b-warn">{r["warning"]} W</span>'
-        if r['critical'] > 0: health_html += f'<span class="h-badge b-crit">{r["critical"]} C</span>'
-        if r['dead'] > 0: health_html += f'<span class="h-badge b-dead">{r["dead"]} D</span>'
+        if r['healthy'] > 0: health_html += f'<span class="h-badge b-good" title="Healthy Connections (0% Loss, No Warnings)">{r["healthy"]} OK</span>'
+        if r['warning'] > 0: health_html += f'<span class="h-badge b-warn" title="Warning: Small Packet Loss or Jitter/Asymmetry">{r["warning"]} W</span>'
+        if r['critical'] > 0: health_html += f'<span class="h-badge b-crit" title="Critical: High Packet Loss (>50%)">{r["critical"]} C</span>'
+        if r['dead'] > 0: health_html += f'<span class="h-badge b-dead" title="Dead: Unreachable / 100% Loss">{r["dead"]} D</span>'
         if not health_html: health_html = '<span style="color:#64748b">No health data</span>'
         
         html += f"""            <div class="run-item" onclick="loadRun('{r['path']}', this)">
