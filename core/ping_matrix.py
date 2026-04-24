@@ -325,8 +325,8 @@ def main():
 
     # Setup parameters
     ping_format = args.ping_format.lower()
-    if 'html' in ping_format and 'json' not in ping_format:
-        ping_format += ',json' # HTML strictly requires JSON local dependency
+    # A opção HTML embuti o JSON nativamente agora. Não forçar a criação do arquivo .json
+    # se o usuário pediu especificamente apenas --ping-format html
         
     ex_csv  = 'csv' in ping_format or ping_format == ''
     ex_json = 'json' in ping_format

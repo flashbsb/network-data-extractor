@@ -938,6 +938,7 @@ print(f"Total processing time: {hours:02d}:{minutes:02d}:{seconds:02d}")
 
 # --- MASTER INDEX DASHBOARD ---
 def generate_master_dashboard(outbase):
+    import re
     index_path = os.path.join(outbase, "index.html")
     directories = glob(os.path.join(outbase, "20*_*"))
     directories.sort(reverse=True)
@@ -947,11 +948,28 @@ def generate_master_dashboard(outbase):
         basename = os.path.basename(d)
         json_file = os.path.join(d, "resume", "ping_matrix_list.json")
         html_file = os.path.join(d, "resume", "ping_matrix_dashboard.html")
-        if os.path.exists(json_file) and os.path.exists(html_file):
+        
+        data = None
+        if os.path.exists(json_file):
             try:
                 with open(json_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                    md = data.get("metadata", {})
+            except:
+                pass
+        elif os.path.exists(html_file):
+            try:
+                with open(html_file, 'r', encoding='utf-8') as f:
+                    html_content = f.read()
+                    # Try to parse the injected JSON payload
+                    match = re.search(r'let globalData = (\{.*?\});\s*function', html_content, re.DOTALL)
+                    if match:
+                        data = json.loads(match.group(1))
+            except:
+                pass
+
+        if data and os.path.exists(html_file):
+            try:
+                md = data.get("metadata", {})
                     metrics = md.get("execution_metrics", {})
                     health = md.get("network_health", {})
                     
