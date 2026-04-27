@@ -574,17 +574,20 @@ td:hover { background-color: rgba(255,255,255,0.1) !important; transform: scale(
 .marker-asym { border-right: 3px solid #eab308; }
 .marker-deny { text-decoration: line-through; opacity: 0.5; }
 
-/* Floating Tooltip */
-.tooltip { 
-    display: none; position: absolute; 
-    background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+/* Smart Floating Tooltip */
+#globalTooltip { 
+    display: none; position: fixed; 
+    background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
     padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.15); 
-    z-index: 100; text-align: left; width: 270px; 
-    box-shadow: 0 20px 40px rgba(0,0,0,0.7); pointer-events: none;
-    color: #e2e8f0; font-weight: 400; line-height: 1.4;
-    animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    z-index: 10000; text-align: left; 
+    width: max-content; min-width: 250px; max-width: 400px;
+    box-sizing: border-box; word-break: normal; margin: 0 !important;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.6); pointer-events: none;
+    color: #f8fafc; font-weight: 400; line-height: 1.4; font-size: 13px;
+    opacity: 1; transition: opacity 0.15s ease;
 }
-td:hover .tooltip { display: block; top: calc(100% + 10px); left: 50%; transform: translateX(-50%); }
+#globalTooltip b { color: #38bdf8; }
+#globalTooltip hr { border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 8px 0; }
 
 /* Sub Panels (Analytics, Legend) */
 .analytics-panel, .legend-panel { 
@@ -612,7 +615,7 @@ td:hover .tooltip { display: block; top: calc(100% + 10px); left: 50%; transform
 /* Animations */
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes popIn { 0% { opacity: 0; transform: translateX(-50%) scale(0.9); } 100% { opacity: 1; transform: translateX(-50%) scale(1); } }
+@keyframes popIn { 0% { opacity: 0; transform: var(--tw, translateX(-50%)) scale(0.9); } 100% { opacity: 1; transform: var(--tw, translateX(-50%)) scale(1); } }
 
 /* Drag Overlay */
 #dropOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(2, 6, 23, 0.9); backdrop-filter: blur(10px); z-index: 9999; justify-content: center; align-items: center; color: #38bdf8; font-size: 48px; border: 4px dashed rgba(56,189,248,0.5); box-sizing: border-box; font-family:'Outfit'; font-weight:800; text-shadow: 0 0 30px rgba(56,189,248,0.6);}
@@ -686,6 +689,7 @@ td:hover .tooltip { display: block; top: calc(100% + 10px); left: 50%; transform
 </div>
 <script>
 let globalData = __JSON_PAYLOAD_HERE__;
+let dataMap = {};
 
 function loadData() {
     buildHeader(); renderMatrix(); buildAnalytics();
@@ -757,6 +761,44 @@ function resetFilters() {
     let fDest = document.getElementById('filterDest');
     if (fDest) fDest.value = '';
     renderMatrix();
+}
+
+function setTipData(e, r, c) {
+    const tip = document.getElementById('globalTooltip');
+    const dOut = dataMap[`${r}|${c}`];
+    const dIn = dataMap[`${c}|${r}`];
+    
+    tip.innerHTML = buildTooltip(r, c, dOut, dIn);
+    tip.style.display = 'block';
+    moveTip(e);
+}
+
+function moveTip(e) {
+    const tip = document.getElementById('globalTooltip');
+    if (tip.style.display !== 'block') return;
+    
+    const w = tip.offsetWidth;
+    const h = tip.offsetHeight;
+    const winW = window.innerWidth;
+    const winH = window.innerHeight;
+    
+    // Quadrant logic: push tooltip towards center of screen
+    const isRight = e.clientX > winW / 2;
+    const isBottom = e.clientY > winH / 2;
+    
+    let x = isRight ? e.clientX - w - 20 : e.clientX + 20;
+    let y = isBottom ? e.clientY - h - 20 : e.clientY + 20;
+    
+    // Final boundary clamping to prevent ANY cut-off
+    x = Math.max(10, Math.min(x, winW - w - 10));
+    y = Math.max(10, Math.min(y, winH - h - 10));
+    
+    tip.style.left = x + 'px';
+    tip.style.top = y + 'px';
+}
+
+function hideTip() {
+    document.getElementById('globalTooltip').style.display = 'none';
 }
 
 function buildAnalytics() {
@@ -969,7 +1011,7 @@ function renderMatrix() {
     let fDest = document.getElementById('filterDest').value.toLowerCase();
     
     let stGood=0, stJitter=0, stAsym=0, stDead=0;
-    let dataMap = {};
+    dataMap = {};
     globalData.data.forEach(d => { 
         dataMap[`${d.origin}|${d.dest}`] = d; 
         if(d.is_unreachable || d.consistently_denied) stDead++;
@@ -1061,13 +1103,11 @@ function renderMatrix() {
              }
 
              let styleStr = perspective === 'both' ? 'padding:0 4px;' : '';
-             if (!isAllSelected && !validPairs.has(`${r}|${c}`)) {
-                 html += '<td style="background:transparent; border:none; opacity:0"></td>';
-                 return;
-             }
-
-             let tip = `<div class="tooltip">${buildTooltip(r, c, dOut, dIn)}</div>`;
-             html += `<td class="${cssClass}${extClass}" style="${styleStr}">${display}${tip}</td>`;
+              if (!isAllSelected && !validPairs.has(`${r}|${c}`)) {
+                  html += '<td style="background:transparent; border:none; opacity:0"></td>';
+                  return;
+              }
+              html += `<td class="${cssClass}${extClass}" style="${styleStr}" onmouseenter="setTipData(event, '${r}', '${c}')" onmousemove="moveTip(event)" onmouseleave="hideTip()">${display}</td>`;
         });
         html += '</tr>';
     });
@@ -1075,6 +1115,7 @@ function renderMatrix() {
 }
 loadData();
 </script>
+<div id="globalTooltip"></div>
 </body>
 </html>"""
         html_content = html_template.replace("__JSON_PAYLOAD_HERE__", json.dumps(json_payload, indent=None))

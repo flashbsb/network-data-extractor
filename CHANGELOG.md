@@ -1,7 +1,49 @@
 # Changelog
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
+
+## [1.52.0] - 2026-04-27
+### Added
+- **Maintenance Mode (`--refresh-index`)**: Added a dedicated flag to synchronize and update the Master Index without running new ping tests. This allows users to instantly clean up deleted folders or update the dashboard portal in milliseconds.
+- **Improved Code Architecture**: Refactored the core logic to separate portal generation from execution, enabling faster maintenance and better error handling for "ghost" directories.
+
+## [1.51.0] - 2026-04-27
+### Added
+- **Collapsible Master Index Sidebar**: The Master Index now features a modern, smooth-transition collapsible sidebar. By default, the sidebar is collapsed to maximize the dashboard's screen real estate, providing a cleaner and more focused monitoring experience.
+- **Floating Navigation Toggle**: A stylish floating hamburger button at the top-left allows users to quickly expand the index to switch between different matrix execution runs.
+
+## [1.50.2] - 2026-04-27
+### Fixed
+- **Redundant File Cleanup**: Restored strict adherence to the `--ping-format` flag. If the user requests only `html`, the script no longer generates auxiliary `.json` or `.csv` files, keeping the output directory clean.
+- **Resilient Master Index Extraction**: Enhanced the orchestrator's data extraction logic to reliably pull metadata directly from the interactive HTML files using a robust Regex pattern, ensuring the Master Index stays updated even without standalone JSON files.
+
+## [1.50.0] - 2026-04-27
+### Added
+- **Quadrant-Aware Smart Tooltip**: Replaced the HUD panel with a new, highly intelligent floating tooltip. It uses a **Quadrant Logic Algorithm**: if the mouse is in the bottom-right of the screen, the tooltip appears to the top-left, and vice-versa. This ensures the tooltip always "aims" towards the center of the viewport where there is the most available space.
+- **Bidirectional Clamping**: Added a secondary mathematical safety layer that clamps the tooltip position at least 10px away from all 4 viewport edges, making it physically impossible to be cut off by iframe boundaries or screen edges.
+- **Improved Contrast**: Enhanced the tooltip styling with high-contrast glassmorphism (`backdrop-filter`) and optimized text colors for better readability against the dark dashboard background.
+
+## [1.49.0] - 2026-04-27
+### Changed
+- **NOC Heads-Up Display (HUD)**: Completely abandoned the "mouse-following floating tooltip" paradigm in favor of a fixed **Inspection Panel (HUD)** at the bottom-right of the screen. This is a definitive UX upgrade for NOC operations that guarantees 100% visibility of routing details without any clipping, iframe border conflicts, or coordinate miscalculations. Hovering over any matrix cell instantly populates the fixed panel with cross-information without blocking the user's view of adjacent matrix cells.
+
+## [1.48.1] - 2026-04-27
+### Fixed
+- **Iframe Rendering Bug**: Switched tooltip positioning from `fixed` to `absolute`. This resolves a browser compositing bug where `position: fixed` elements inside an iframe could be visually clipped or shifted if the parent window uses CSS Flexbox with `overflow: hidden` (like the Master Index dashboard layout).
+
+## [1.48.0] - 2026-04-27
+### Fixed
+- **Fluid Dynamic Tooltips**: Completely refactored the Ping Matrix tooltip logic. Tooltips now dynamically follow the mouse cursor (`onmousemove`) instead of locking to the entrance point of the cell. Implemented absolute mathematical failsafes (`Math.max(10, ...)`) to guarantee that tooltips will **never** be rendered off-screen (top/left) or cause overflow cuts, regardless of the matrix size or viewport constraints.
  
+## [1.47.0] - 2026-04-27
+### Added
+- **Global Reset Filter**: Added a new "Reset Filters" button in the Ping Matrix Dashboard to instantly clear all active filters (Severity, Origin/Destination, Direction, Metrics) and restore the matrix to its full state.
+- **Master Index Tooltips**: Added hover descriptions to the health badges (OK, W, C, D) in the Master Index sidebar to help new users identify status levels.
+
+### Fixed
+- **Smart Tooltip Positioning**: Implemented edge-aware tooltip logic. Details will now automatically align left/right at the screen edges and appear above the cell for the bottom-most rows, preventing information from being cut off.
+- **NOC-Ready Filtering**: Changed the severity filter behavior from "dimming" to "hiding". When a filter (e.g., Asymmetry) is selected, healthy connections are now completely removed from the view instead of being shown with low opacity, creating a significantly cleaner interface for large networks.
+
 ## [1.46.0] - 2026-04-24
 ### Added
 - **Single File Dashboard (Portable)**: The `ping_matrix_dashboard.html` now fully embeds the JSON data payload at generation time, replacing asynchronous HTTP `fetch()` logic. This allows the dashboard to be perfectly portable and executable entirely offline (e.g. sent via email or USB) without triggering browser CORS security blockers.

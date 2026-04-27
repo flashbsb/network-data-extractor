@@ -1,5 +1,29 @@
+# Python & Cache
+__pycache__/
+*.py[cod]
+*$py.class
 *cache*/
-infos*/
+
+# Ambientes Virtuais
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Logs e Dados Temporários
 *.log
 *.csv
-.agent
+infos*/
+scratch/
+.agent/
+
+# Configurações de IDE
+.vscode/
+.idea/
+*.swp
+*.bak
+
+# Arquivos de Sistema
+.DS_Store
+Thumbs.db
