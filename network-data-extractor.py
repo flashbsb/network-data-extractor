@@ -142,6 +142,8 @@ group_disco = parser.add_argument_group("Discovery Options (ignored in --offline
 group_disco.add_argument("--discovery", action="store_true", help="Enable recursive discovery via LLDP neighbors")
 group_disco.add_argument("--hops", type=int, help="Number of recursive hops (requires --discovery)")
 
+args = parser.parse_args()
+
 # --- MASTER INDEX DASHBOARD ---
 def generate_master_dashboard(outbase):
     import re
@@ -250,9 +252,9 @@ def generate_master_dashboard(outbase):
         if not health_html: health_html = '<span style="color:#64748b">No health data</span>'
         
         html += f"""            <div class="run-item" onclick="loadRun('{r['path']}', this)">
-                <div class="run-date">{{r['date']}}</div>
-                <div class="run-meta"><span>Nodes: {{r['nodes']}}</span></div>
-                <div class="health-badges">{{health_html}}</div>
+                <div class="run-date">{r['date']}</div>
+                <div class="run-meta"><span>Nodes: {r['nodes']}</span></div>
+                <div class="health-badges">{health_html}</div>
             </div>
 """
     
