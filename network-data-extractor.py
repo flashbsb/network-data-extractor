@@ -8,11 +8,6 @@ Version : 1.52.0
 Date    : 2026-04-27
 Author  : flashbsb (and contributors)
 
-Behavior:
- - Does not prompt for credentials initially.
- - When reaching commands.py, executes INTERACTIVELY (stdin/tty connected).
- - For other scripts, executes and streams the output in real-time.
- - Ultimately generates ../infos/DDMMYYYY and consolidates .txt/.csv.
 """
 
 import subprocess
