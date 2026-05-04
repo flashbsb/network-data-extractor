@@ -1,6 +1,6 @@
 # Network Data Extractor
 
-![Version](https://img.shields.io/badge/version-1.54.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.55.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8%2B-green.svg)
 
 **Network Data Extractor** is an automated orchestrator built for network engineers and NOCs (Network Operations Centers). It performs massive, parallel SSH polling across dozens or hundreds of network elements (Cisco, Datacom, Huawei, HP, etc.), extracting raw command outputs (`show interfaces`, `show lldp neighbors`, etc.) and consolidating this raw data into CSV spreadsheets and logical topology maps ready for structural analysis.
@@ -181,7 +181,7 @@ Mode D: Drift Analysis:
   --diff [DIFF]         Build Network Drift Workspace in 'diff/' folder. Optional: provide path to collections.
 
 Mode E: Offline Processing:
-  --offline DIR         Process existing data in DIR (skips discovery/SSH)
+  --offline DIR         Process existing data in DIR (Incompatible with --discovery/--diff)
 ```
 
 #### Examples
@@ -191,10 +191,15 @@ Executes normally, confirming configuration files and asking for the SSH passwor
 python3 network-data-extractor.py
 ```
 
-**Network Drift Workspace (Audit Tool):**
-Generates an offline HTML dashboard comparing configuration snapshots to identify structural drifts.
+### Mode B: Ping Matrix Dashboard
+Generates a portable HTML dashboard analyzing the connectivity of your entire core network by shooting ICMP probes bidirectionally.
+
 ```bash
-python3 network-data-extractor.py --diff infos/
+# Online Execution (Live network polling)
+python3 network-data-extractor.py --ping-matrix --ping-commands config/commands.icmp.cfg --ping-format html
+
+# Offline Execution (Regenerate HTML/CSVs from previously collected txt files)
+python3 network-data-extractor.py --offline infos/20260504_153131 --ping-matrix --ping-format html,csv
 ```
 
 **Semi-Interactive Mode (User only):**

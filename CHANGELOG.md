@@ -2,6 +2,11 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.55.0] - 2026-05-04
+### Added
+- **Universal Offline Architecture**: `core/ping_matrix.py` now supports the `--offline` flag. It can bypass SSH entirely, reading cached `.txt` ICMP responses from a previous extraction to instantly regenerate the High-Performance Dashboard and CSVs.
+- **Strict Mode B/E Gatekeeper**: Explicit runtime blocks preventing logical impossibilities, such as combining `--offline` with `--discovery` or `--diff`.
+
 ## [1.54.0] - 2026-05-04
 ### Added
 - **Advanced Drift Filters**: Replaced the basic drift filter with a multi-valued checkbox engine allowing users to selectively display interface changes by Changed Fields (Description, Admin, Protocol, Bandwidth) and Current State (UP, DOWN, OTHER). 

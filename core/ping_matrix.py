@@ -121,6 +121,7 @@ def main():
     parser.add_argument("--settings", default="config/settings.json")
     parser.add_argument("--ping_commands", default="config/commands.icmp.cfg")
     parser.add_argument("--ping_format", default="csv")
+    parser.add_argument("--offline_mode", action="store_true")
     args = parser.parse_args()
 
     # Load Settings
@@ -160,14 +161,15 @@ def main():
         sys.exit(1)
 
     # Auth logic
-    env_user = os.environ.get('NDX_SSH_USER')
-    env_pass = os.environ.get('NDX_SSH_PASS')
-    env_key  = os.environ.get('NDX_SSH_KEY')
-    
-    user = env_user if env_user else input('SSH Worker User: ')
-    password = env_pass
-    if not env_key and env_pass is None:
-        password = getpass.getpass('SSH Password: ')
+    if not args.offline_mode:
+        env_user = os.environ.get('NDX_SSH_USER')
+        env_pass = os.environ.get('NDX_SSH_PASS')
+        env_key  = os.environ.get('NDX_SSH_KEY')
+        
+        user = env_user if env_user else input('SSH Worker User: ')
+        password = env_pass
+        if not env_key and env_pass is None:
+            password = getpass.getpass('SSH Password: ')
 
     all_results = []
     results_lock = threading.Lock()
@@ -288,32 +290,77 @@ def main():
     total_origins = len(elements)
     pings_per_origin = total_origins - 1 if total_origins > 0 else 0
     total_pings = total_origins * pings_per_origin
-    
-    batches = math.ceil(total_origins / thread_count) if thread_count > 0 else 1
-    local_delay = min(delay_between_commands, 0.2)
-    time_per_dest = (10 * count) / 1000.0 + local_delay
-    ssh_overhead = 1.5 
-    time_per_batch = ssh_overhead + (pings_per_origin * time_per_dest)
-    est_total_seconds = batches * time_per_batch
-    
-    m, s = divmod(int(est_total_seconds), 60)
-    h, m = divmod(m, 60)
-    est_str = f"{h}h {m}m {s}s" if h > 0 else f"{m}m {s}s"
-    
-    print("\n" + "="*60)
-    print(" 📡 PING MATRIX EXECUTION PLAN")
-    print("="*60)
-    print(f" • Origin Elements : {total_origins}")
-    print(f" • Targets per Node: {pings_per_origin} (Sending {count} packets each)")
-    print(f" • Total Pings     : {total_pings}")
-    print(f" • Est. Duration   : ~{est_str} (Based on 10ms avg latency)")
-    print("   * Note: Actual time will fluctuate depending on real network latency.")
-    print("="*60)
-    print(f"Starting ICMP requests concurrently (Threads: {thread_count})...")
     matrix_start_time = time.time()
-    with concurrent.futures.ThreadPoolExecutor(max_workers=thread_count) as executor:
-        executor.map(execute_ping_matrix_for_origin, elements)
-    actual_duration_seconds = round(time.time() - matrix_start_time, 1)
+
+    if args.offline_mode:
+        import glob
+        print("\n" + "="*60)
+        print(" 📡 PING MATRIX EXECUTION PLAN (OFFLINE MODE)")
+        print("="*60)
+        print(f" • Reading cached ping results from: {args.collect_dir}")
+        
+        # Encontra os arquivos brutos do ping matrix salvos em execuções anteriores
+        files = glob.glob(os.path.join(args.collect_dir, "*.ping_to_*.txt"))
+        print(f" • Found {len(files)} cached result files.")
+        print("="*60)
+        print(f"Parsing cached ICMP responses...")
+        
+        for fpath in files:
+            fname = os.path.basename(fpath)
+            origin_host = "Unknown"
+            dest_host = "Unknown"
+            content = ""
+            
+            with open(fpath, 'r', encoding='utf-8', errors='ignore') as f:
+                for line in f:
+                    if line.startswith("# Origin:"):
+                        origin_host = line.split("Origin:")[1].split("(")[0].strip()
+                    elif line.startswith("# Dest:"):
+                        dest_host = line.split("Dest:")[1].split("(")[0].strip()
+                    else:
+                        content += line
+            
+            parsed = parse_ping_output(content, dest_host)
+            parsed['origin'] = origin_host
+            
+            # Usar o timestamp do arquivo modificado
+            mtime = os.path.getmtime(fpath)
+            parsed['timestamp'] = datetime.datetime.fromtimestamp(mtime).strftime('%Y-%m-%d %H:%M:%S')
+            
+            all_results.append(parsed)
+            print(".", end="", flush=True)
+            
+        print(f"\n\n[+] Offline Matrix processed {len(all_results)} entries.")
+        actual_duration_seconds = round(time.time() - matrix_start_time, 1)
+        est_total_seconds = actual_duration_seconds
+
+    else:
+        batches = math.ceil(total_origins / thread_count) if thread_count > 0 else 1
+        local_delay = min(delay_between_commands, 0.2)
+        time_per_dest = (10 * count) / 1000.0 + local_delay
+        ssh_overhead = 1.5 
+        time_per_batch = ssh_overhead + (pings_per_origin * time_per_dest)
+        est_total_seconds = batches * time_per_batch
+        
+        m, s = divmod(int(est_total_seconds), 60)
+        h, m = divmod(m, 60)
+        est_str = f"{h}h {m}m {s}s" if h > 0 else f"{m}m {s}s"
+        
+        print("\n" + "="*60)
+        print(" 📡 PING MATRIX EXECUTION PLAN")
+        print("="*60)
+        print(f" • Origin Elements : {total_origins}")
+        print(f" • Targets per Node: {pings_per_origin} (Sending {count} packets each)")
+        print(f" • Total Pings     : {total_pings}")
+        print(f" • Est. Duration   : ~{est_str} (Based on 10ms avg latency)")
+        print("   * Note: Actual time will fluctuate depending on real network latency.")
+        print("="*60)
+        print(f"Starting ICMP requests concurrently (Threads: {thread_count})...")
+        
+        with concurrent.futures.ThreadPoolExecutor(max_workers=thread_count) as executor:
+            executor.map(execute_ping_matrix_for_origin, elements)
+            
+        actual_duration_seconds = round(time.time() - matrix_start_time, 1)
 
     # Post processing: Asymmetry and Jitter Warning
     print("Generating statistical analysis and List CSV...")

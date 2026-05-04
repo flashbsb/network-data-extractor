@@ -22,7 +22,7 @@ import getpass
 from datetime import datetime
 from glob import glob
 
-APP_VERSION = "1.54.0"
+APP_VERSION = "1.55.0"
 APP_DATE = "2026-05-04"
 
 # ANSI Colors
@@ -147,7 +147,7 @@ group_d = parser.add_argument_group("Mode D: Drift Analysis")
 group_d.add_argument("--diff", type=str, nargs='?', const='DEFAULT', help="Build Network Drift Workspace in 'diff/' folder. Optional: provide path to collections.")
 
 group_e = parser.add_argument_group("Mode E: Offline Processing")
-group_e.add_argument("--offline", type=str, metavar="DIR", help="Process existing data in DIR (skips discovery/SSH)")
+group_e.add_argument("--offline", type=str, metavar="DIR", help="Process existing data in DIR (Incompatible with --discovery/--diff)")
 
 args = parser.parse_args()
 
@@ -177,7 +177,16 @@ if args.discovery and args.ping_matrix:
     print(f"{C_RED}ERROR: --discovery and --ping-matrix are mutually exclusive.{C_RESET}")
     sys.exit(1)
 
-# 3. Mode D: Drift Analysis Validations
+# 3. Mode E: Offline Processing Validations (Pre-Checks)
+if args.offline:
+    if args.discovery:
+        print(f"{C_RED}ERROR: --offline and --discovery are mutually exclusive.{C_RESET}")
+        sys.exit(1)
+    if args.diff:
+        print(f"{C_RED}ERROR: --offline and --diff are mutually exclusive.{C_RESET}")
+        sys.exit(1)
+
+# 4. Mode D: Drift Analysis Validations
 if args.diff:
     ignored_flags = []
     if args.user: ignored_flags.append("--user")
@@ -198,11 +207,8 @@ if args.diff:
     engine.run()
     sys.exit(0)
 
-# 4. Mode E: Offline Processing Validations
+# 5. Hops Logic
 if args.offline:
-    if args.discovery:
-        print(f"{C_YELLOW}Warning: --discovery is ignored in --offline mode.{C_RESET}")
-        args.discovery = False
     args.hops = 0
 else:
     # 5. Hops logic (only if NOT offline)
@@ -684,6 +690,8 @@ while True:
                  print(f"    └─> {C_RED}Check log/{safe_name}.log for details.{C_RESET}")
         elif script_name == "ping_matrix.py":
             cmd.extend(["--collect_dir", COLLECT_DIR, "--resume_dir", RESUME_DIR, "--logdir", LOG_DIR, "--elements_cfg", current_elements_file, "--settings", args.settings, "--ping_commands", args.ping_commands, "--ping_format", args.ping_format])
+            if args.offline:
+                cmd.append("--offline_mode")
             safe_name = "ping_matrix"
             out_file_name = os.path.join(LOG_DIR, f"{safe_name}.log")
             
