@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
+ 
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
-Version : 1.52.0
-Date    : 2026-04-27
-Author  : flashbsb (and contributors)
+ Version : 1.54.0
+ Date    : 2026-05-04
+ Author  : flashbsb (and contributors)
 
 """
 
@@ -21,8 +22,8 @@ import getpass
 from datetime import datetime
 from glob import glob
 
-APP_VERSION = "1.52.0"
-APP_DATE = "2026-04-27"
+APP_VERSION = "1.54.0"
+APP_DATE = "2026-05-04"
 
 # ANSI Colors
 C_GREEN = '\033[92m'
@@ -69,6 +70,11 @@ Workflow Options:
   [C] Discovery Mode (--discovery):
       1. Follows Standard Mode but iterates continuously over LLDP neighbors.
       2. Discovers missing routers and creates a new pool file iteratively automatically.
+
+  [D] Drift Analysis Mode (--diff):
+      1. Operates offline without querying devices.
+      2. Compares two snapshot collections to detect configuration drift.
+      3. Generates an interactive High-Performance HTML Dashboard with advanced filters.
 """
 
 # --- PRE-PARSING TO LOAD SETTINGS ---
@@ -131,7 +137,7 @@ group_mode.add_argument("--skip-wizard", action="store_true", help="Skip configu
 group_mode.add_argument("--force", action="store_true", help="Force execution even if collection fails")
 group_mode.add_argument("--offline", type=str, metavar="DIR", help="Process existing data in DIR (skips discovery/SSH)")
 group_mode.add_argument("--ping-matrix", action="store_true", help="Omit regular tests and execute ICMP Ping Matrix")
-group_mode.add_argument("--refresh-index", action="store_true", help="Sync and update Master Index without running new pings")
+group_mode.add_argument("--diff", type=str, nargs='?', const='DEFAULT', help="Build Network Drift Workspace in 'diff/' folder. Optional: provide path to collections.")
 
 group_disco = parser.add_argument_group("Discovery Options (ignored in --offline)")
 group_disco.add_argument("--discovery", action="store_true", help="Enable recursive discovery via LLDP neighbors")
@@ -139,153 +145,12 @@ group_disco.add_argument("--hops", type=int, help="Number of recursive hops (req
 
 args = parser.parse_args()
 
-# --- MASTER INDEX DASHBOARD ---
-def generate_master_dashboard(outbase):
-    import re
-    index_path = os.path.join(outbase, "index.html")
-    directories = glob(os.path.join(outbase, "20*_*"))
-    directories.sort(reverse=True)
-    
-    runs = []
-    for d in directories:
-        basename = os.path.basename(d)
-        json_file = os.path.join(d, "resume", "ping_matrix_list.json")
-        html_file = os.path.join(d, "resume", "ping_matrix_dashboard.html")
-        
-        data = None
-        if os.path.exists(json_file):
-            try:
-                with open(json_file, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-            except: pass
-        elif os.path.exists(html_file):
-            try:
-                with open(html_file, 'r', encoding='utf-8') as f:
-                    html_content = f.read()
-                    match = re.search(r'let globalData = (\{.*?\});', html_content, re.DOTALL)
-                    if match: data = json.loads(match.group(1))
-            except: pass
-
-        if data and os.path.exists(html_file):
-            try:
-                md = data.get("metadata", {})
-                metrics = md.get("execution_metrics", {})
-                health = md.get("network_health", {})
-                runs.append({
-                    "id": basename, "date": md.get("datetime", basename),
-                    "nodes": metrics.get("total_origins", md.get("nodes_connected", 0)),
-                    "healthy": health.get("healthy", 0), "warning": health.get("warning", 0),
-                    "critical": health.get("critical", 0), "dead": health.get("dead", 0),
-                    "path": f"{basename}/resume/ping_matrix_dashboard.html"
-                })
-            except: pass
-                
-    if not runs:
-        print(f"{C_YELLOW}[!] No valid collections found in {outbase}. Index not updated.{C_RESET}")
-        return
-        
-    html = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Ping Matrix - Master Index</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Outfit:wght@600;800&display=swap" rel="stylesheet">
-    <style>
-        body {{ margin: 0; padding: 0; display: flex; height: 100vh; width: 100vw; background: #0f172a; color: #e2e8f0; font-family: 'Inter', sans-serif; overflow: hidden; }}
-        .sidebar {{ 
-            width: 300px; min-width: 300px; background: #1e293b; border-right: 1px solid #334155; 
-            display: flex; flex-direction: column; z-index: 100; box-shadow: 2px 0 10px rgba(0,0,0,0.5); 
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-        }}
-        .sidebar.collapsed {{ width: 0; min-width: 0; overflow: hidden; border-right: none; }}
-        
-        .toggle-btn {{
-            position: fixed; top: 15px; left: 15px; z-index: 1000;
-            background: #38bdf8; color: #020617; border: none; border-radius: 8px;
-            width: 38px; height: 38px; cursor: pointer; display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.4); transition: all 0.2s;
-        }}
-        .toggle-btn:hover {{ background: #7dd3fc; transform: scale(1.1); }}
-        .toggle-btn svg {{ width: 24px; height: 24px; }}
-        .header {{ padding: 25px 20px; background: #020617; border-bottom: 1px solid #334155; text-align: center; }}
-        .header h2 {{ margin: 0; color: #38bdf8; font-size: 22px; font-family: 'Outfit', sans-serif; letter-spacing: 1px; }}
-        .list {{ flex: 1; overflow-y: auto; }}
-        .list::-webkit-scrollbar {{ width: 8px; }}
-        .list::-webkit-scrollbar-thumb {{ background: #475569; border-radius: 4px; }}
-        .run-item {{ padding: 15px 20px; border-bottom: 1px solid #334155; cursor: pointer; transition: all 0.2s; border-left: 4px solid transparent; }}
-        .run-item:hover {{ background: #334155; border-left: 4px solid #38bdf8; }}
-        .run-item.active {{ background: #0f172a; border-left: 4px solid #38bdf8; }}
-        .run-date {{ font-weight: 600; font-size: 15px; margin-bottom: 8px; color: #f8fafc; font-family: 'Outfit', sans-serif; }}
-        .run-meta {{ font-size: 13px; color: #94a3b8; display: flex; justify-content: space-between; margin-bottom: 8px; }}
-        .health-badges {{ font-size: 12px; display: flex; gap: 6px; }}
-        .h-badge {{ padding: 2px 8px; border-radius: 4px; font-weight: 600; }}
-        .b-good {{ background: rgba(74, 222, 128, 0.15); color: #4ade80; border: 1px solid rgba(74,222,128,0.3); }}
-        .b-warn {{ background: rgba(251, 191, 36, 0.15); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); }}
-        .b-crit {{ background: rgba(248, 113, 113, 0.15); color: #f87171; border: 1px solid rgba(248,113,113,0.3); }}
-        .b-dead {{ background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148,163,184,0.3); }}
-        .main-content {{ flex: 1; height: 100vh; background: #0f172a; overflow: hidden; display: flex; flex-direction: column; min-width: 0; }}
-        iframe {{ width: 100%; height: 100%; border: none; flex: 1; }}
-    </style>
-</head>
-<body>
-    <button class="toggle-btn" onclick="toggleSidebar()" title="Toggle Menu">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-    </button>
-    <div class="sidebar collapsed" id="sidebar">
-        <div class="header">
-            <h2 style="margin-left: 45px;">📡 Index</h2>
-        </div>
-        <div class="list" id="runList">
-"""
-    for r in runs:
-        health_html = ""
-        if r['healthy'] > 0: health_html += f'<span class="h-badge b-good" title="Healthy Connections">{r["healthy"]} OK</span>'
-        if r['warning'] > 0: health_html += f'<span class="h-badge b-warn" title="Warning: Loss/Jitter/Asym">{r["warning"]} W</span>'
-        if r['critical'] > 0: health_html += f'<span class="h-badge b-crit" title="Critical: >50% Loss">{r["critical"]} C</span>'
-        if r['dead'] > 0: health_html += f'<span class="h-badge b-dead" title="Dead: 100% Loss">{r["dead"]} D</span>'
-        if not health_html: health_html = '<span style="color:#64748b">No health data</span>'
-        
-        html += f"""            <div class="run-item" onclick="loadRun('{r['path']}', this)">
-                <div class="run-date">{r['date']}</div>
-                <div class="run-meta"><span>Nodes: {r['nodes']}</span></div>
-                <div class="health-badges">{health_html}</div>
-            </div>
-"""
-    
-    html += """        </div>
-    </div>
-    <div class="main-content">
-        <iframe id="dashboardFrame" src="about:blank"></iframe>
-    </div>
-    <script>
-        function toggleSidebar() {
-            const sb = document.getElementById('sidebar');
-            sb.classList.toggle('collapsed');
-        }
-        function loadRun(path, el) {
-            document.getElementById('dashboardFrame').src = path;
-            document.querySelectorAll('.run-item').forEach(e => e.classList.remove('active'));
-            if(el) el.classList.add('active');
-        }
-        let first = document.querySelector('.run-item');
-        if(first) first.click();
-    </script>
-</body>
-</html>
-"""
-    try:
-        with open(index_path, 'w', encoding='utf-8') as f:
-            f.write(html)
-        print(f"\n{C_CYAN}--- Master Index Updated ---{C_RESET}")
-        print(f"[*] Portal available at: {index_path}")
-    except Exception as e:
-        print(f"\n{C_RED}[!] Failed to generate Master Index: {e}{C_RESET}")
-
-# Check maintenance mode early
-if args.refresh_index:
-    print(f"\n{C_CYAN}--- Maintenance: Refreshing Master Index ---{C_RESET}")
-    generate_master_dashboard(args.outbase)
+if args.diff:
+    print(f"\n{C_CYAN}--- Network Drift Workspace: Initialization ---{C_RESET}")
+    from core.diff_engine import DiffEngine
+    base_path = args.outbase if args.diff == 'DEFAULT' else args.diff
+    engine = DiffEngine(base_path)
+    engine.run()
     sys.exit(0)
 
 
@@ -1081,11 +946,6 @@ total_seconds = int(duration.total_seconds())
 hours = total_seconds // 3600
 minutes = (total_seconds % 3600) // 60
 seconds = total_seconds % 60
-print(f"Total processing time: {hours:02d}:{minutes:02d}:{seconds:02d}")
-
-if args.ping_matrix:
-    generate_master_dashboard(args.outbase)
-
 # --- OUTPUT COMPRESSION ---
 comp_cfg = json_config.get("compression", {})
 if comp_cfg.get("enabled", False):

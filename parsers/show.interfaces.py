@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import re, glob, csv, os
+import re, glob, csv, os, json
 
 def parse_show_interfaces(filename):
     # Extracts hostname and id from filename
@@ -104,26 +104,36 @@ if __name__ == '__main__':
     parser.add_argument('--outdir', default='.')
     parser.add_argument('--indir', default='.')
     args = parser.parse_args()
-    out_file = os.path.join(args.outdir, 'interfaces_all.csv')
+    
+    out_file_csv = os.path.join(args.outdir, 'interfaces_all.csv')
+    out_file_json = os.path.join(args.outdir, 'interfaces_all.json')
     headers = ['element','id','interface','admin_status','line_protocol','description',
                'ip_address','mtu','bandwidth_kbit','reliability','txload','rxload','last_flapped']
-    with open(out_file, 'w', newline='') as csvf:
+    
+    all_data = []
+    files_to_parse = glob.glob(os.path.join(args.indir, '*.show.interfaces.txt'))
+    status_files_to_parse = glob.glob(os.path.join(args.indir, '*.show.interfaces.status.txt'))
+
+    print(f'Searching for files *.show.interfaces.txt in {args.indir}... Found {len(files_to_parse)} applicable files.')
+    print(f'Injecting SMAC/Datacom fallbacks from *.show.interfaces.status.txt... Found {len(status_files_to_parse)} candidate files.')
+
+    for fn in files_to_parse:
+        all_data.extend(parse_show_interfaces(fn))
+                
+    for fn in status_files_to_parse:
+        all_data.extend(parse_datacom_interfaces_status(fn))
+
+    # Save CSV
+    with open(out_file_csv, 'w', newline='', encoding='utf-8') as csvf:
         writer = csv.DictWriter(csvf, fieldnames=headers, delimiter=';')
         writer.writeheader()
-        files_to_parse = glob.glob(os.path.join(args.indir, '*.show.interfaces.txt'))
-        status_files_to_parse = glob.glob(os.path.join(args.indir, '*.show.interfaces.status.txt'))
+        writer.writerows(all_data)
 
-        print(f'Searching for files *.show.interfaces.txt in {args.indir}... Found {len(files_to_parse)} applicable files.')
-        print(f'Injecting SMAC/Datacom fallbacks from *.show.interfaces.status.txt... Found {len(status_files_to_parse)} candidate files.')
+    # Save JSON
+    try:
+        with open(out_file_json, 'w', encoding='utf-8') as jsonf:
+            json.dump(all_data, jsonf, indent=2)
+    except Exception as e:
+        print(f"Error generating JSON: {e}")
 
-        processed = 0
-
-        for fn in files_to_parse:
-            for row in parse_show_interfaces(fn):
-                writer.writerow(row)
-                
-        for fn in status_files_to_parse:
-            for row in parse_datacom_interfaces_status(fn):
-                writer.writerow(row)
-                
-    print(f'CSV generated: {out_file}')
+    print(f'Results generated: {out_file_csv} and {out_file_json}')

@@ -1,6 +1,6 @@
 # Network Data Extractor
 
-![Version](https://img.shields.io/badge/version-1.46.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.54.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8%2B-green.svg)
 
 **Network Data Extractor** is an automated orchestrator built for network engineers and NOCs (Network Operations Centers). It performs massive, parallel SSH polling across dozens or hundreds of network elements (Cisco, Datacom, Huawei, HP, etc.), extracting raw command outputs (`show interfaces`, `show lldp neighbors`, etc.) and consolidating this raw data into CSV spreadsheets and logical topology maps ready for structural analysis.
@@ -12,6 +12,7 @@ Its main goal is to eliminate the need for manual inventories or box-by-box acce
 ## 🌟 Key Features & Strengths
 
 - **Massive Concurrency (Multi-Threading)**: Supports asynchronous extraction of multiple nodes simultaneously, reducing maintenance windows from hours to minutes.
+- **Network Drift Analysis (New)**: Interactive comparison engine to visualize changes between two network snapshots. Detects status changes, speed variations, and new/removed links.
 - **Ping Matrix Dashboard (Portable & Single-File)**: Embedded high-performance HTML/JS SPA Dashboard generating visual heatmaps and advanced analytical insights (Latency, Jitter, Packet Loss, Asymmetry, Node Isolation) from ICMP sweeps. The dashboard is 100% portable (JSON is embedded inside the HTML) and can run completely offline.
 - **Master Index Portal**: Automatically acts as a Web Portal for historical runs. The orchestrator compiles a dynamic `index.html` at the root of your output folder, creating an easy-to-use chronological side-bar to navigate past Dashboard reports.
 - **Multivendor by Design**: Not restricted to Cisco syntax. The script handles the native injection of pagination suppressors (`terminal length 0`, `terminal pager 0`, `screen-length 0 disable`), ensuring long outputs aren't swallowed by `--More--` prompts on Datacom, HP, or Huawei equipment.
@@ -65,6 +66,11 @@ graph TD
     Q --> S(("ping_matrix_list.json")):::csvout
     S --> T{{"📲 ping_matrix_dashboard.html"}}:::htmldash
     T -.->|"Chronological Compilation"| U{{"🌐 infos/index.html (Master Portal)"}}:::htmldash
+
+    %% Branch 3: Drift Analysis
+    B -->|--diff| V[Diff Engine]:::pingmod
+    V -->|"Consumes old JSONs"| W("📁 /infos/diff/"):::folder
+    W --> X{{"📲 index.html (Workspace)"}}:::htmldash
 ```
 
 ---
@@ -145,6 +151,8 @@ optional arguments:
   --key KEY            Path to SSH Private Key (Certificate) for passwordless authentication
   --force              Force execution even if data collection fails
   --offline DIR        Skip data collection and process existing files in the specified directory
+  --ping-matrix        Omit regular tests and execute ICMP Ping Matrix
+  --diff [DIFF]        Build Network Drift Workspace in 'diff/' folder. Optional: provide path to collections.
   --discovery          Enable recursive network discovery via LLDP neighbors
   --hops HOPS          Number of recursive discovery hops to perform (default: 3)
 ```
@@ -154,6 +162,12 @@ optional arguments:
 Executes normally, confirming configuration files and asking for the SSH password via an invisible prompt. You can also leave the password blank to let the script attempt to use your local SSH Agent keys (`~/.ssh/id_rsa`).
 ```bash
 python3 network-data-extractor.py
+```
+
+**Network Drift Workspace (Audit Tool):**
+Generates an offline HTML dashboard comparing configuration snapshots to identify structural drifts.
+```bash
+python3 network-data-extractor.py --diff infos/
 ```
 
 **Semi-Interactive Mode (User only):**

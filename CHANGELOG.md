@@ -2,6 +2,27 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.54.0] - 2026-05-04
+### Added
+- **Advanced Drift Filters**: Replaced the basic drift filter with a multi-valued checkbox engine allowing users to selectively display interface changes by Changed Fields (Description, Admin, Protocol, Bandwidth) and Current State (UP, DOWN, OTHER). 
+- **Negative Text Search**: Added an "Exclude" text box in the Drift Analyzer to quickly hide specific interfaces (e.g. "loopback") from the audit panel.
+- **Smart UI Rendering**: The comparison table now dynamically masks field changes that are unchecked in the filters, lowering visual noise while preserving structural accuracy.
+
+### Changed
+- **Premium Layout UX**: The Master Index lateral panel is now fully collapsible, guaranteeing 100% table width visibility. 
+- **Time/Date Clarity**: Snapshot UNIX IDs have been converted to human-readable `DD/MM/YYYY HH:MM:SS` format within the side menu.
+- **Auto-Compare Mode**: The Drift Analyzer now auto-selects the oldest and newest snapshots upon loading, bypassing manual clicks.
+
+## [1.53.0] - 2026-04-29
+### Added
+- **Network Drift Analysis (Snapshot Comparison)**: The Master Index now features an advanced comparison engine. Users can select any two historical collections and instantly visualize differences in interface states, speeds, and administrative statuses.
+- **Dynamic JSON Data Export**: The `show.interfaces.py` parser now generates a comprehensive `interfaces_all.json` payload for every run, enabling near-instant client-side differential analysis.
+- **Advanced Drift Filters**: The comparison dashboard includes specialized filters for Element names, Change Types (Added/Removed/Modified), Status Transitions (Up/Down, Admin Up/Down), and Speed changes (Increased/Decreased bandwidth).
+- **Premium Comparison UI**: Integrated a high-performance comparison overlay with real-time statistics (Total Changes, New Elements, Removed Links, Status Drift) and a highlighted difference table.
+
+### Changed
+- **Master Index Upgrade**: Refactored the dashboard sidebar to support multi-selection (checkboxes) and added a dedicated "Compare Selected" action footer.
+
 ## [1.52.0] - 2026-04-27
 ### Added
 - **Maintenance Mode (`--refresh-index`)**: Added a dedicated flag to synchronize and update the Master Index without running new ping tests. This allows users to instantly clean up deleted folders or update the dashboard portal in milliseconds.
