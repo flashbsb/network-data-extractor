@@ -132,29 +132,56 @@ The script supports a comprehensive wizard, but it can also be fully automated o
 
 #### Command Line Arguments
 ```text
-usage: network-data-extractor.py [-h] [--threads THREADS] [--outbase OUTBASE]
+usage: network-data-extractor.py [-h] [--settings SETTINGS]
+                                 [--outbase OUTBASE] [--skip-wizard] [--force]
+                                 [--user USER]
+                                 [--password PASSWORD | --key KEY]
                                  [--elements ELEMENTS] [--commands COMMANDS]
-                                 [--randomize] [--no-randomize] [--skip-wizard]
-                                 [--user USER] [--password PASSWORD]
+                                 [--threads THREADS] [--randomize]
+                                 [--no-randomize] [--filter FILTER]
+                                 [--ping-matrix]
+                                 [--ping-commands PING_COMMANDS]
+                                 [--ping-format PING_FORMAT] [--discovery]
+                                 [--hops HOPS] [--diff [DIFF]] [--offline DIR]
 
 optional arguments:
-  -h, --help           show this help message and exit
-  --threads THREADS    Number of concurrent SSH sessions for commands.py (default: 20)
-  --outbase OUTBASE    Root directory base to save timestamps/logs/CSVs folders (default: infos)
-  --elements ELEMENTS  Input file containing the list of elements (default: config/elements.cfg)
-  --commands COMMANDS  Input file containing the list of commands (default: config/commands.cfg)
-  --randomize          Randomize the connection order in commands.py (default: True)
-  --no-randomize       Keep connection order sequential
-  --skip-wizard        Skip the configuration confirmation prompt
-  --user USER          SSH Username (if provided, skips interactive prompt)
-  --password PASSWORD  [WARNING: Insecure for terminal] SSH Password. Use only for automated CRON/CI execution. Consider certificate auth instead.
-  --key KEY            Path to SSH Private Key (Certificate) for passwordless authentication
-  --force              Force execution even if data collection fails
-  --offline DIR        Skip data collection and process existing files in the specified directory
-  --ping-matrix        Omit regular tests and execute ICMP Ping Matrix
-  --diff [DIFF]        Build Network Drift Workspace in 'diff/' folder. Optional: provide path to collections.
-  --discovery          Enable recursive network discovery via LLDP neighbors
-  --hops HOPS          Number of recursive discovery hops to perform (default: 3)
+  -h, --help            show this help message and exit
+
+Global Settings:
+  --settings SETTINGS   Path to JSON settings file (default: config/settings.json)
+  --outbase OUTBASE     Root directory for outputs (default: infos)
+  --skip-wizard         Skip configuration confirmation prompt
+  --force               Force execution even if collection fails (ignored in --ping-matrix/--diff)
+
+Authentication (ignored in --offline/--diff):
+  --user USER           SSH Username (required for automated auth)
+  --password PASSWORD   [INSECURE] SSH Password (requires --user)
+  --key KEY             Path to SSH Private Key (requires --user)
+
+Mode A: Standard Extraction (Default):
+  --elements ELEMENTS   Input elements file (default: config/elements.cfg)
+  --commands COMMANDS   Input commands file (default: config/commands.cfg)
+  --threads THREADS     Number of concurrent SSH sessions (default: 20)
+  --randomize           Randomize connection order (default: True)
+  --no-randomize        Keep connection order sequential
+  --filter FILTER       Filter elements by prefix (e.g. 'in:RT1;RT2' to include, 'rn:RT1;RT2' to exclude)
+
+Mode B: Ping Matrix:
+  --ping-matrix         Omit regular tests and execute ICMP Ping Matrix
+  --ping-commands PING_COMMANDS
+                        (requires --ping-matrix) Input ICMP commands file (default: config/commands.icmp.cfg)
+  --ping-format PING_FORMAT
+                        (requires --ping-matrix) Output format: csv, json, html (comma-separated)
+
+Mode C: Discovery:
+  --discovery           Enable recursive discovery via LLDP neighbors
+  --hops HOPS           (requires --discovery) Number of recursive hops to perform
+
+Mode D: Drift Analysis:
+  --diff [DIFF]         Build Network Drift Workspace in 'diff/' folder. Optional: provide path to collections.
+
+Mode E: Offline Processing:
+  --offline DIR         Process existing data in DIR (skips discovery/SSH)
 ```
 
 #### Examples

@@ -166,7 +166,7 @@ def main():
     
     user = env_user if env_user else input('SSH Worker User: ')
     password = env_pass
-    if not env_key and not env_pass:
+    if not env_key and env_pass is None:
         password = getpass.getpass('SSH Password: ')
 
     all_results = []

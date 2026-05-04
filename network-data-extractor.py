@@ -114,38 +114,83 @@ parser = argparse.ArgumentParser(
     formatter_class=argparse.RawTextHelpFormatter
 )
 
-group_ext = parser.add_argument_group("Extraction & Path Settings (ignored in --offline)")
-group_ext.add_argument("--settings", type=str, default="config/settings.json", help="Path to JSON settings file (default: config/settings.json)")
-group_ext.add_argument("--threads", type=int, default=def_threads, help=f"Number of concurrent SSH sessions (default: {def_threads})")
-group_ext.add_argument("--outbase", type=str, default=def_outbase, help=f"Root directory for outputs (default: {def_outbase})")
-group_ext.add_argument("--elements", type=str, default=def_elements, help=f"Input elements file (default: {def_elements})")
-group_ext.add_argument("--commands", type=str, default=def_commands, help=f"Input commands file (default: {def_commands})")
-group_ext.add_argument("--ping-commands", type=str, default="config/commands.icmp.cfg", help="Input ICMP commands file for Ping Matrix (default: config/commands.icmp.cfg)")
-group_ext.add_argument("--ping-format", type=str, default="csv", help="Ping Matrix output format: csv, json, html (comma-separated)")
-group_ext.add_argument("--randomize", action="store_true", default=def_randomize, help=f"Randomize connection order (default: {def_randomize})")
-group_ext.add_argument("--no-randomize", dest="randomize", action="store_false", help="Keep connection order sequential")
-group_ext.add_argument("--filter", type=str, help="Filter elements by prefix (e.g. 'in:RT1;RT2' to include, 'rn:RT1;RT2' to exclude)")
+group_global = parser.add_argument_group("Global Settings")
+group_global.add_argument("--settings", type=str, default="config/settings.json", help="Path to JSON settings file (default: config/settings.json)")
+group_global.add_argument("--outbase", type=str, default=def_outbase, help=f"Root directory for outputs (default: {def_outbase})")
+group_global.add_argument("--skip-wizard", action="store_true", help="Skip configuration confirmation prompt")
+group_global.add_argument("--force", action="store_true", help="Force execution even if collection fails (ignored in --ping-matrix/--diff)")
 
-group_auth = parser.add_argument_group("Authentication (ignored in --offline)")
+group_auth = parser.add_argument_group("Authentication (ignored in --offline/--diff)")
 group_auth.add_argument("--user", type=str, help="SSH Username (required for automated auth)")
 auth_me = group_auth.add_mutually_exclusive_group()
 auth_me.add_argument("--password", type=str, help="[INSECURE] SSH Password (requires --user)")
 auth_me.add_argument("--key", type=str, help="Path to SSH Private Key (requires --user)")
 
-group_mode = parser.add_argument_group("Execution Modes")
-group_mode.add_argument("--skip-wizard", action="store_true", help="Skip configuration confirmation prompt")
-group_mode.add_argument("--force", action="store_true", help="Force execution even if collection fails")
-group_mode.add_argument("--offline", type=str, metavar="DIR", help="Process existing data in DIR (skips discovery/SSH)")
-group_mode.add_argument("--ping-matrix", action="store_true", help="Omit regular tests and execute ICMP Ping Matrix")
-group_mode.add_argument("--diff", type=str, nargs='?', const='DEFAULT', help="Build Network Drift Workspace in 'diff/' folder. Optional: provide path to collections.")
+group_a = parser.add_argument_group("Mode A: Standard Extraction (Default)")
+group_a.add_argument("--elements", type=str, default=def_elements, help=f"Input elements file (default: {def_elements})")
+group_a.add_argument("--commands", type=str, default=def_commands, help=f"Input commands file (default: {def_commands})")
+group_a.add_argument("--threads", type=int, default=def_threads, help=f"Number of concurrent SSH sessions (default: {def_threads})")
+group_a.add_argument("--randomize", action="store_true", default=def_randomize, help=f"Randomize connection order (default: {def_randomize})")
+group_a.add_argument("--no-randomize", dest="randomize", action="store_false", help="Keep connection order sequential")
+group_a.add_argument("--filter", type=str, help="Filter elements by prefix (e.g. 'in:RT1;RT2' to include, 'rn:RT1;RT2' to exclude)")
 
-group_disco = parser.add_argument_group("Discovery Options (ignored in --offline)")
-group_disco.add_argument("--discovery", action="store_true", help="Enable recursive discovery via LLDP neighbors")
-group_disco.add_argument("--hops", type=int, help="Number of recursive hops (requires --discovery)")
+group_b = parser.add_argument_group("Mode B: Ping Matrix")
+group_b.add_argument("--ping-matrix", action="store_true", help="Omit regular tests and execute ICMP Ping Matrix")
+group_b.add_argument("--ping-commands", type=str, default="config/commands.icmp.cfg", help="(requires --ping-matrix) Input ICMP commands file (default: config/commands.icmp.cfg)")
+group_b.add_argument("--ping-format", type=str, default="csv", help="(requires --ping-matrix) Output format: csv, json, html (comma-separated)")
+
+group_c = parser.add_argument_group("Mode C: Discovery")
+group_c.add_argument("--discovery", action="store_true", help="Enable recursive discovery via LLDP neighbors")
+group_c.add_argument("--hops", type=int, help="(requires --discovery) Number of recursive hops to perform")
+
+group_d = parser.add_argument_group("Mode D: Drift Analysis")
+group_d.add_argument("--diff", type=str, nargs='?', const='DEFAULT', help="Build Network Drift Workspace in 'diff/' folder. Optional: provide path to collections.")
+
+group_e = parser.add_argument_group("Mode E: Offline Processing")
+group_e.add_argument("--offline", type=str, metavar="DIR", help="Process existing data in DIR (skips discovery/SSH)")
 
 args = parser.parse_args()
 
+# --- STRICT ARGUMENT VALIDATION & GATEKEEPER ---
+
+# 1. Mode B: Ping Matrix Validations
+if args.ping_matrix:
+    ignored_pm_flags = []
+    if args.force: ignored_pm_flags.append("--force")
+    if ignored_pm_flags:
+        print(f"{C_YELLOW}Warning: The following flags are ignored in Ping Matrix mode (--ping-matrix): {', '.join(ignored_pm_flags)}{C_RESET}")
+
+if not args.ping_matrix:
+    if args.ping_commands != "config/commands.icmp.cfg":
+        print(f"{C_RED}ERROR: --ping-commands can only be used with --ping-matrix.{C_RESET}")
+        sys.exit(1)
+    if args.ping_format != "csv":
+        print(f"{C_RED}ERROR: --ping-format can only be used with --ping-matrix.{C_RESET}")
+        sys.exit(1)
+
+# 2. Mode C: Discovery Validations
+if not args.discovery:
+    if args.hops is not None:
+        print(f"{C_RED}ERROR: --hops can only be used with --discovery.{C_RESET}")
+        sys.exit(1)
+if args.discovery and args.ping_matrix:
+    print(f"{C_RED}ERROR: --discovery and --ping-matrix are mutually exclusive.{C_RESET}")
+    sys.exit(1)
+
+# 3. Mode D: Drift Analysis Validations
 if args.diff:
+    ignored_flags = []
+    if args.user: ignored_flags.append("--user")
+    if args.password: ignored_flags.append("--password")
+    if args.key: ignored_flags.append("--key")
+    if args.ping_matrix: ignored_flags.append("--ping-matrix")
+    if args.discovery: ignored_flags.append("--discovery")
+    if args.force: ignored_flags.append("--force")
+    if args.threads != def_threads: ignored_flags.append("--threads")
+    
+    if ignored_flags:
+        print(f"{C_YELLOW}Warning: The following flags are ignored in Drift Analysis mode (--diff): {', '.join(ignored_flags)}{C_RESET}")
+    
     print(f"\n{C_CYAN}--- Network Drift Workspace: Initialization ---{C_RESET}")
     from core.diff_engine import DiffEngine
     base_path = args.outbase if args.diff == 'DEFAULT' else args.diff
@@ -153,28 +198,23 @@ if args.diff:
     engine.run()
     sys.exit(0)
 
-
-
-# --- ARGUMENT VALIDATION & LOGIC ---
-
-# 1. Offline Mode Overrides
+# 4. Mode E: Offline Processing Validations
 if args.offline:
     if args.discovery:
         print(f"{C_YELLOW}Warning: --discovery is ignored in --offline mode.{C_RESET}")
         args.discovery = False
     args.hops = 0
-    # Values like threads, randomize, user, etc. are naturally ignored by the flow
 else:
-    # 2. Hops logic (only if NOT offline)
+    # 5. Hops logic (only if NOT offline)
     if args.discovery:
         if args.hops is None:
             args.hops = discovery_cfg.get("default_hops", 3)
     else:
         args.hops = 0
 
-# 3. Authentication logical dependency
+# 6. Authentication logical dependency
 if not args.offline and not args.password and not args.key:
-    # If we are going to run commands.py (online extraction), ask for password once here
+    # If we are going to run commands.py or ping_matrix.py, ask for password once here
     # so we can reuse it for all discovery hops and prevent multiple interactive prompts.
     try:
         args.password = getpass.getpass('SSH Password (leave blank to use local SSH Agent/Keys): ')
