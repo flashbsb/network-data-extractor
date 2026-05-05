@@ -5,7 +5,7 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
- Version : 1.54.0
+ Version : 1.55.0
  Date    : 2026-05-04
  Author  : flashbsb (and contributors)
 
@@ -994,6 +994,124 @@ total_seconds = int(duration.total_seconds())
 hours = total_seconds // 3600
 minutes = (total_seconds % 3600) // 60
 seconds = total_seconds % 60
+# --- MASTER INDEX DASHBOARD ---
+def generate_master_dashboard(outbase):
+    import re
+    index_path = os.path.join(outbase, "index.html")
+    directories = glob(os.path.join(outbase, "20*_*"))
+    directories.sort(reverse=True)
+    
+    runs = []
+    for d in directories:
+        basename = os.path.basename(d)
+        json_file = os.path.join(d, "resume", "ping_matrix_list.json")
+        html_file = os.path.join(d, "resume", "ping_matrix_dashboard.html")
+        
+        # Only add to index if the HTML dashboard actually exists AND has real data!
+        if os.path.isfile(html_file) and os.path.isfile(json_file):
+            try:
+                with open(json_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                # Skip entries with zero ping data (empty/aborted runs)
+                if not data.get("data"):
+                    continue
+                # Use the folder name as the authoritative timestamp label
+                # Format: 20260505_091112 -> 2026-05-05 09:11:12
+                try:
+                    dt_label = f"{basename[:4]}-{basename[4:6]}-{basename[6:8]} {basename[9:11]}:{basename[11:13]}:{basename[13:15]}"
+                except:
+                    dt_label = basename
+                runs.append((basename, dt_label))
+            except:
+                pass  # Skip corrupted JSON entries silently
+
+    if not runs:
+        return
+
+    html = """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Ping Matrix Master Index</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        body {
+            margin: 0; padding: 40px 20px;
+            background: radial-gradient(circle at top, #0f172a 0%, #020617 100%);
+            color: #e2e8f0; font-family: 'Inter', sans-serif; min-height: 100vh;
+        }
+        h1, h2 { font-family: 'Outfit', sans-serif; }
+        .header { text-align: center; margin-bottom: 40px; }
+        .header h1 {
+            font-size: 36px; font-weight: 800; margin: 0 0 8px 0;
+            background: linear-gradient(90deg, #38bdf8, #818cf8);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .header p { color: #64748b; font-size: 14px; margin: 0; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px; max-width: 1200px; margin: 0 auto;
+        }
+        .card {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 14px; padding: 20px 22px;
+            cursor: pointer; text-decoration: none; color: inherit;
+            display: block; transition: all 0.25s ease;
+            border-left: 4px solid rgba(56,189,248,0.4);
+        }
+        .card:hover {
+            background: rgba(30, 41, 59, 0.9);
+            border-left-color: #38bdf8;
+            transform: translateY(-3px);
+            box-shadow: 0 12px 30px -8px rgba(56,189,248,0.2);
+        }
+        .card-date { font-size: 18px; font-weight: 700; color: #f1f5f9; margin: 0 0 6px 0; font-family: 'Outfit', sans-serif; }
+        .card-meta { font-size: 13px; color: #64748b; }
+        .card-badge {
+            display: inline-block; margin-top: 10px;
+            padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
+            background: rgba(56,189,248,0.12); color: #38bdf8;
+            border: 1px solid rgba(56,189,248,0.25);
+        }
+        .footer { text-align: center; margin-top: 50px; color: #334155; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📡 Ping Matrix Portal</h1>
+        <p>Select a historical run to open its interactive dashboard</p>
+    </div>
+    <div class="grid">
+"""
+    for r in runs:
+        html += f"        <a class='card' href='{r[0]}/resume/ping_matrix_dashboard.html'>\n"
+        html += f"            <div class='card-date'>📅 {r[1]}</div>\n"
+        html += f"            <div class='card-meta'>Run ID: {r[0]}</div>\n"
+        html += f"            <span class='card-badge'>Open Dashboard →</span>\n"
+        html += f"        </a>\n"
+
+    html += """    </div>
+    <div class="footer">
+        Powered by <strong>network-data-extractor</strong> &nbsp;|&nbsp; Click a card to open the interactive dashboard
+    </div>
+</body>
+</html>
+"""
+    try:
+        with open(index_path, 'w', encoding='utf-8') as f:
+            f.write(html)
+        print(f"\n{C_CYAN}--- Master Index Generated ---{C_RESET}")
+        print(f"[*] Portal available at: {index_path}")
+    except Exception as e:
+        print(f"\n{C_RED}[!] Failed to generate Master Index: {e}{C_RESET}")
+
+if args.ping_matrix:
+    generate_master_dashboard(os.path.dirname(TIMESTAMP_DIR))
+
 # --- OUTPUT COMPRESSION ---
 comp_cfg = json_config.get("compression", {})
 if comp_cfg.get("enabled", False):
