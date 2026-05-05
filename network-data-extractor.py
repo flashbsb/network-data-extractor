@@ -1007,97 +1007,182 @@ def generate_master_dashboard(outbase):
         json_file = os.path.join(d, "resume", "ping_matrix_list.json")
         html_file = os.path.join(d, "resume", "ping_matrix_dashboard.html")
         
-        # Only add to index if the HTML dashboard actually exists AND has real data!
         if os.path.isfile(html_file) and os.path.isfile(json_file):
             try:
                 with open(json_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                # Skip entries with zero ping data (empty/aborted runs)
-                if not data.get("data"):
+                
+                # Filter out empty or partial runs without valid data
+                if not data.get("data") or len(data.get("data", [])) == 0:
                     continue
-                # Use the folder name as the authoritative timestamp label
-                # Format: 20260505_091112 -> 2026-05-05 09:11:12
+                
+                metadata = data.get("metadata", {})
+                health = metadata.get("network_health", {})
+                node_count = metadata.get("nodes_connected", 0)
+                
+                # Derive display date from folder name
                 try:
                     dt_label = f"{basename[:4]}-{basename[4:6]}-{basename[6:8]} {basename[9:11]}:{basename[11:13]}:{basename[13:15]}"
                 except:
                     dt_label = basename
-                runs.append((basename, dt_label))
+                
+                runs.append({
+                    "id": basename,
+                    "label": dt_label,
+                    "nodes": node_count,
+                    "healthy": health.get("healthy", 0),
+                    "warn": health.get("warning", 0),
+                    "crit": health.get("critical", 0),
+                    "dead": health.get("dead", 0),
+                    "path": f"{basename}/resume/ping_matrix_dashboard.html"
+                })
             except:
-                pass  # Skip corrupted JSON entries silently
+                continue
 
     if not runs:
         return
+
+    # Sort runs by ID descending (newest first)
+    runs.sort(key=lambda x: x["id"], reverse=True)
 
     html = """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>Ping Matrix Master Index</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
-        *, *::before, *::after { box-sizing: border-box; }
-        body {
-            margin: 0; padding: 40px 20px;
-            background: radial-gradient(circle at top, #0f172a 0%, #020617 100%);
-            color: #e2e8f0; font-family: 'Inter', sans-serif; min-height: 100vh;
+        body { margin: 0; padding: 0; font-family: 'Inter', sans-serif; display: flex; height: 100vh; background: #020617; color: #e2e8f0; overflow: hidden; }
+        
+        /* Sidebar */
+        .sidebar { 
+            width: 320px; min-width: 320px;
+            background: #0f172a; 
+            border-right: 1px solid rgba(255,255,255,0.05); 
+            display: flex; flex-direction: column;
+            box-shadow: 10px 0 30px rgba(0,0,0,0.5);
+            z-index: 10;
         }
-        h1, h2 { font-family: 'Outfit', sans-serif; }
-        .header { text-align: center; margin-bottom: 40px; }
-        .header h1 {
-            font-size: 36px; font-weight: 800; margin: 0 0 8px 0;
+        .sidebar-header {
+            padding: 25px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .sidebar-header h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 22px; font-weight: 800; margin: 0;
             background: linear-gradient(90deg, #38bdf8, #818cf8);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         }
-        .header p { color: #64748b; font-size: 14px; margin: 0; }
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 20px; max-width: 1200px; margin: 0 auto;
+        .sidebar-header p { font-size: 11px; color: #64748b; margin: 5px 0 0 0; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+        
+        .run-list { flex-grow: 1; overflow-y: auto; padding: 15px 12px; }
+        .run-list::-webkit-scrollbar { width: 4px; }
+        .run-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        
+        .run-item {
+            padding: 16px; margin-bottom: 12px;
+            background: rgba(30, 41, 59, 0.4);
+            border: 1px solid rgba(255,255,255,0.03);
+            border-radius: 12px; cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            border-left: 4px solid transparent;
         }
-        .card {
-            background: rgba(30, 41, 59, 0.6);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255,255,255,0.07);
-            border-radius: 14px; padding: 20px 22px;
-            cursor: pointer; text-decoration: none; color: inherit;
-            display: block; transition: all 0.25s ease;
-            border-left: 4px solid rgba(56,189,248,0.4);
+        .run-item:hover {
+            background: rgba(30, 41, 59, 0.7);
+            transform: translateX(4px);
+            border-color: rgba(56,189,248,0.3);
         }
-        .card:hover {
-            background: rgba(30, 41, 59, 0.9);
+        .run-item.active {
+            background: rgba(30, 41, 59, 1);
             border-left-color: #38bdf8;
-            transform: translateY(-3px);
-            box-shadow: 0 12px 30px -8px rgba(56,189,248,0.2);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+            border-color: rgba(56,189,248,0.2);
         }
-        .card-date { font-size: 18px; font-weight: 700; color: #f1f5f9; margin: 0 0 6px 0; font-family: 'Outfit', sans-serif; }
-        .card-meta { font-size: 13px; color: #64748b; }
-        .card-badge {
-            display: inline-block; margin-top: 10px;
-            padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
-            background: rgba(56,189,248,0.12); color: #38bdf8;
-            border: 1px solid rgba(56,189,248,0.25);
+        
+        .run-item .date { font-size: 14px; font-weight: 700; color: #f1f5f9; margin-bottom: 10px; font-family: 'Outfit', sans-serif; display: flex; align-items: center; gap: 8px; }
+        .run-item .stats { display: flex; gap: 10px; align-items: center; margin-top: 5px; }
+        .stat-group { display: flex; align-items: center; gap: 4px; }
+        .stat-dot { width: 7px; height: 7px; border-radius: 50%; }
+        .stat-val { font-size: 12px; color: #94a3b8; font-weight: 600; }
+        
+        .nodes-badge {
+            position: absolute; top: 16px; right: 16px;
+            font-size: 10px; padding: 2px 8px; border-radius: 6px;
+            background: rgba(56,189,248,0.1); color: #38bdf8;
+            border: 1px solid rgba(56,189,248,0.2);
+            font-weight: 700;
         }
-        .footer { text-align: center; margin-top: 50px; color: #334155; font-size: 12px; }
+        
+        /* Main View */
+        .main-content { flex-grow: 1; position: relative; background: #020617; display: flex; flex-direction: column; }
+        #viewer { width: 100%; height: 100%; border: none; }
+        
+        #placeholder {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            text-align: center; transition: opacity 0.3s ease;
+        }
+        #placeholder h2 { font-family: 'Outfit', sans-serif; font-size: 28px; margin-bottom: 10px; color: #1e293b; }
+        #placeholder p { color: #0f172a; font-weight: 600; }
+        
+        .footer-logo {
+            padding: 15px; text-align: center; font-size: 11px; color: #334155;
+            border-top: 1px solid rgba(255,255,255,0.03);
+        }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>📡 Ping Matrix Portal</h1>
-        <p>Select a historical run to open its interactive dashboard</p>
-    </div>
-    <div class="grid">
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h1>📡 Ping Matrix</h1>
+            <p>Historical Analysis Portal</p>
+        </div>
+        <div class="run-list">
 """
     for r in runs:
-        html += f"        <a class='card' href='{r[0]}/resume/ping_matrix_dashboard.html'>\n"
-        html += f"            <div class='card-date'>📅 {r[1]}</div>\n"
-        html += f"            <div class='card-meta'>Run ID: {r[0]}</div>\n"
-        html += f"            <span class='card-badge'>Open Dashboard →</span>\n"
-        html += f"        </a>\n"
+        html += f"""
+            <div class="run-item" onclick="loadRun('{r['path']}', this)">
+                <div class="nodes-badge">{r['nodes']} Nodes</div>
+                <div class="date">📅 {r['label']}</div>
+                <div class="stats">
+                    <div class="stat-group" title="Healthy"><span class="stat-dot" style="background:#4ade80"></span><span class="stat-val">{r['healthy']}</span></div>
+                    <div class="stat-group" title="Warning"><span class="stat-dot" style="background:#fbbf24"></span><span class="stat-val">{r['warn']}</span></div>
+                    <div class="stat-group" title="Critical"><span class="stat-dot" style="background:#f87171"></span><span class="stat-val">{r['crit']}</span></div>
+                    <div class="stat-group" title="Dead"><span class="stat-dot" style="background:#475569"></span><span class="stat-val">{r['dead']}</span></div>
+                </div>
+            </div>"""
 
-    html += """    </div>
-    <div class="footer">
-        Powered by <strong>network-data-extractor</strong> &nbsp;|&nbsp; Click a card to open the interactive dashboard
+    html += """
+        </div>
+        <div class="footer-logo">
+            Powered by <strong>network-data-extractor</strong>
+        </div>
     </div>
+    <div class="main-content">
+        <iframe id="viewer" src="about:blank"></iframe>
+        <div id="placeholder">
+            <h2>No run selected</h2>
+            <p>Select a historical run from the sidebar to view the dashboard</p>
+        </div>
+    </div>
+    
+    <script>
+        function loadRun(path, el) {
+            document.getElementById('viewer').src = path;
+            document.getElementById('placeholder').style.display = 'none';
+            document.querySelectorAll('.run-item').forEach(item => item.classList.remove('active'));
+            if(el) el.classList.add('active');
+        }
+        
+        // Auto-load first run
+        window.onload = () => {
+            const first = document.querySelector('.run-item');
+            if (first) {
+                // Small delay to ensure styles are ready
+                setTimeout(() => first.click(), 100);
+            }
+        };
+    </script>
 </body>
 </html>
 """
