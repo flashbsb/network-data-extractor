@@ -5,7 +5,7 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
- Version : 1.58.1
+ Version : 1.58.3
  Date    : 2026-05-14
  Author  : flashbsb (and contributors)
 
@@ -369,7 +369,7 @@ group_c = parser.add_argument_group("Mode C: Discovery")
 group_c.add_argument("--discovery", action="store_true", help="Enable recursive discovery via LLDP neighbors")
 group_c.add_argument("--hops", type=int, help="(requires --discovery) Number of recursive hops to perform")
 
-group_d = parser.add_argument_group("Mode D: Drift Analysis & Inventory")
+group_d = parser.add_argument_group("Mode D: Workspace Modes")
 group_d.add_argument("--diff", type=str, nargs='?', const='DEFAULT', help="Build Network Drift Workspace in 'diff/' folder. Optional: provide path to collections.")
 group_d.add_argument("--inventory", type=str, nargs='?', const='DEFAULT', help="Build Global Inventory Dashboard in 'inventory/' folder. Optional: provide path to collections.")
 group_d.add_argument("--rebuild-ping-index", action="store_true", help="Rebuild the Historical Analysis Portal (index.html) for Ping Matrix using existing data.")

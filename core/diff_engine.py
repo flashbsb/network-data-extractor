@@ -147,16 +147,37 @@ class DiffEngine:
             print(f"{self.C_YELLOW}[!] Could not re-extract data for flat reports.{self.C_RESET}")
             return
             
+        old_elements = {d['element'] for d in old_data if d['element']}
+        new_elements = {d['element'] for d in new_data if d['element']}
+        
+        missing_in_new = old_elements - new_elements
+        missing_in_old = new_elements - old_elements
+
         old_map = {f"{d['element']}||{d['interface']}": d for d in old_data}
         new_map = {f"{d['element']}||{d['interface']}": d for d in new_data}
         
         all_keys = set(old_map.keys()) | set(new_map.keys())
         diffs = []
         
+        processed_missing_nodes = set()
+        
         for key in all_keys:
             old_item = old_map.get(key)
             new_item = new_map.get(key)
             el, iface = key.split('||')
+            
+            # Fault Isolation Intelligence: Prevent mass interface REMOVED/ADDED if node itself is entirely missing
+            if el in missing_in_new:
+                if el not in processed_missing_nodes:
+                    diffs.append({"type": "NODE_UNREACHABLE", "element": el, "interface": "ALL", "details": {"admin_status": "-", "line_protocol": "NODE OFFLINE", "bandwidth_kbit": "-", "description": "Element missing from new collection (Timeout/Unreachable)"}})
+                    processed_missing_nodes.add(el)
+                continue
+                
+            if el in missing_in_old:
+                if el not in processed_missing_nodes:
+                    diffs.append({"type": "NODE_ADDED", "element": el, "interface": "ALL", "details": {"admin_status": "-", "line_protocol": "NODE ADDED", "bandwidth_kbit": "-", "description": "Element missing from old collection (New Device/Reachable)"}})
+                    processed_missing_nodes.add(el)
+                continue
             
             if not old_item:
                 diffs.append({"type": "ADDED", "element": el, "interface": iface, "details": new_item})
@@ -259,6 +280,8 @@ class DiffEngine:
         .cb-mod { color: var(--warning); }
         .cb-add { color: var(--success); }
         .cb-rem { color: var(--danger); }
+        .cb-node-add { color: var(--success); text-decoration: underline; }
+        .cb-node-rem { color: var(--danger); text-decoration: underline; }
 
         .input-styled { background: #0f172a; border: 1px solid var(--border); color: white; padding: 10px 16px; border-radius: 8px; font-size: 0.85rem; outline: none; transition: border-color 0.2s; min-width: 250px; }
         .input-styled:focus { border-color: var(--accent); }
@@ -278,6 +301,8 @@ class DiffEngine:
         .tag-added { background: var(--success); }
         .tag-removed { background: var(--danger); }
         .tag-modified { background: var(--warning); }
+        .tag-node_added { background: var(--success); box-shadow: 0 0 8px var(--success); }
+        .tag-node_unreachable { background: var(--danger); border: 1px solid white; box-shadow: 0 0 8px var(--danger); }
 
         .val-change-box { display: flex; flex-direction: column; gap: 6px; min-width: 120px; }
         .drift-step { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; }
@@ -342,6 +367,8 @@ class DiffEngine:
                         <label class="checkbox-label cb-mod"><input type="checkbox" class="filter-cb-type" value="MODIFIED" checked onchange="applyFilters()"> MODIFIED</label>
                         <label class="checkbox-label cb-add"><input type="checkbox" class="filter-cb-type" value="ADDED" checked onchange="applyFilters()"> ADDED</label>
                         <label class="checkbox-label cb-rem"><input type="checkbox" class="filter-cb-type" value="REMOVED" checked onchange="applyFilters()"> REMOVED</label>
+                        <label class="checkbox-label cb-node-add"><input type="checkbox" class="filter-cb-type" value="NODE_ADDED" checked onchange="applyFilters()"> NODE ADDED</label>
+                        <label class="checkbox-label cb-node-rem"><input type="checkbox" class="filter-cb-type" value="NODE_UNREACHABLE" checked onchange="applyFilters()"> NODE UNREACHABLE</label>
                     </div>
                 </div>
                 <div class="filter-group">
@@ -368,6 +395,8 @@ class DiffEngine:
                     <div id="statMod" style="color: var(--warning)">0 MODIFIED</div>
                     <div id="statAdd" style="color: var(--success)">0 ADDED</div>
                     <div id="statRem" style="color: var(--danger)">0 REMOVED</div>
+                    <div id="statNodeAdd" style="color: var(--success); text-decoration: underline;">0 NODE ADDED</div>
+                    <div id="statNodeRem" style="color: var(--danger); text-decoration: underline;">0 NODE UNREACHABLE</div>
                 </div>
             </div>
             <div class="compare-body">
@@ -491,16 +520,40 @@ class DiffEngine:
         }
 
         function performDiff(oldData, newData) {
+            const oldElements = new Set(oldData.map(d => d.element));
+            const newElements = new Set(newData.map(d => d.element));
+            
+            const missingInNew = new Set([...oldElements].filter(x => !newElements.has(x)));
+            const missingInOld = new Set([...newElements].filter(x => !oldElements.has(x)));
+
             const oldMap = new Map(oldData.map(d => [`${d.element}||${d.interface}`, d]));
             const newMap = new Map(newData.map(d => [`${d.element}||${d.interface}`, d]));
             const allKeys = new Set([...oldMap.keys(), ...newMap.keys()]);
             
             allDiffs = [];
+            const processedMissingNodes = new Set();
+
             allKeys.forEach(key => {
                 const oldItem = oldMap.get(key);
                 const newItem = newMap.get(key);
                 const [el, iface] = key.split('||');
                 
+                if (missingInNew.has(el)) {
+                    if (!processedMissingNodes.has(el)) {
+                        allDiffs.push({type:'NODE_UNREACHABLE', element:el, interface:'ALL', old:{description:'Element missing from new collection', line_protocol:'NODE OFFLINE', admin_status: '-', bandwidth_kbit: '-'}});
+                        processedMissingNodes.add(el);
+                    }
+                    return;
+                }
+                
+                if (missingInOld.has(el)) {
+                    if (!processedMissingNodes.has(el)) {
+                        allDiffs.push({type:'NODE_ADDED', element:el, interface:'ALL', new:{description:'Element missing from old collection', line_protocol:'NODE ADDED', admin_status: '-', bandwidth_kbit: '-'}});
+                        processedMissingNodes.add(el);
+                    }
+                    return;
+                }
+
                 if(!oldItem) allDiffs.push({type:'ADDED', element:el, interface:iface, new:newItem});
                 else if(!newItem) allDiffs.push({type:'REMOVED', element:el, interface:iface, old:oldItem});
                 else {
@@ -560,10 +613,14 @@ class DiffEngine:
             const modCount = filtered.filter(f => f.type === 'MODIFIED').length;
             const addCount = filtered.filter(f => f.type === 'ADDED').length;
             const remCount = filtered.filter(f => f.type === 'REMOVED').length;
+            const nodeAddCount = filtered.filter(f => f.type === 'NODE_ADDED').length;
+            const nodeRemCount = filtered.filter(f => f.type === 'NODE_UNREACHABLE').length;
             
             document.getElementById('statMod').innerText = `${modCount} MODIFIED`;
             document.getElementById('statAdd').innerText = `${addCount} ADDED`;
             document.getElementById('statRem').innerText = `${remCount} REMOVED`;
+            document.getElementById('statNodeAdd').innerText = `${nodeAddCount} NODE ADDED`;
+            document.getElementById('statNodeRem').innerText = `${nodeRemCount} NODE UNREACHABLE`;
 
             renderTable(filtered, checkedFields);
         }
