@@ -45,6 +45,9 @@ graph TD
     B -->|Normal / --discovery| C[Multithreaded SSH Engine]:::mainEngine
     C -->|"Extracts RAW Logs"| D("📁 /infos/TIMESTAMP/collect"):::folder
     
+    %% Branch 2: Offline Parsing
+    B -->|--offline DIR| D
+    
     D --> E[element_status.py]:::module
     E -->|"Up/Down State"| F(("status.elements.csv")):::csvout
     
@@ -60,18 +63,24 @@ graph TD
     F --> L
     L -->|"Isolations Identified"| M(("topology_warnings.csv")):::csvout
 
-    M --> INVENT[Global Inventory Engine]:::pingmod
+    %% Global Inventory Dashboard
+    M -.->|"Auto-triggers"| INVENT
+    B -->|--inventory| INVENT[Global Inventory Engine]:::pingmod
     INVENT -->|"Historical Consolidation"| INVENTOUT{{"📲 /infos/inventory/index.html"}}:::htmldash
 
-    %% Branch 2: Ping Matrix
+    %% Branch 3: Ping Matrix
     B -->|--ping-matrix| P[ICMP Diagnostic Motor]:::pingmod
     P -->|"All-to-All Test"| Q("📁 /infos/TIMESTAMP/resume"):::folder
     Q --> R(("ping_matrix_list.csv")):::csvout
     Q --> S(("ping_matrix_list.json")):::csvout
     S --> T{{"📲 ping_matrix_dashboard.html"}}:::htmldash
-    T -.->|"Chronological Compilation"| U{{"🌐 infos/index.html (Master Portal)"}}:::htmldash
+    
+    %% Ping Matrix Master Portal
+    T -.->|"Auto-triggers"| U
+    B -->|--rebuild-ping-index| U[Master Portal Generator]:::module
+    U -->|"Chronological Links"| UOUT{{"🌐 infos/index.html"}}:::htmldash
 
-    %% Branch 3: Drift Analysis
+    %% Branch 4: Drift Analysis
     B -->|--diff| V[Diff Engine]:::pingmod
     V -->|"Consumes old JSONs"| W("📁 /infos/diff/"):::folder
     W --> X{{"📲 index.html (Workspace)"}}:::htmldash

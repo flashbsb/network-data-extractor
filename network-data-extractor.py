@@ -5,7 +5,7 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
- Version : 1.58.0
+ Version : 1.58.1
  Date    : 2026-05-14
  Author  : flashbsb (and contributors)
 
@@ -292,15 +292,15 @@ Workflow Options:
       1. Follows Standard Mode but iterates continuously over LLDP neighbors.
       2. Discovers missing routers and creates a new pool file iteratively automatically.
 
-  [D] Drift Analysis Mode (--diff):
-      1. Operates offline without querying devices.
-      2. Compares two snapshot collections to detect configuration drift.
-      3. Generates an interactive High-Performance HTML Dashboard with advanced filters.
+  [D] Workspace Modes (--diff, --inventory, --rebuild-ping-index):
+      1. Operates offline using previously extracted historical data.
+      2. --diff: Compares two snapshot collections to detect configuration drift.
+      3. --inventory: Builds an accumulative Global Inventory Dashboard (Interfaces & Topology).
+      4. --rebuild-ping-index: Regenerates the Master Portal for Ping Matrix.
 
-  [E] Global Inventory Mode (--inventory):
-      1. Operates offline without querying devices.
-      2. Scans previous data collections to build an accumulative historical database.
-      3. Generates an interactive High-Performance HTML Dashboard with Interfaces and Topology.
+  [E] Offline Parsing Mode (--offline):
+      1. Reprocesses raw CLI logs from an existing collection directory.
+      2. Generates new CSV outputs and executes topology validation without SSH connections.
 """
 
 # --- PRE-PARSING TO LOAD SETTINGS ---
