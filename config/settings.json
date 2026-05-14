@@ -104,7 +104,7 @@
         ]
     },
     "ping_matrix": {
-        "_help_ping_matrix": "Configurações específicas para o teste de latência Ping Matrix (quando --ping-matrix ativado).",
+        "_help_ping_matrix": "Specific settings for Ping Matrix latency testing (when --ping-matrix is enabled).",
         "count": 5,
         "datagram_size": 100,
         "timeout": 2,
