@@ -27,6 +27,227 @@ APP_DATE = "2026-05-14"
 
 # ANSI Colors
 C_GREEN = '\033[92m'
+# --- MASTER INDEX DASHBOARD ---
+def generate_master_dashboard(outbase):
+    import re
+    index_path = os.path.join(outbase, "index.html")
+    directories = glob(os.path.join(outbase, "20*_*"))
+    directories.sort(reverse=True)
+    
+    runs = []
+    for d in directories:
+        basename = os.path.basename(d)
+        json_file = os.path.join(d, "resume", "ping_matrix_list.json")
+        html_file = os.path.join(d, "resume", "ping_matrix_dashboard.html")
+        
+        if os.path.isfile(html_file) and os.path.isfile(json_file):
+            try:
+                with open(json_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                
+                # Filter out empty or partial runs without valid data
+                if not data.get("data") or len(data.get("data", [])) == 0:
+                    continue
+                
+                metadata = data.get("metadata", {})
+                health = metadata.get("network_health", {})
+                node_count = metadata.get("nodes_connected", 0)
+                
+                # Derive display date from folder name
+                try:
+                    dt_label = f"{basename[:4]}-{basename[4:6]}-{basename[6:8]} {basename[9:11]}:{basename[11:13]}:{basename[13:15]}"
+                except:
+                    dt_label = basename
+                
+                runs.append({
+                    "id": basename,
+                    "label": dt_label,
+                    "nodes": node_count,
+                    "healthy": health.get("healthy", 0),
+                    "warn": health.get("warning", 0),
+                    "crit": health.get("critical", 0),
+                    "dead": health.get("dead", 0),
+                    "path": f"{basename}/resume/ping_matrix_dashboard.html"
+                })
+            except:
+                continue
+
+    if not runs:
+        return
+
+    # Sort runs by ID descending (newest first)
+    runs.sort(key=lambda x: x["id"], reverse=True)
+
+    html = """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Ping Matrix Master Index</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; padding: 0; font-family: 'Inter', sans-serif; display: flex; height: 100vh; background: #020617; color: #e2e8f0; overflow: hidden; }
+        
+        /* Sidebar */
+        .sidebar { 
+            width: 320px; min-width: 320px;
+            background: #0f172a; 
+            border-right: 1px solid rgba(255,255,255,0.05); 
+            display: flex; flex-direction: column;
+            box-shadow: 10px 0 30px rgba(0,0,0,0.5);
+            z-index: 10;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .sidebar.collapsed { width: 0; min-width: 0; border-right: none; overflow: hidden; }
+        
+        .toggle-sidebar {
+            position: absolute; top: 15px; left: 15px; z-index: 100;
+            background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(8px);
+            border: 1px solid rgba(56,189,248,0.3); color: #38bdf8;
+            padding: 8px 12px; border-radius: 8px; cursor: pointer;
+            font-size: 14px; font-weight: 600; transition: all 0.2s;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .toggle-sidebar:hover { background: rgba(15, 23, 42, 1); border-color: #38bdf8; }
+        .sidebar-header {
+            padding: 25px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .sidebar-header h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 22px; font-weight: 800; margin: 0;
+            background: linear-gradient(90deg, #38bdf8, #818cf8);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .sidebar-header p { font-size: 11px; color: #64748b; margin: 5px 0 0 0; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+        
+        .run-list { flex-grow: 1; overflow-y: auto; padding: 15px 12px; }
+        .run-list::-webkit-scrollbar { width: 4px; }
+        .run-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        
+        .run-item {
+            padding: 16px; margin-bottom: 12px;
+            background: rgba(30, 41, 59, 0.4);
+            border: 1px solid rgba(255,255,255,0.03);
+            border-radius: 12px; cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            border-left: 4px solid transparent;
+        }
+        .run-item:hover {
+            background: rgba(30, 41, 59, 0.7);
+            transform: translateX(4px);
+            border-color: rgba(56,189,248,0.3);
+        }
+        .run-item.active {
+            background: rgba(30, 41, 59, 1);
+            border-left-color: #38bdf8;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+            border-color: rgba(56,189,248,0.2);
+        }
+        
+        .run-item .date { font-size: 14px; font-weight: 700; color: #f1f5f9; margin-bottom: 10px; font-family: 'Outfit', sans-serif; display: flex; align-items: center; gap: 8px; }
+        .run-item .stats { display: flex; gap: 10px; align-items: center; margin-top: 5px; }
+        .stat-group { display: flex; align-items: center; gap: 4px; }
+        .stat-dot { width: 7px; height: 7px; border-radius: 50%; }
+        .stat-val { font-size: 12px; color: #94a3b8; font-weight: 600; }
+        
+        .nodes-badge {
+            position: absolute; top: 16px; right: 16px;
+            font-size: 10px; padding: 2px 8px; border-radius: 6px;
+            background: rgba(56,189,248,0.1); color: #38bdf8;
+            border: 1px solid rgba(56,189,248,0.2);
+            font-weight: 700;
+        }
+        
+        /* Main View */
+        .main-content { flex-grow: 1; position: relative; background: #020617; display: flex; flex-direction: column; }
+        #viewer { width: 100%; height: 100%; border: none; }
+        
+        #placeholder {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            text-align: center; transition: opacity 0.3s ease;
+        }
+        #placeholder h2 { font-family: 'Outfit', sans-serif; font-size: 28px; margin-bottom: 10px; color: #1e293b; }
+        #placeholder p { color: #0f172a; font-weight: 600; }
+        
+        .footer-logo {
+            padding: 15px; text-align: center; font-size: 11px; color: #334155;
+            border-top: 1px solid rgba(255,255,255,0.03);
+        }
+    </style>
+</head>
+<body>
+    <button class="toggle-sidebar" onclick="toggleSidebar()" title="Toggle Sidebar">☰ Menu</button>
+    <div class="sidebar collapsed" id="sidebar">
+        <div class="sidebar-header">
+            <h1>📡 Ping Matrix</h1>
+            <p>Historical Analysis Portal</p>
+        </div>
+        <div class="run-list">
+"""
+    for r in runs:
+        html += f"""
+            <div class="run-item" onclick="loadRun('{r['path']}', this)">
+                <div class="nodes-badge">{r['nodes']} Nodes</div>
+                <div class="date">📅 {r['label']}</div>
+                <div class="stats">
+                    <div class="stat-group" title="Healthy"><span class="stat-dot" style="background:#4ade80"></span><span class="stat-val">{r['healthy']}</span></div>
+                    <div class="stat-group" title="Warning"><span class="stat-dot" style="background:#fbbf24"></span><span class="stat-val">{r['warn']}</span></div>
+                    <div class="stat-group" title="Critical"><span class="stat-dot" style="background:#f87171"></span><span class="stat-val">{r['crit']}</span></div>
+                    <div class="stat-group" title="Dead"><span class="stat-dot" style="background:#475569"></span><span class="stat-val">{r['dead']}</span></div>
+                </div>
+            </div>"""
+
+    html += """
+        </div>
+        <div class="footer-logo">
+            Powered by <strong>network-data-extractor</strong>
+        </div>
+    </div>
+    <div class="main-content">
+        <iframe id="viewer" src="about:blank"></iframe>
+        <div id="placeholder">
+            <h2>No run selected</h2>
+            <p>Select a historical run from the sidebar to view the dashboard</p>
+        </div>
+    </div>
+    
+    <script>
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('collapsed');
+        }
+
+        function loadRun(path, el) {
+            document.getElementById('viewer').src = path;
+            document.getElementById('placeholder').style.display = 'none';
+            document.querySelectorAll('.run-item').forEach(item => item.classList.remove('active'));
+            if(el) el.classList.add('active');
+            
+            // Auto-collapse sidebar on smaller screens after selection
+            if (window.innerWidth < 1024) {
+                document.getElementById('sidebar').classList.add('collapsed');
+            }
+        }
+        
+        // Auto-load first run
+        window.onload = () => {
+            const first = document.querySelector('.run-item');
+            if (first) {
+                // Small delay to ensure styles are ready
+                setTimeout(() => first.click(), 100);
+            }
+        };
+    </script>
+</body>
+</html>
+"""
+    try:
+        with open(index_path, 'w', encoding='utf-8') as f:
+            f.write(html)
+        print(f"\n{C_CYAN}--- Master Index Generated ---{C_RESET}")
+        print(f"[*] Portal available at: {index_path}")
+    except Exception as e:
+        print(f"\n{C_RED}[!] Failed to generate Master Index: {e}{C_RESET}")
 C_RED = '\033[91m'
 C_CYAN = '\033[96m'
 C_YELLOW = '\033[93m'
@@ -151,6 +372,7 @@ group_c.add_argument("--hops", type=int, help="(requires --discovery) Number of 
 group_d = parser.add_argument_group("Mode D: Drift Analysis & Inventory")
 group_d.add_argument("--diff", type=str, nargs='?', const='DEFAULT', help="Build Network Drift Workspace in 'diff/' folder. Optional: provide path to collections.")
 group_d.add_argument("--inventory", type=str, nargs='?', const='DEFAULT', help="Build Global Inventory Dashboard in 'inventory/' folder. Optional: provide path to collections.")
+group_d.add_argument("--rebuild-ping-index", action="store_true", help="Rebuild the Historical Analysis Portal (index.html) for Ping Matrix using existing data.")
 
 group_e = parser.add_argument_group("Mode E: Offline Processing")
 group_e.add_argument("--offline", type=str, metavar="DIR", help="Process existing data in DIR (Incompatible with --discovery/--diff)")
@@ -235,6 +457,12 @@ if args.inventory:
     base_path = args.outbase if args.inventory == 'DEFAULT' else args.inventory
     engine = InventoryEngine(base_path)
     engine.run()
+    sys.exit(0)
+
+# 4.2 Mode D: Rebuild Ping Matrix Index
+if args.rebuild_ping_index:
+    print(f"\n{C_CYAN}--- Rebuilding Ping Matrix Master Index ---{C_RESET}")
+    generate_master_dashboard(args.outbase)
     sys.exit(0)
 
 # 5. Hops Logic
@@ -1024,205 +1252,6 @@ total_seconds = int(duration.total_seconds())
 hours = total_seconds // 3600
 minutes = (total_seconds % 3600) // 60
 seconds = total_seconds % 60
-# --- MASTER INDEX DASHBOARD ---
-def generate_master_dashboard(outbase):
-    import re
-    index_path = os.path.join(outbase, "index.html")
-    directories = glob(os.path.join(outbase, "20*_*"))
-    directories.sort(reverse=True)
-    
-    runs = []
-    for d in directories:
-        basename = os.path.basename(d)
-        json_file = os.path.join(d, "resume", "ping_matrix_list.json")
-        html_file = os.path.join(d, "resume", "ping_matrix_dashboard.html")
-        
-        if os.path.isfile(html_file) and os.path.isfile(json_file):
-            try:
-                with open(json_file, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                
-                # Filter out empty or partial runs without valid data
-                if not data.get("data") or len(data.get("data", [])) == 0:
-                    continue
-                
-                metadata = data.get("metadata", {})
-                health = metadata.get("network_health", {})
-                node_count = metadata.get("nodes_connected", 0)
-                
-                # Derive display date from folder name
-                try:
-                    dt_label = f"{basename[:4]}-{basename[4:6]}-{basename[6:8]} {basename[9:11]}:{basename[11:13]}:{basename[13:15]}"
-                except:
-                    dt_label = basename
-                
-                runs.append({
-                    "id": basename,
-                    "label": dt_label,
-                    "nodes": node_count,
-                    "healthy": health.get("healthy", 0),
-                    "warn": health.get("warning", 0),
-                    "crit": health.get("critical", 0),
-                    "dead": health.get("dead", 0),
-                    "path": f"{basename}/resume/ping_matrix_dashboard.html"
-                })
-            except:
-                continue
-
-    if not runs:
-        return
-
-    # Sort runs by ID descending (newest first)
-    runs.sort(key=lambda x: x["id"], reverse=True)
-
-    html = """<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Ping Matrix Master Index</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
-    <style>
-        body { margin: 0; padding: 0; font-family: 'Inter', sans-serif; display: flex; height: 100vh; background: #020617; color: #e2e8f0; overflow: hidden; }
-        
-        /* Sidebar */
-        .sidebar { 
-            width: 320px; min-width: 320px;
-            background: #0f172a; 
-            border-right: 1px solid rgba(255,255,255,0.05); 
-            display: flex; flex-direction: column;
-            box-shadow: 10px 0 30px rgba(0,0,0,0.5);
-            z-index: 10;
-        }
-        .sidebar-header {
-            padding: 25px 20px;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
-        .sidebar-header h1 {
-            font-family: 'Outfit', sans-serif;
-            font-size: 22px; font-weight: 800; margin: 0;
-            background: linear-gradient(90deg, #38bdf8, #818cf8);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-        }
-        .sidebar-header p { font-size: 11px; color: #64748b; margin: 5px 0 0 0; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
-        
-        .run-list { flex-grow: 1; overflow-y: auto; padding: 15px 12px; }
-        .run-list::-webkit-scrollbar { width: 4px; }
-        .run-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
-        
-        .run-item {
-            padding: 16px; margin-bottom: 12px;
-            background: rgba(30, 41, 59, 0.4);
-            border: 1px solid rgba(255,255,255,0.03);
-            border-radius: 12px; cursor: pointer;
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            border-left: 4px solid transparent;
-        }
-        .run-item:hover {
-            background: rgba(30, 41, 59, 0.7);
-            transform: translateX(4px);
-            border-color: rgba(56,189,248,0.3);
-        }
-        .run-item.active {
-            background: rgba(30, 41, 59, 1);
-            border-left-color: #38bdf8;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.4);
-            border-color: rgba(56,189,248,0.2);
-        }
-        
-        .run-item .date { font-size: 14px; font-weight: 700; color: #f1f5f9; margin-bottom: 10px; font-family: 'Outfit', sans-serif; display: flex; align-items: center; gap: 8px; }
-        .run-item .stats { display: flex; gap: 10px; align-items: center; margin-top: 5px; }
-        .stat-group { display: flex; align-items: center; gap: 4px; }
-        .stat-dot { width: 7px; height: 7px; border-radius: 50%; }
-        .stat-val { font-size: 12px; color: #94a3b8; font-weight: 600; }
-        
-        .nodes-badge {
-            position: absolute; top: 16px; right: 16px;
-            font-size: 10px; padding: 2px 8px; border-radius: 6px;
-            background: rgba(56,189,248,0.1); color: #38bdf8;
-            border: 1px solid rgba(56,189,248,0.2);
-            font-weight: 700;
-        }
-        
-        /* Main View */
-        .main-content { flex-grow: 1; position: relative; background: #020617; display: flex; flex-direction: column; }
-        #viewer { width: 100%; height: 100%; border: none; }
-        
-        #placeholder {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            text-align: center; transition: opacity 0.3s ease;
-        }
-        #placeholder h2 { font-family: 'Outfit', sans-serif; font-size: 28px; margin-bottom: 10px; color: #1e293b; }
-        #placeholder p { color: #0f172a; font-weight: 600; }
-        
-        .footer-logo {
-            padding: 15px; text-align: center; font-size: 11px; color: #334155;
-            border-top: 1px solid rgba(255,255,255,0.03);
-        }
-    </style>
-</head>
-<body>
-    <div class="sidebar">
-        <div class="sidebar-header">
-            <h1>📡 Ping Matrix</h1>
-            <p>Historical Analysis Portal</p>
-        </div>
-        <div class="run-list">
-"""
-    for r in runs:
-        html += f"""
-            <div class="run-item" onclick="loadRun('{r['path']}', this)">
-                <div class="nodes-badge">{r['nodes']} Nodes</div>
-                <div class="date">📅 {r['label']}</div>
-                <div class="stats">
-                    <div class="stat-group" title="Healthy"><span class="stat-dot" style="background:#4ade80"></span><span class="stat-val">{r['healthy']}</span></div>
-                    <div class="stat-group" title="Warning"><span class="stat-dot" style="background:#fbbf24"></span><span class="stat-val">{r['warn']}</span></div>
-                    <div class="stat-group" title="Critical"><span class="stat-dot" style="background:#f87171"></span><span class="stat-val">{r['crit']}</span></div>
-                    <div class="stat-group" title="Dead"><span class="stat-dot" style="background:#475569"></span><span class="stat-val">{r['dead']}</span></div>
-                </div>
-            </div>"""
-
-    html += """
-        </div>
-        <div class="footer-logo">
-            Powered by <strong>network-data-extractor</strong>
-        </div>
-    </div>
-    <div class="main-content">
-        <iframe id="viewer" src="about:blank"></iframe>
-        <div id="placeholder">
-            <h2>No run selected</h2>
-            <p>Select a historical run from the sidebar to view the dashboard</p>
-        </div>
-    </div>
-    
-    <script>
-        function loadRun(path, el) {
-            document.getElementById('viewer').src = path;
-            document.getElementById('placeholder').style.display = 'none';
-            document.querySelectorAll('.run-item').forEach(item => item.classList.remove('active'));
-            if(el) el.classList.add('active');
-        }
-        
-        // Auto-load first run
-        window.onload = () => {
-            const first = document.querySelector('.run-item');
-            if (first) {
-                // Small delay to ensure styles are ready
-                setTimeout(() => first.click(), 100);
-            }
-        };
-    </script>
-</body>
-</html>
-"""
-    try:
-        with open(index_path, 'w', encoding='utf-8') as f:
-            f.write(html)
-        print(f"\n{C_CYAN}--- Master Index Generated ---{C_RESET}")
-        print(f"[*] Portal available at: {index_path}")
-    except Exception as e:
-        print(f"\n{C_RED}[!] Failed to generate Master Index: {e}{C_RESET}")
 
 if args.ping_matrix:
     generate_master_dashboard(os.path.dirname(TIMESTAMP_DIR))
