@@ -1061,9 +1061,16 @@ function renderMatrix() {
     dataMap = {};
     globalData.data.forEach(d => { 
         dataMap[`${d.origin}|${d.dest}`] = d; 
-        if(d.is_unreachable || d.consistently_denied) stDead++;
-        else if (d.jitter_warning) stJitter++;
-        else if (d.asymmetric_warning) stAsym++;
+        
+        // Match the logic in checkCond
+        const isCrit = d.loss_pct > 50 || d.is_unreachable || d.consistently_denied;
+        const isLoss = d.loss_pct > 0 && d.loss_pct <= 50;
+        const isJit = d.jitter_warning;
+        const isAsym = d.asymmetric_warning;
+
+        if (isCrit || isLoss) stDead++;
+        else if (isJit) stJitter++;
+        else if (isAsym) stAsym++;
         else stGood++;
     });
 
