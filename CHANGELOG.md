@@ -2,6 +2,28 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.58.0] - 2026-05-14
+### Added
+- **Admin State vs Oper Protocol Separation**: Deeply decoupled the interface tracking on the Inventory Dashboard. Checkbox filters and main dashboard metrics now differentiate between Administrative intent (`Admin UP`/`Admin DOWN`) and actual physical/logical line status (`Oper UP`/`Oper DOWN`).
+- **Fault Tracking Card**: Added a dedicated, highlighted metrics card ("FAULTS") specifically engineered to intercept critical failure conditions: `Admin UP` (Port enabled) paired with `Oper DOWN` (Link lost). This dramatically accelerates NOC troubleshooting workflows.
+
+## [1.57.0] - 2026-05-14
+### Added
+- **Dynamic CSV Export**: The Inventory Dashboard now features a local CSV export button (`📥 Export CSV`) that dynamically downloads the currently active table (Interfaces or Topology) while fully respecting applied logic filters.
+- **Advanced Inventory Search**: Integrated a powerful logical search engine supporting `AND` (semicolon/space), `OR` (pipe/comma), and `NOT` (minus/exclamation) syntax directly into the dashboard.
+- **Reactive Metric Cards**: The main summary cards (Total Interfaces, Links, Devices, etc.) now instantly recalculate their values in real-time as search filters are typed.
+
+### Fixed
+- **Subinterface Phantom Capacity Bug**: Restructured the phase 3 deduplication engine in `core/interface2connection.py`. The algorithm now aggressively strips subinterface demarcations (`.\d+$`), collapsing multiple logical definitions over the same physical port into a single correct connection, thus displaying the accurate physical capacity (e.g., 1x 1G instead of 1x 1G + 1x 100M).
+- **Responsive Layout**: Forced strict `100vw` layout rules and flexbox zero-minimum bounds (`min-width: 0`) to prevent large tables from ignoring their horizontal overflow containers and pushing the main dashboard layout out of screen.
+
+## [1.56.0] - 2026-05-14
+### Added
+- **Global Inventory Dashboard (`--inventory`)**: Added a new offline execution mode that scans previous historical collections (`infos/`) and builds a cumulative HTML dashboard. It features an interactive UI for visualizing the complete network Interface List and Topology Links across different execution dates.
+- **Automated Inventory Extraction**: The main orchestrator now automatically invokes the Inventory Engine at the end of every successful standard SSH extraction, keeping the global dashboard permanently up-to-date without user intervention.
+- **CORS-Free Dynamic Loading**: Implemented a JS-payload wrapping mechanism for the Inventory Dashboard, completely bypassing browser CORS restrictions for local `file:///` viewing without a web server.
+
+
 ## [1.55.0] - 2026-05-04
 ### Added
 - **Universal Offline Architecture**: `core/ping_matrix.py` now supports the `--offline` flag. It can bypass SSH entirely, reading cached `.txt` ICMP responses from a previous extraction to instantly regenerate the High-Performance Dashboard and CSVs.

@@ -5,8 +5,8 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
- Version : 1.55.0
- Date    : 2026-05-04
+ Version : 1.58.0
+ Date    : 2026-05-14
  Author  : flashbsb (and contributors)
 
 """
@@ -22,8 +22,8 @@ import getpass
 from datetime import datetime
 from glob import glob
 
-APP_VERSION = "1.55.0"
-APP_DATE = "2026-05-04"
+APP_VERSION = "1.58.0"
+APP_DATE = "2026-05-14"
 
 # ANSI Colors
 C_GREEN = '\033[92m'
@@ -75,6 +75,11 @@ Workflow Options:
       1. Operates offline without querying devices.
       2. Compares two snapshot collections to detect configuration drift.
       3. Generates an interactive High-Performance HTML Dashboard with advanced filters.
+
+  [E] Global Inventory Mode (--inventory):
+      1. Operates offline without querying devices.
+      2. Scans previous data collections to build an accumulative historical database.
+      3. Generates an interactive High-Performance HTML Dashboard with Interfaces and Topology.
 """
 
 # --- PRE-PARSING TO LOAD SETTINGS ---
@@ -143,8 +148,9 @@ group_c = parser.add_argument_group("Mode C: Discovery")
 group_c.add_argument("--discovery", action="store_true", help="Enable recursive discovery via LLDP neighbors")
 group_c.add_argument("--hops", type=int, help="(requires --discovery) Number of recursive hops to perform")
 
-group_d = parser.add_argument_group("Mode D: Drift Analysis")
+group_d = parser.add_argument_group("Mode D: Drift Analysis & Inventory")
 group_d.add_argument("--diff", type=str, nargs='?', const='DEFAULT', help="Build Network Drift Workspace in 'diff/' folder. Optional: provide path to collections.")
+group_d.add_argument("--inventory", type=str, nargs='?', const='DEFAULT', help="Build Global Inventory Dashboard in 'inventory/' folder. Optional: provide path to collections.")
 
 group_e = parser.add_argument_group("Mode E: Offline Processing")
 group_e.add_argument("--offline", type=str, metavar="DIR", help="Process existing data in DIR (Incompatible with --discovery/--diff)")
@@ -177,13 +183,15 @@ if args.discovery and args.ping_matrix:
     print(f"{C_RED}ERROR: --discovery and --ping-matrix are mutually exclusive.{C_RESET}")
     sys.exit(1)
 
-# 3. Mode E: Offline Processing Validations (Pre-Checks)
 if args.offline:
     if args.discovery:
         print(f"{C_RED}ERROR: --offline and --discovery are mutually exclusive.{C_RESET}")
         sys.exit(1)
     if args.diff:
         print(f"{C_RED}ERROR: --offline and --diff are mutually exclusive.{C_RESET}")
+        sys.exit(1)
+    if args.inventory:
+        print(f"{C_RED}ERROR: --offline and --inventory are mutually exclusive.{C_RESET}")
         sys.exit(1)
 
 # 4. Mode D: Drift Analysis Validations
@@ -196,6 +204,7 @@ if args.diff:
     if args.discovery: ignored_flags.append("--discovery")
     if args.force: ignored_flags.append("--force")
     if args.threads != def_threads: ignored_flags.append("--threads")
+    if args.inventory: ignored_flags.append("--inventory")
     
     if ignored_flags:
         print(f"{C_YELLOW}Warning: The following flags are ignored in Drift Analysis mode (--diff): {', '.join(ignored_flags)}{C_RESET}")
@@ -204,6 +213,27 @@ if args.diff:
     from core.diff_engine import DiffEngine
     base_path = args.outbase if args.diff == 'DEFAULT' else args.diff
     engine = DiffEngine(base_path)
+    engine.run()
+    sys.exit(0)
+
+# 4.1 Mode D: Inventory Dashboard Validations
+if args.inventory:
+    ignored_flags = []
+    if args.user: ignored_flags.append("--user")
+    if args.password: ignored_flags.append("--password")
+    if args.key: ignored_flags.append("--key")
+    if args.ping_matrix: ignored_flags.append("--ping-matrix")
+    if args.discovery: ignored_flags.append("--discovery")
+    if args.force: ignored_flags.append("--force")
+    if args.threads != def_threads: ignored_flags.append("--threads")
+    
+    if ignored_flags:
+        print(f"{C_YELLOW}Warning: The following flags are ignored in Inventory mode (--inventory): {', '.join(ignored_flags)}{C_RESET}")
+    
+    print(f"\n{C_CYAN}--- Network Inventory Workspace: Initialization ---{C_RESET}")
+    from core.inventory_engine import InventoryEngine
+    base_path = args.outbase if args.inventory == 'DEFAULT' else args.inventory
+    engine = InventoryEngine(base_path)
     engine.run()
     sys.exit(0)
 
@@ -1196,6 +1226,17 @@ def generate_master_dashboard(outbase):
 
 if args.ping_matrix:
     generate_master_dashboard(os.path.dirname(TIMESTAMP_DIR))
+
+# --- INVENTORY ENGINE HOOK ---
+if not args.offline and not args.ping_matrix and not args.discovery:
+    print(f"\n{C_CYAN}--- Updating Global Inventory Dashboard ---{C_RESET}")
+    try:
+        from core.inventory_engine import InventoryEngine
+        inv_engine = InventoryEngine(args.outbase)
+        inv_engine.run()
+    except Exception as e:
+        print(f"{C_RED}[!] Failed to update Inventory Dashboard: {e}{C_RESET}")
+        log_orchestrator(f"Inventory Engine failed: {e}")
 
 # --- OUTPUT COMPRESSION ---
 comp_cfg = json_config.get("compression", {})

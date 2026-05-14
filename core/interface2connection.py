@@ -179,7 +179,8 @@ def main():
             'bw_val': bw_val,
             'dashed': dashed,
             'admin': admin,
-            'protocol': protocol
+            'protocol': protocol,
+            'original_element': src_element
         })
 
     # Phase 3: Deduplication and Normalization
@@ -191,9 +192,35 @@ def main():
         # We assume that a cable of the same speed existing in both directions is just one physical link
         # Strategy: Differentiate by speed, and take the maximum symmetric count.
         
-        # Count connections declared by side
-        speed_counts = {}
+        # Collapse subinterfaces into their physical ports per node
+        # e.g., GigabitEthernet0/0/0.1170 -> GigabitEthernet0/0/0
+        node_a_ports = {}
+        node_b_ports = {}
+        
         for link in links:
+            elem = link['original_element']
+            port = link['source_port']
+            # Remove any subinterface indicator (dot followed by numbers at the end)
+            phys_port = re.sub(r'\.\d+$', '', port)
+            
+            target_dict = node_a_ports if elem == node_a else node_b_ports
+            
+            if phys_port not in target_dict:
+                target_dict[phys_port] = link.copy()
+            else:
+                # Merge logic: if this subinterface has higher bandwidth, adopt it
+                if link['bw_val'] > target_dict[phys_port]['bw_val']:
+                    target_dict[phys_port]['bw_val'] = link['bw_val']
+                    target_dict[phys_port]['label'] = link['label']
+                # If ANY subinterface is UP, the whole physical link is UP
+                if link['dashed'] == '':
+                    target_dict[phys_port]['dashed'] = ''
+
+        unique_links = list(node_a_ports.values()) + list(node_b_ports.values())
+        
+        # Count connections declared by side using the normalized physical links
+        speed_counts = {}
+        for link in unique_links:
             spd = link['bw_val']
             speed_counts[spd] = speed_counts.get(spd, 0) + 1
             
@@ -204,7 +231,7 @@ def main():
             real_count = (count // 2) + (count % 2)
             
             # Find a representative link object to extract styles
-            rep_link = next(l for l in links if l['bw_val'] == spd)
+            rep_link = next(l for l in unique_links if l['bw_val'] == spd)
             width, color = get_style(spd)
             
             # Create detailed rows (one for each physical cable)
@@ -226,11 +253,11 @@ def main():
         # Create one summarized row per node pair
         if deduplicated_links:
             # e.g., "Max Width" logic for the summarized edge
-            max_spd_link = max(links, key=lambda x: x['bw_val'])
+            max_spd_link = max(unique_links, key=lambda x: x['bw_val'])
             width, color = get_style(max_spd_link['bw_val'])
             
-            # The line should be dashed ONLY if EVERY single link is down (dashed == 1)
-            all_down = all(link.get('dashed') == 1 for link in links)
+            # The line should be dashed ONLY if EVERY single physical link is down
+            all_down = all(link.get('dashed') == 1 for link in unique_links)
             agg_dashed = 1 if all_down else ''
             
             summarized_rows.append({
