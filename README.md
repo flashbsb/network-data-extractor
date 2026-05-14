@@ -1,6 +1,6 @@
 # Network Data Extractor
 
-![Version](https://img.shields.io/badge/version-1.58.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.58.2-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8%2B-green.svg)
 
 **Network Data Extractor** is an automated orchestrator built for network engineers and NOCs (Network Operations Centers). It performs massive, parallel SSH polling across dozens or hundreds of network elements (Cisco, Datacom, Huawei, HP, etc.), extracting raw command outputs (`show interfaces`, `show lldp neighbors`, etc.) and consolidating this raw data into CSV spreadsheets and logical topology maps ready for structural analysis.
@@ -25,65 +25,66 @@ Its main goal is to eliminate the need for manual inventories or box-by-box acce
 
 ## ⚙️ Operational Workflow
 
-The tool operates on a modular routing engine tailored for *Raw Ingestion -> Data Processing -> Consolidation*, and exclusively branches when specific diagnostic modes (like Matrix or Discovery) are invoked.
+The tool operates on a modular routing engine divided into five main execution branches ([A] to [E]):
+
+1.  **[A] Standard Mode**: Full SSH extraction and topology parsing.
+2.  **[B] Ping Matrix**: Latency and loss diagnostics (ICMP).
+3.  **[C] Discovery**: Recursive auto-expansion via LLDP.
+4.  **[D] Workspaces**: Offline generation of Comparative or Accumulative Dashboards.
+5.  **[E] Offline Parsing**: Re-processing of previously collected raw logs.
 
 ```mermaid
 graph TD
     %% Styling Definitions
-    classDef mainEngine fill:#3b82f6,stroke:#1e3a8a,stroke-width:2px,color:#fff,rx:8px,ry:8px;
-    classDef branch fill:#8b5cf6,stroke:#4c1d95,stroke-width:2px,color:#fff,rx:8px,ry:8px;
-    classDef module fill:#f59e0b,stroke:#b45309,stroke-width:2px,color:#fff,rx:8px,ry:8px;
-    classDef pingmod fill:#ec4899,stroke:#831843,stroke-width:2px,color:#fff,rx:8px,ry:8px;
-    classDef folder fill:#10b981,stroke:#064e3b,stroke-width:2px,color:#fff,rx:8px,ry:8px;
-    classDef csvout fill:#374151,stroke:#1f2937,stroke-width:2px,color:#4ade80;
-    classDef htmldash fill:#0f172a,stroke:#38bdf8,stroke-width:3px,color:#38bdf8;
+    classDef engine fill:#2563eb,stroke:#1e3a8a,stroke-width:2px,color:#fff,rx:10,ry:10;
+    classDef branch fill:#7c3aed,stroke:#4c1d95,stroke-width:2px,color:#fff,rx:10,ry:10;
+    classDef storage fill:#059669,stroke:#064e3b,stroke-width:2px,color:#fff,rx:5,ry:5;
+    classDef module fill:#d97706,stroke:#92400e,stroke-width:2px,color:#fff;
+    classDef web fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#38bdf8,rx:10,ry:10;
+    classDef csv fill:#475569,stroke:#1e293b,stroke-width:1px,color:#94a3b8;
 
-    %% Entry
-    A["⚡ CLI Args / Wizard"]:::mainEngine --> B{Execution Mode}:::branch
-    
-    %% Branch 1: Normal Extraction
-    B -->|Normal / --discovery| C[Multithreaded SSH Engine]:::mainEngine
-    C -->|"Extracts RAW Logs"| D("📁 /infos/TIMESTAMP/collect"):::folder
-    
-    %% Branch 2: Offline Parsing
-    B -->|--offline DIR| D
-    
-    D --> E[element_status.py]:::module
-    E -->|"Up/Down State"| F(("status.elements.csv")):::csvout
-    
-    D --> G{Data Parsers}:::module
-    G -.->|LLDP Regex| H["lldp_neighbors.csv"]:::csvout
-    G -.->|Int. Regex| I["interfaces_all.csv"]:::csvout
-    
-    I --> J[interface2connection.py]:::module
-    J -->|"Topology Mapping"| K(("topology.connections.csv")):::csvout
-    
-    K --> L[topology_checker.py]:::module
-    H --> L
-    F --> L
-    L -->|"Isolations Identified"| M(("topology_warnings.csv")):::csvout
+    %% Entry Point
+    START["🚀 CLI / WIZARD"]:::engine --> MODE{EXECUTION MODE}:::branch
 
-    %% Global Inventory Dashboard
-    M -.->|"Auto-triggers"| INVENT
-    B -->|--inventory| INVENT[Global Inventory Engine]:::pingmod
-    INVENT -->|"Historical Consolidation"| INVENTOUT{{"📲 /infos/inventory/index.html"}}:::htmldash
+    subgraph "STANDARD EXTRACTION [A] & DISCOVERY [C]"
+        MODE -->|"--discovery"| DISCO[Discovery Loop]:::module
+        DISCO --> SSH
+        MODE -->|"Standard (Default)"| SSH[Multithreaded SSH Engine]:::engine
+        SSH --> RAW[("📁 collect/RAW_LOGS")]:::storage
+    end
 
-    %% Branch 3: Ping Matrix
-    B -->|--ping-matrix| P[ICMP Diagnostic Motor]:::pingmod
-    P -->|"All-to-All Test"| Q("📁 /infos/TIMESTAMP/resume"):::folder
-    Q --> R(("ping_matrix_list.csv")):::csvout
-    Q --> S(("ping_matrix_list.json")):::csvout
-    S --> T{{"📲 ping_matrix_dashboard.html"}}:::htmldash
-    
-    %% Ping Matrix Master Portal
-    T -.->|"Auto-triggers"| U
-    B -->|--rebuild-ping-index| U[Master Portal Generator]:::module
-    U -->|"Chronological Links"| UOUT{{"🌐 infos/index.html"}}:::htmldash
+    subgraph "OFFLINE PARSING [E]"
+        MODE -->|"--offline DIR"| RAW
+        RAW --> PARSE{Data Parsers}:::module
+        PARSE --> CSV_INT["📄 interfaces_all.csv"]:::csv
+        PARSE --> CSV_LLDP["📄 lldp_neighbors.csv"]:::csv
+        PARSE --> CSV_STAT["📄 status.elements.csv"]:::csv
+        
+        CSV_INT & CSV_LLDP & CSV_STAT --> TOPO[Topology Checker]:::module
+        TOPO --> CSV_WARN["📄 topology_warnings.csv"]:::csv
+    end
 
-    %% Branch 4: Drift Analysis
-    B -->|--diff| V[Diff Engine]:::pingmod
-    V -->|"Consumes old JSONs"| W("📁 /infos/diff/"):::folder
-    W --> X{{"📲 index.html (Workspace)"}}:::htmldash
+    subgraph "PING MATRIX [B]"
+        MODE -->|"--ping-matrix"| ICMP[ICMP Diagnostic Motor]:::engine
+        ICMP --> PING_RES[("📁 resume/PING_DATA")]:::storage
+        PING_RES --> PING_HTML{{"📲 ping_matrix_dashboard.html"}}:::web
+    end
+
+    subgraph "WORKSPACE MODES [D]"
+        MODE -->|"--inventory"| INV_GEN[Global Inventory Builder]:::module
+        CSV_WARN -.->|"Auto-trigger"| INV_GEN
+        INV_GEN --> INV_HTML{{"📲 inventory/index.html"}}:::web
+
+        MODE -->|"--diff"| DIFF_GEN[Drift Analysis Engine]:::module
+        DIFF_GEN --> DIFF_HTML{{"📲 diff/index.html"}}:::web
+
+        MODE -->|"--rebuild-ping-index"| PM_GEN[Master Index Generator]:::module
+        PING_HTML -.->|"Auto-trigger"| PM_GEN
+        PM_GEN --> PM_HTML{{"🌐 infos/index.html"}}:::web
+    end
+
+    %% Link styles
+    linkStyle default stroke:#64748b,stroke-width:1px;
 ```
 
 ---

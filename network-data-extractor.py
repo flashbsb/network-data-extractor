@@ -22,7 +22,7 @@ import getpass
 from datetime import datetime
 from glob import glob
 
-APP_VERSION = "1.58.0"
+APP_VERSION = "1.58.2"
 APP_DATE = "2026-05-14"
 
 # ANSI Colors
@@ -374,7 +374,7 @@ group_d.add_argument("--diff", type=str, nargs='?', const='DEFAULT', help="Build
 group_d.add_argument("--inventory", type=str, nargs='?', const='DEFAULT', help="Build Global Inventory Dashboard in 'inventory/' folder. Optional: provide path to collections.")
 group_d.add_argument("--rebuild-ping-index", action="store_true", help="Rebuild the Historical Analysis Portal (index.html) for Ping Matrix using existing data.")
 
-group_e = parser.add_argument_group("Mode E: Offline Processing")
+group_e = parser.add_argument_group("Mode E: Offline Parsing Mode")
 group_e.add_argument("--offline", type=str, metavar="DIR", help="Process existing data in DIR (Incompatible with --discovery/--diff)")
 
 args = parser.parse_args()
