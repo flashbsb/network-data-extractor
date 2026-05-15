@@ -5,8 +5,8 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
- Version : 1.58.3
- Date    : 2026-05-14
+ Version : 1.58.4
+ Date    : 2026-05-15
  Author  : flashbsb (and contributors)
 
 """
@@ -30,22 +30,33 @@ C_GREEN = '\033[92m'
 # --- MASTER INDEX DASHBOARD ---
 def generate_master_dashboard(outbase):
     import re
-    index_path = os.path.join(outbase, "index.html")
-    directories = glob(os.path.join(outbase, "20*_*"))
-    directories.sort(reverse=True)
-    
+    portal_dir = os.path.join(outbase, "ping-matrix")
+    os.makedirs(portal_dir, exist_ok=True)
+    index_path = os.path.join(portal_dir, "index.html")
     runs = []
-    for d in directories:
-        basename = os.path.basename(d)
-        json_file = os.path.join(d, "resume", "ping_matrix_list.json")
-        html_file = os.path.join(d, "resume", "ping_matrix_dashboard.html")
+    # Ensure outbase is absolute for reliable globbing
+    abs_outbase = os.path.abspath(outbase)
+    portal_dir = os.path.join(abs_outbase, "ping-matrix")
+    os.makedirs(portal_dir, exist_ok=True)
+    
+    # Search for all timestamped run subfolders inside ping-matrix/
+    run_dirs = sorted(glob(os.path.join(portal_dir, "20*_*")), reverse=True)
+    
+    for run_dir in run_dirs:
+        if not os.path.isdir(run_dir):
+            continue
+        ts_id = os.path.basename(run_dir)
+        
+        # Legacy structure: TIMESTAMP/resume/ping_matrix_*.json
+        json_file = os.path.join(run_dir, "resume", "ping_matrix_list.json")
+        html_file = os.path.join(run_dir, "resume", "ping_matrix_dashboard.html")
         
         if os.path.isfile(html_file) and os.path.isfile(json_file):
             try:
                 with open(json_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                 
-                # Filter out empty or partial runs without valid data
+                # Filter out empty or partial runs
                 if not data.get("data") or len(data.get("data", [])) == 0:
                     continue
                 
@@ -53,26 +64,29 @@ def generate_master_dashboard(outbase):
                 health = metadata.get("network_health", {})
                 node_count = metadata.get("nodes_connected", 0)
                 
-                # Derive display date from folder name
+                # Derive display date from folder name YYYYMMDD_HHMMSS
                 try:
-                    dt_label = f"{basename[:4]}-{basename[4:6]}-{basename[6:8]} {basename[9:11]}:{basename[11:13]}:{basename[13:15]}"
+                    dt_label = f"{ts_id[:4]}-{ts_id[4:6]}-{ts_id[6:8]} {ts_id[9:11]}:{ts_id[11:13]}:{ts_id[13:15]}"
                 except:
-                    dt_label = basename
+                    dt_label = ts_id
                 
                 runs.append({
-                    "id": basename,
+                    "id": ts_id,
                     "label": dt_label,
                     "nodes": node_count,
                     "healthy": health.get("healthy", 0),
                     "warn": health.get("warning", 0),
                     "crit": health.get("critical", 0),
                     "dead": health.get("dead", 0),
-                    "path": f"{basename}/resume/ping_matrix_dashboard.html"
+                    # Path relative from ping-matrix/index.html -> ping-matrix/TIMESTAMP/resume/
+                    "path": f"{ts_id}/resume/ping_matrix_dashboard.html"
                 })
-            except:
+            except Exception:
                 continue
 
     if not runs:
+        print(f"    {C_YELLOW}[!] No valid Ping Matrix runs found in: {portal_dir}{C_RESET}")
+        print(f"    {C_YELLOW}    (Run with --ping-matrix to generate new runs){C_RESET}")
         return
 
     # Sort runs by ID descending (newest first)
@@ -296,7 +310,7 @@ Workflow Options:
       1. Operates offline using previously extracted historical data.
       2. --diff: Compares two snapshot collections to detect configuration drift.
       3. --inventory: Builds an accumulative Global Inventory Dashboard (Interfaces & Topology).
-      4. --rebuild-ping-index: Regenerates the Master Portal for Ping Matrix.
+      4. --rebuild-ping-index: Regenerates the Master Portal (Historical Analysis) for Ping Matrix in 'ping-matrix/' folder.
 
   [E] Offline Parsing Mode (--offline):
       1. Reprocesses raw CLI logs from an existing collection directory.
@@ -372,7 +386,7 @@ group_c.add_argument("--hops", type=int, help="(requires --discovery) Number of 
 group_d = parser.add_argument_group("Mode D: Workspace Modes")
 group_d.add_argument("--diff", type=str, nargs='?', const='DEFAULT', help="Build Network Drift Workspace in 'diff/' folder. Optional: provide path to collections.")
 group_d.add_argument("--inventory", type=str, nargs='?', const='DEFAULT', help="Build Global Inventory Dashboard in 'inventory/' folder. Optional: provide path to collections.")
-group_d.add_argument("--rebuild-ping-index", action="store_true", help="Rebuild the Historical Analysis Portal (index.html) for Ping Matrix using existing data.")
+group_d.add_argument("--rebuild-ping-index", action="store_true", help="Rebuild the Historical Analysis Portal (index.html) in 'ping-matrix/' folder using existing data.")
 
 group_e = parser.add_argument_group("Mode E: Offline Parsing Mode")
 group_e.add_argument("--offline", type=str, metavar="DIR", help="Process existing data in DIR (Incompatible with --discovery/--diff)")
@@ -401,9 +415,10 @@ if not args.discovery:
     if args.hops is not None:
         print(f"{C_RED}ERROR: --hops can only be used with --discovery.{C_RESET}")
         sys.exit(1)
-if args.discovery and args.ping_matrix:
-    print(f"{C_RED}ERROR: --discovery and --ping-matrix are mutually exclusive.{C_RESET}")
-    sys.exit(1)
+# Removed mutual exclusivity between discovery and ping-matrix to allow chained execution
+# if args.discovery and args.ping_matrix:
+#     print(f"{C_RED}ERROR: --discovery and --ping-matrix are mutually exclusive.{C_RESET}")
+#     sys.exit(1)
 
 if args.offline:
     if args.discovery:
@@ -418,52 +433,45 @@ if args.offline:
 
 # 4. Mode D: Drift Analysis Validations
 if args.diff:
-    ignored_flags = []
-    if args.user: ignored_flags.append("--user")
-    if args.password: ignored_flags.append("--password")
-    if args.key: ignored_flags.append("--key")
-    if args.ping_matrix: ignored_flags.append("--ping-matrix")
-    if args.discovery: ignored_flags.append("--discovery")
-    if args.force: ignored_flags.append("--force")
-    if args.threads != def_threads: ignored_flags.append("--threads")
-    if args.inventory: ignored_flags.append("--inventory")
+    # If we are NOT doing a live run or offline parsing, run standalone and exit
+    is_standalone = not (args.user or args.ping_matrix or args.discovery or args.offline)
     
-    if ignored_flags:
-        print(f"{C_YELLOW}Warning: The following flags are ignored in Drift Analysis mode (--diff): {', '.join(ignored_flags)}{C_RESET}")
-    
-    print(f"\n{C_CYAN}--- Network Drift Workspace: Initialization ---{C_RESET}")
-    from core.diff_engine import DiffEngine
-    base_path = args.outbase if args.diff == 'DEFAULT' else args.diff
-    engine = DiffEngine(base_path)
-    engine.run()
-    sys.exit(0)
+    if is_standalone:
+        print(f"\n{C_CYAN}--- Network Drift Workspace: Initialization ---{C_RESET}")
+        from core.diff_engine import DiffEngine
+        base_path = args.outbase if args.diff == 'DEFAULT' else args.diff
+        engine = DiffEngine(base_path)
+        engine.run()
+        sys.exit(0)
+    else:
+        # We will run this at the end of the collection
+        pass
 
 # 4.1 Mode D: Inventory Dashboard Validations
 if args.inventory:
-    ignored_flags = []
-    if args.user: ignored_flags.append("--user")
-    if args.password: ignored_flags.append("--password")
-    if args.key: ignored_flags.append("--key")
-    if args.ping_matrix: ignored_flags.append("--ping-matrix")
-    if args.discovery: ignored_flags.append("--discovery")
-    if args.force: ignored_flags.append("--force")
-    if args.threads != def_threads: ignored_flags.append("--threads")
+    # If we are NOT doing a live run or offline parsing, run standalone and exit
+    is_standalone = not (args.user or args.ping_matrix or args.discovery or args.offline)
     
-    if ignored_flags:
-        print(f"{C_YELLOW}Warning: The following flags are ignored in Inventory mode (--inventory): {', '.join(ignored_flags)}{C_RESET}")
-    
-    print(f"\n{C_CYAN}--- Network Inventory Workspace: Initialization ---{C_RESET}")
-    from core.inventory_engine import InventoryEngine
-    base_path = args.outbase if args.inventory == 'DEFAULT' else args.inventory
-    engine = InventoryEngine(base_path)
-    engine.run()
-    sys.exit(0)
+    if is_standalone:
+        print(f"\n{C_CYAN}--- Network Inventory Workspace: Initialization ---{C_RESET}")
+        from core.inventory_engine import InventoryEngine
+        base_path = args.outbase if args.inventory == 'DEFAULT' else args.inventory
+        engine = InventoryEngine(base_path)
+        engine.run()
+        sys.exit(0)
+    else:
+        # We will run this at the end of the collection (it already runs by default for standard mode)
+        pass
 
 # 4.2 Mode D: Rebuild Ping Matrix Index
 if args.rebuild_ping_index:
-    print(f"\n{C_CYAN}--- Rebuilding Ping Matrix Master Index ---{C_RESET}")
-    generate_master_dashboard(args.outbase)
-    sys.exit(0)
+    # If we are NOT doing a live run or offline parsing, run standalone and exit
+    is_standalone = not (args.user or args.ping_matrix or args.discovery or args.offline)
+    
+    if is_standalone:
+        print(f"\n{C_CYAN}--- Rebuilding Ping Matrix Master Index ---{C_RESET}")
+        generate_master_dashboard(args.outbase)
+        sys.exit(0)
 
 # 5. Hops Logic
 if args.offline:
@@ -834,16 +842,25 @@ consolidation_scripts = [
 
 # When discovery is active, we focus ONLY on essential scripts to map the network faster.
 if args.ping_matrix:
-    # Exclusive Ping Matrix runner
-    SCRIPTS = ["core/ping_matrix.py"]
-    consolidation_scripts = []
-elif args.discovery:
+    # Check if we should run it EXCLUSIVELY (standalone) or as an ADDITION (chained)
+    is_standalone_ping = not (args.user or args.discovery or args.offline)
+    if is_standalone_ping:
+        SCRIPTS = ["core/ping_matrix.py"]
+        consolidation_scripts = []
+    else:
+        # Chained execution: Standard Mode + Ping Matrix
+        if "core/ping_matrix.py" not in SCRIPTS:
+            SCRIPTS.append("core/ping_matrix.py")
+
+if args.discovery:
     # Whitelist of scripts needed for discovery
     discovery_essential = [
         "core/commands.py",
         "parsers/show.lldp.neighbors.detail.py",
         "core/element_status.py"
     ]
+    if args.ping_matrix:
+        discovery_essential.append("core/ping_matrix.py")
     SCRIPTS = [s for s in SCRIPTS if s in discovery_essential]
     consolidation_scripts = [] # Skip all consolidation during discovery hops
 
@@ -947,18 +964,47 @@ while True:
             if rc != 0:
                  print(f"    └─> {C_RED}Check log/{safe_name}.log for details.{C_RESET}")
         elif script_name == "ping_matrix.py":
-            cmd.extend(["--collect_dir", COLLECT_DIR, "--resume_dir", RESUME_DIR, "--logdir", LOG_DIR, "--elements_cfg", current_elements_file, "--settings", args.settings, "--ping_commands", args.ping_commands, "--ping_format", args.ping_format])
+            # Build the exact legacy structure: ping-matrix/TIMESTAMP/{collect/,resume/,log.zip,filtered_elements.cfg}
+            PING_BASE = os.path.join(os.path.abspath(args.outbase), "ping-matrix")
+            run_ts = os.path.basename(TIMESTAMP_DIR)
+            PING_RUN_DIR    = os.path.join(PING_BASE, run_ts)
+            PING_COLLECT    = os.path.join(PING_RUN_DIR, "collect")
+            PING_RESUME     = os.path.join(PING_RUN_DIR, "resume")
+            PING_LOG_DIR    = os.path.join(PING_RUN_DIR, "log")
+            for _d in (PING_COLLECT, PING_RESUME, PING_LOG_DIR):
+                os.makedirs(_d, exist_ok=True)
+
+            # Copy filtered_elements.cfg into the ping run folder (same as legacy behaviour)
+            ping_filtered_cfg = os.path.join(PING_RUN_DIR, "filtered_elements.cfg")
+            src_filtered = os.path.join(TIMESTAMP_DIR, "filtered_elements.cfg")
+            if os.path.isfile(src_filtered):
+                shutil.copy2(src_filtered, ping_filtered_cfg)
+
+            # Ensure 'json' is always in formats because the Master Index needs it
+            p_formats = args.ping_format.lower()
+            if 'json' not in p_formats:
+                p_formats = f"{p_formats},json"
+
+            cmd.extend([
+                "--collect_dir", PING_COLLECT,
+                "--resume_dir",  PING_RESUME,
+                "--logdir",      PING_LOG_DIR,
+                "--elements_cfg", ping_filtered_cfg if os.path.isfile(ping_filtered_cfg) else os.path.abspath(current_elements_file),
+                "--settings",    os.path.abspath(args.settings),
+                "--ping_commands", os.path.abspath(args.ping_commands),
+                "--ping_format", p_formats,
+                "--timestamp",   "NONE",   # Sentinel value to indicate no suffix should be used
+            ])
             if args.offline:
                 cmd.append("--offline_mode")
             safe_name = "ping_matrix"
-            out_file_name = os.path.join(LOG_DIR, f"{safe_name}.log")
-            
-            # Repassar environment auth info to ping_matrix similarly to commands.py
+
+            # Auth environment
             cmd_env = os.environ.copy()
-            if args.user: cmd_env["NDX_SSH_USER"] = args.user
+            if args.user:              cmd_env["NDX_SSH_USER"] = args.user
             if args.password is not None: cmd_env["NDX_SSH_PASS"] = args.password
-            if args.key: cmd_env["NDX_SSH_KEY"] = args.key
-            
+            if args.key:               cmd_env["NDX_SSH_KEY"]  = args.key
+
             print(f">>> {C_CYAN}core/ping_matrix.py{C_RESET} is running ICMP multithreading test.")
             script_start_time = datetime.now()
             rc_ping = subprocess.run(cmd, env=cmd_env)
@@ -966,7 +1012,31 @@ while True:
             status_text = f"{C_GREEN}[SUCCESS]{C_RESET}" if rc_ping.returncode == 0 else f"{C_RED}[FAILED ]{C_RESET}"
             log_orchestrator(f"{script_name} Finished. Return Code: {rc_ping.returncode}")
             print(f"{step_prefix} {status_text} ({script_duration:5.1f}s)")
-            
+            print(f"    └─> Workspace: {C_CYAN}{PING_RUN_DIR}{C_RESET}")
+
+            # Compress collect/ and log/ if compression is enabled (matches legacy: collect.zip + log.zip)
+            ping_comp_cfg = json_config.get("compression", {})
+            if ping_comp_cfg.get("enabled", False):
+                import zipfile as _zf
+                ping_comp_fmt    = ping_comp_cfg.get("format", "zip")
+                ping_del_orig    = ping_comp_cfg.get("delete_after_compression", True)
+                for folder_name, folder_path in [("collect", PING_COLLECT), ("log", PING_LOG_DIR)]:
+                    if os.path.isdir(folder_path) and os.listdir(folder_path):
+                        archive_out = os.path.join(PING_RUN_DIR, f"{folder_name}.{ping_comp_fmt}")
+                        print(f"    └─> Compressing ping/{folder_name}...", end="", flush=True)
+                        try:
+                            with _zf.ZipFile(archive_out, 'w', _zf.ZIP_DEFLATED) as zout:
+                                for root_f, dirs_f, files_f in os.walk(folder_path):
+                                    for file_f in files_f:
+                                        full_f = os.path.join(root_f, file_f)
+                                        zout.write(full_f, os.path.relpath(full_f, folder_path))
+                            if ping_del_orig:
+                                shutil.rmtree(folder_path)
+                            print(f" {C_GREEN}[DONE]{C_RESET}")
+                        except Exception as e:
+                            print(f" {C_RED}[FAILED]{C_RESET}: {e}")
+
+
         else:
             cmd.extend(["--outdir", RESUME_DIR, "--indir", COLLECT_DIR])
             # Scripts output real-time to std and file automatically
@@ -1053,7 +1123,9 @@ while True:
 
 
     # Final Topology Mapping
-    if not args.ping_matrix:
+    # Logic changed to run whenever we have collection data, regardless of ping_matrix flag
+    is_live_extraction = (args.user or args.discovery or args.offline)
+    if is_live_extraction and not args.discovery:
         print(f"\n{C_CYAN}--- Final Topology Mapping ---{C_RESET}")
         scripts_final = ["core/interface2connection.py", "core/topology_checker.py"]
     else:
@@ -1253,19 +1325,41 @@ hours = total_seconds // 3600
 minutes = (total_seconds % 3600) // 60
 seconds = total_seconds % 60
 
-if args.ping_matrix:
-    generate_master_dashboard(os.path.dirname(TIMESTAMP_DIR))
 
 # --- INVENTORY ENGINE HOOK ---
-if not args.offline and not args.ping_matrix and not args.discovery:
+if (args.inventory or (not args.offline and not args.ping_matrix and not args.discovery)):
     print(f"\n{C_CYAN}--- Updating Global Inventory Dashboard ---{C_RESET}")
     try:
         from core.inventory_engine import InventoryEngine
-        inv_engine = InventoryEngine(args.outbase)
+        # Use explicit inventory path if provided, otherwise default to outbase
+        inv_path = args.outbase if (not args.inventory or args.inventory == 'DEFAULT') else args.inventory
+        inv_engine = InventoryEngine(inv_path)
         inv_engine.run()
     except Exception as e:
         print(f"{C_RED}[!] Failed to update Inventory Dashboard: {e}{C_RESET}")
         log_orchestrator(f"Inventory Engine failed: {e}")
+
+# --- DIFF ENGINE HOOK ---
+if args.diff:
+    print(f"\n{C_CYAN}--- Updating Drift Analysis Workspace ---{C_RESET}")
+    try:
+        from core.diff_engine import DiffEngine
+        diff_path = args.outbase if args.diff == 'DEFAULT' else args.diff
+        diff_engine = DiffEngine(diff_path)
+        diff_engine.run()
+    except Exception as e:
+        print(f"{C_RED}[!] Failed to update Drift Analysis Workspace: {e}{C_RESET}")
+        log_orchestrator(f"Diff Engine failed: {e}")
+
+# --- PING INDEX HOOK ---
+if args.rebuild_ping_index or args.ping_matrix:
+    print(f"\n{C_CYAN}--- Rebuilding Ping Matrix Master Index ---{C_RESET}")
+    try:
+        # If we are in a normal extraction, TIMESTAMP_DIR is the current run.
+        # Master index should be in the parent (args.outbase)
+        generate_master_dashboard(args.outbase)
+    except Exception as e:
+        print(f"{C_RED}[!] Failed to rebuild Ping Index: {e}{C_RESET}")
 
 # --- OUTPUT COMPRESSION ---
 comp_cfg = json_config.get("compression", {})

@@ -53,7 +53,8 @@ def read_icmp_commands(path):
                 continue
             if ';' in line:
                 key, cmd = line.split(';', 1)
-                commands[key] = cmd
+                # Normalize key to lowercase for case-insensitive matching
+                commands[key.strip().lower()] = cmd.strip()
     return commands
 
 def parse_ping_output(output, host_dest):
@@ -122,6 +123,7 @@ def main():
     parser.add_argument("--ping_commands", default="config/commands.icmp.cfg")
     parser.add_argument("--ping_format", default="csv")
     parser.add_argument("--offline_mode", action="store_true")
+    parser.add_argument("--timestamp", default="")
     args = parser.parse_args()
 
     # Load Settings
@@ -176,7 +178,16 @@ def main():
     counter = 0
     total_elements = len(elements)
     
-    timestamp = datetime.datetime.now().strftime('%d%m%y%H%M%S')
+    # Use provided timestamp or generate a new one
+    # NOTE: when orchestrator passes --timestamp "" it means 'no suffix — each run has its own folder'
+    # An empty string means no suffix. Only generate a new timestamp if the arg was truly not provided.
+    if args.timestamp == "NONE":
+        # Orchestrator-managed run: files get standard names (no suffix) inside their own folder
+        timestamp = datetime.datetime.now().strftime('%d%m%y%H%M%S')
+        file_suffix = ""
+    else:
+        timestamp = args.timestamp if args.timestamp else datetime.datetime.now().strftime('%d%m%y%H%M%S')
+        file_suffix = f"_{timestamp}"
 
     def execute_ping_matrix_for_origin(origin_elem):
         nonlocal counter
@@ -184,9 +195,9 @@ def main():
         origin_ip = origin_elem['ip']
         cmd_key = origin_elem['cmd_key']
         
-        base_cmd = icmp_cmds.get(cmd_key)
+        base_cmd = icmp_cmds.get(cmd_key.lower())
         if not base_cmd:
-            logging.warning(f"No ICMP command found for {cmd_key} (Host: {origin_host})")
+            logging.warning(f"No ICMP command found for '{cmd_key}' (Host: {origin_host}). Available keys: {list(icmp_cmds.keys())}")
             with results_lock:
                 counter += 1
             return
@@ -476,7 +487,7 @@ def main():
             stats["avg_global_latency"] = round(stats["sum_latency"] / stats["valid_latency_count"], 1)
 
     if ex_csv:
-        csv_path = os.path.join(args.resume_dir, "ping_matrix_list.csv")
+        csv_path = os.path.join(args.resume_dir, f"ping_matrix_list{file_suffix}.csv")
         with open(csv_path, 'w', encoding='utf-8', newline='') as f:
             writer = csv.writer(f, delimiter=';')
             writer.writerow(["Timestamp", "Origin_Node", "Destination_Node", "Min_ms", "Avg_ms", "Max_ms", "Size", "Transmitted", "Received", "Loss_Pct", "Is_Unreachable", "Jitter_Warning", "Asymmetric_Warning", "Consistently_Denied"])
@@ -507,12 +518,12 @@ def main():
     }
 
     if ex_json:
-        json_path = os.path.join(args.resume_dir, "ping_matrix_list.json")
+        json_path = os.path.join(args.resume_dir, f"ping_matrix_list{file_suffix}.json")
         with open(json_path, 'w', encoding='utf-8') as f:
             json.dump(json_payload, f, indent=4)
         print(f"Done. JSON saved to {json_path}")
     if ex_html:
-        html_path = os.path.join(args.resume_dir, "ping_matrix_dashboard.html")
+        html_path = os.path.join(args.resume_dir, f"ping_matrix_dashboard{file_suffix}.html")
         html_template = """<!DOCTYPE html>
 <html lang="en">
 <head>
