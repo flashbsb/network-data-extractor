@@ -22,8 +22,8 @@ import getpass
 from datetime import datetime
 from glob import glob
 
-APP_VERSION = "1.58.2"
-APP_DATE = "2026-05-14"
+APP_VERSION = "1.58.5"
+APP_DATE = "2026-05-15"
 
 # ANSI Colors
 C_GREEN = '\033[92m'

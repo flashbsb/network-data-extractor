@@ -2,6 +2,11 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.58.5] - 2026-05-15
+### Changed
+- **Documentation**: Updated `README.md` flowchart and help texts to accurately reflect current `--rebuild-ping-index` functionality and correct portal paths.
+- **Version Alignment**: Harmonized application internal versions and banners.
+
 ## [1.58.0] - 2026-05-14
 ### Added
 - **Admin State vs Oper Protocol Separation**: Deeply decoupled the interface tracking on the Inventory Dashboard. Checkbox filters and main dashboard metrics now differentiate between Administrative intent (`Admin UP`/`Admin DOWN`) and actual physical/logical line status (`Oper UP`/`Oper DOWN`).
@@ -52,7 +57,7 @@ All notable changes to the **Network Data Extractor** project will be documented
 
 ## [1.52.0] - 2026-04-27
 ### Added
-- **Maintenance Mode (`--refresh-index`)**: Added a dedicated flag to synchronize and update the Master Index without running new ping tests. This allows users to instantly clean up deleted folders or update the dashboard portal in milliseconds.
+- **Maintenance Mode (`--rebuild-ping-index`)**: Added a dedicated flag to synchronize and update the Master Index without running new ping tests. This allows users to instantly clean up deleted folders or update the dashboard portal in milliseconds.
 - **Improved Code Architecture**: Refactored the core logic to separate portal generation from execution, enabling faster maintenance and better error handling for "ghost" directories.
 
 ## [1.51.0] - 2026-04-27

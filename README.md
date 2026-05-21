@@ -1,6 +1,6 @@
 # Network Data Extractor
 
-![Version](https://img.shields.io/badge/version-1.58.2-blue.svg)
+![Version](https://img.shields.io/badge/version-1.58.5-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8%2B-green.svg)
 
 **Network Data Extractor** is an automated orchestrator built for network engineers and NOCs (Network Operations Centers). It performs massive, parallel SSH polling across dozens or hundreds of network elements (Cisco, Datacom, Huawei, HP, etc.), extracting raw command outputs (`show interfaces`, `show lldp neighbors`, etc.) and consolidating this raw data into CSV spreadsheets and logical topology maps ready for structural analysis.
@@ -15,7 +15,7 @@ Its main goal is to eliminate the need for manual inventories or box-by-box acce
 - **Global Inventory Dashboard**: Fully autonomous dashboard generated at the end of each collection. It consolidates all historical network interfaces and topology links into an interactive Web UI with CORS-free local execution (`--inventory`). Features advanced logical search engines, real-time reactive metric cards (including **Fault Analysis**), and local dynamic CSV export.
 - **Network Drift Analysis**: Interactive comparison engine to visualize changes between two network snapshots. Detects status changes, speed variations, and new/removed links.
 - **Ping Matrix Dashboard (Portable & Single-File)**: Embedded high-performance HTML/JS SPA Dashboard generating visual heatmaps and advanced analytical insights (Latency, Jitter, Packet Loss, Asymmetry, Node Isolation) from ICMP sweeps. The dashboard is 100% portable (JSON is embedded inside the HTML) and can run completely offline.
-- **Master Index Portal**: Automatically acts as a Web Portal for historical runs. The orchestrator compiles a dynamic `index.html` at the root of your output folder, creating an easy-to-use chronological side-bar to navigate past Dashboard reports.
+- **Master Index Portal**: Automatically acts as a Web Portal for historical runs. The orchestrator compiles a dynamic `index.html` in the `ping-matrix/` folder of your output directory, creating an easy-to-use chronological side-bar to navigate past Dashboard reports.
 - **Multivendor by Design**: Not restricted to Cisco syntax. The script handles the native injection of pagination suppressors (`terminal length 0`, `terminal pager 0`, `screen-length 0 disable`), ensuring long outputs aren't swallowed by `--More--` prompts on Datacom, HP, or Huawei equipment.
 - **Universal Blind Analyzer (Regex)**: Features robust parsing and consolidation engines based on regular expressions, ignoring and bypassing human typos that frequently break interface "Descriptions" when building topologies.
 - **Interactive & Parameterized Wizard**: Can run "headless" via shell flags for cronjobs, but also includes an Interactive Configuration Wizard in the terminal at the start of each execution.
@@ -80,7 +80,7 @@ graph TD
 
         MODE -->|"--rebuild-ping-index"| PM_GEN[Master Index Generator]:::module
         PING_HTML -.->|"Auto-trigger"| PM_GEN
-        PM_GEN --> PM_HTML{{"🌐 infos/index.html"}}:::web
+        PM_GEN --> PM_HTML{{"🌐 infos/ping-matrix/index.html"}}:::web
     end
 
     %% Link styles
@@ -156,7 +156,9 @@ usage: network-data-extractor.py [-h] [--settings SETTINGS]
                                  [--ping-matrix]
                                  [--ping-commands PING_COMMANDS]
                                  [--ping-format PING_FORMAT] [--discovery]
-                                 [--hops HOPS] [--diff [DIFF]] [--offline DIR]
+                                 [--hops HOPS] [--diff [DIFF]]
+                                 [--inventory [INV]] [--rebuild-ping-index]
+                                 [--offline DIR]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -191,9 +193,10 @@ Mode C: Discovery:
   --discovery           Enable recursive discovery via LLDP neighbors
   --hops HOPS           (requires --discovery) Number of recursive hops to perform
 
-Mode D: Drift Analysis & Inventory:
+Mode D: Workspace Modes:
   --diff [DIFF]         Build Network Drift Workspace in 'diff/' folder. Optional: provide path to collections.
   --inventory [INV]     Build Global Inventory Dashboard in 'inventory/' folder. Optional: provide path to collections.
+  --rebuild-ping-index  Rebuild the Historical Analysis Portal (index.html) in 'ping-matrix/' folder using existing data.
 
 Mode E: Offline Processing:
   --offline DIR         Process existing data in DIR (Incompatible with --discovery/--diff/--inventory)
