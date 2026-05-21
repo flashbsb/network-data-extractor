@@ -33,68 +33,63 @@ Beyond simple command execution, it acts as an **intelligence layer**—parsing 
 The orchestrator operates through five distinct modular branches, designed to handle everything from live extraction to offline post-mortem analysis:
 
 ```mermaid
-graph TD
+graph LR
     %% Styling Definitions
-    classDef engine fill:#2563eb,stroke:#1e3a8a,stroke-width:2px,color:#fff,rx:10,ry:10;
-    classDef branch fill:#7c3aed,stroke:#4c1d95,stroke-width:2px,color:#fff,rx:10,ry:10;
-    classDef storage fill:#059669,stroke:#064e3b,stroke-width:2px,color:#fff,rx:5,ry:5;
-    classDef module fill:#d97706,stroke:#92400e,stroke-width:2px,color:#fff;
-    classDef web fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#38bdf8,rx:10,ry:10;
-    classDef csv fill:#475569,stroke:#1e293b,stroke-width:1px,color:#94a3b8;
+    classDef engine fill:#2563eb,stroke:#1e3a8a,stroke-width:2px,color:#ffffff,rx:8,ry:8
+    classDef branch fill:#7c3aed,stroke:#4c1d95,stroke-width:2px,color:#ffffff,rx:15,ry:15
+    classDef storage fill:#059669,stroke:#064e3b,stroke-width:2px,color:#ffffff,rx:4,ry:4
+    classDef module fill:#ea580c,stroke:#9a3412,stroke-width:2px,color:#ffffff,rx:4,ry:4
+    classDef web fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#38bdf8,rx:8,ry:8
+    classDef csv fill:#f8fafc,stroke:#cbd5e1,stroke-width:1px,color:#334155,rx:2,ry:2
 
-    %% Entry Point
-    START["🚀 CLI / WIZARD"]:::engine --> MODE{EXECUTION MODE}:::branch
+    %% Link styles
+    linkStyle default stroke:#64748b,stroke-width:1px
 
-    subgraph "STANDARD EXTRACTION [A] & DISCOVERY [C]"
+    START["🚀 CLI / WIZARD"]:::engine --> MODE{EXECUTION<br/>MODE}:::branch
+
+    subgraph "A & C: Extraction"
         MODE -->|"--discovery"| DISCO[Discovery Loop]:::module
         DISCO --> SSH
-        MODE -->|"Standard (Default)"| SSH[Multithreaded SSH Engine]:::engine
+        MODE -->|Standard| SSH[SSH Engine]:::engine
         SSH --> RAW[("📁 collect/RAW_LOGS")]:::storage
     end
 
-    subgraph "OFFLINE PARSING [E]"
-        MODE -->|"--offline DIR"| RAW
+    subgraph "E: Offline Parsing"
+        MODE -->|"--offline"| RAW
         RAW --> PARSE{Data Parsers}:::module
-        PARSE --> CSV_INT["📄 interfaces_all.csv"]:::csv
-        PARSE --> CSV_LLDP["📄 lldp_neighbors.csv"]:::csv
-        PARSE --> CSV_STAT["📄 status.elements.csv"]:::csv
+        PARSE --> CSV_INT["📄 interfaces.csv"]:::csv
+        PARSE --> CSV_LLDP["📄 lldp.csv"]:::csv
         
-        CSV_INT & CSV_LLDP & CSV_STAT --> TOPO[Topology Checker]:::module
-        TOPO --> CSV_WARN["📄 topology_warnings.csv"]:::csv
+        CSV_INT & CSV_LLDP --> TOPO[Topology Checker]:::module
+        TOPO --> CSV_WARN["📄 warnings.csv"]:::csv
     end
 
-    subgraph "PING MATRIX [B]"
-        MODE -->|"--ping-matrix"| ICMP[ICMP Diagnostic Motor]:::engine
-        ICMP --> PING_RES[("📁 resume/PING_DATA")]:::storage
-        PING_RES --> PING_HTML{{"📲 ping_matrix_dashboard.html"}}:::web
+    subgraph "B: Ping Matrix"
+        MODE -->|"--ping-matrix"| ICMP[ICMP Motor]:::engine
+        ICMP --> PING_RES[("📁 PING_DATA")]:::storage
+        PING_RES --> PING_HTML{{"📲 ping_matrix.html"}}:::web
     end
 
-    subgraph "WORKSPACE MODES [D]"
-        MODE -->|"--inventory"| INV_GEN[Global Inventory Builder]:::module
+    subgraph "D: Visual Workspaces"
+        MODE -->|"--inventory"| INV_GEN[Inventory Builder]:::module
         CSV_WARN -.->|"Auto-trigger"| INV_GEN
         INV_GEN --> INV_HTML{{"📲 inventory/index.html"}}:::web
 
-        MODE -->|"--diff"| DIFF_GEN[Drift Analysis Engine]:::module
+        MODE -->|"--diff"| DIFF_GEN[Drift Engine]:::module
         DIFF_GEN --> DIFF_HTML{{"📲 diff/index.html"}}:::web
 
-        MODE -->|"--rebuild-index"| REBUILD[Master Rebuild Engine]:::engine
-        REBUILD --> INV_GEN
-        REBUILD --> DIFF_GEN
-        REBUILD --> PM_GEN[Ping Matrix Index Generator]:::module
+        MODE -->|"--rebuild-index"| REBUILD[Master Rebuild]:::engine
         
-        PING_HTML -.->|"Auto-trigger"| PM_GEN
-        PM_GEN --> PM_HTML{{"📊 infos/ping-matrix/index.html"}}:::web
+        PING_HTML -.->|"Auto-trigger"| PM_GEN[Ping Matrix Index]:::module
+        REBUILD --> INV_GEN & DIFF_GEN & PM_GEN
         
-        REBUILD --> ROOT_GEN[Root Navigation Portal]:::module
-        INV_GEN -.->|"Auto-trigger"| ROOT_GEN
-        DIFF_GEN -.->|"Auto-trigger"| ROOT_GEN
-        PM_GEN -.->|"Auto-trigger"| ROOT_GEN
+        PM_GEN --> PM_HTML{{"📊 ping-matrix/index.html"}}:::web
+        
+        INV_GEN & DIFF_GEN & PM_GEN -.->|"Auto-trigger"| ROOT_GEN[Root Navigation Portal]:::module
+        REBUILD --> ROOT_GEN
         
         ROOT_GEN --> ROOT_HTML{{"🧭 infos/index.html"}}:::web
     end
-
-    %% Link styles
-    linkStyle default stroke:#64748b,stroke-width:1px;
 ```
 
 ---
