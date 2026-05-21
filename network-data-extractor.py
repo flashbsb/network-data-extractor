@@ -5,7 +5,7 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
- Version : 1.59.0
+ Version : 1.59.5
  Date    : 2026-05-21
  Author  : flashbsb (and contributors)
 
@@ -22,7 +22,7 @@ import getpass
 from datetime import datetime
 from glob import glob
 
-APP_VERSION = "1.59.0"
+APP_VERSION = "1.59.5"
 APP_DATE = "2026-05-21"
 
 # ANSI Colors
@@ -306,11 +306,11 @@ Workflow Options:
       1. Follows Standard Mode but iterates continuously over LLDP neighbors.
       2. Discovers missing routers and creates a new pool file iteratively automatically.
 
-  [D] Workspace Modes (--diff, --inventory, --rebuild-ping-index):
+  [D] Workspace Modes (--diff, --inventory, --rebuild-index):
       1. Operates offline using previously extracted historical data.
       2. --diff: Compares two snapshot collections to detect configuration drift.
       3. --inventory: Builds an accumulative Global Inventory Dashboard (Interfaces & Topology).
-      4. --rebuild-ping-index: Regenerates the Master Portal (Historical Analysis) for Ping Matrix in 'ping-matrix/' folder.
+      4. --rebuild-index: Regenerates all analytical dashboards (Root, Diff, Inventory, Ping Matrix) from existing offline data.
 
   [E] Offline Parsing Mode (--offline):
       1. Reprocesses raw CLI logs from an existing collection directory.
@@ -386,7 +386,7 @@ group_c.add_argument("--hops", type=int, help="(requires --discovery) Number of 
 group_d = parser.add_argument_group("Mode D: Workspace Modes")
 group_d.add_argument("--diff", type=str, nargs='?', const='DEFAULT', help="Build Network Drift Workspace in 'diff/' folder. Optional: provide path to collections.")
 group_d.add_argument("--inventory", type=str, nargs='?', const='DEFAULT', help="Build Global Inventory Dashboard in 'inventory/' folder. Optional: provide path to collections.")
-group_d.add_argument("--rebuild-ping-index", action="store_true", help="Rebuild the Historical Analysis Portal (index.html) in 'ping-matrix/' folder using existing data.")
+group_d.add_argument("--rebuild-index", action="store_true", help="Rebuild all dashboards (Root, Ping Matrix, Inventory, Diff) in the outbase using existing data.")
 
 group_e = parser.add_argument_group("Mode E: Offline Parsing Mode")
 group_e.add_argument("--offline", type=str, metavar="DIR", help="Process existing data in DIR (Incompatible with --discovery/--diff)")
@@ -473,19 +473,42 @@ if args.inventory:
         # We will run this at the end of the collection (it already runs by default for standard mode)
         pass
 
-# 4.2 Mode D: Rebuild Ping Matrix Index
-if args.rebuild_ping_index:
+# 4.2 Mode D: Rebuild All Indexes
+if args.rebuild_index:
     # If we are NOT doing a live run or offline parsing, run standalone and exit
     is_standalone = not (args.user or args.ping_matrix or args.discovery or args.offline)
     
     if is_standalone:
-        print(f"\n{C_CYAN}--- Rebuilding Ping Matrix Master Index ---{C_RESET}")
+        print(f"\n{C_CYAN}--- Rebuilding All Master Dashboards ---{C_RESET}")
+        
+        # 1. Ping Matrix
+        print(f"[*] Rebuilding Ping Matrix Index...")
         generate_master_dashboard(args.outbase)
+        
+        # 2. Inventory
+        print(f"[*] Rebuilding Inventory Dashboard...")
+        try:
+            from core.inventory_engine import InventoryEngine
+            InventoryEngine(args.outbase).run()
+        except Exception as e:
+            print(f"{C_YELLOW}    └─> Skipped (No data): {e}{C_RESET}")
+            
+        # 3. Diff
+        print(f"[*] Rebuilding Drift Analysis Dashboard...")
+        try:
+            from core.diff_engine import DiffEngine
+            DiffEngine(args.outbase).run()
+        except Exception as e:
+            print(f"{C_YELLOW}    └─> Skipped (Requires 2+ snapshots): {e}{C_RESET}")
+            
+        # 4. Root Portal
+        print(f"[*] Rebuilding Root Navigation Portal...")
         try:
             from core.root_portal_engine import generate_root_portal
             generate_root_portal(args.outbase)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"{C_RED}    └─> Failed: {e}{C_RESET}")
+            
         sys.exit(0)
 
 # 5. Hops Logic
@@ -1367,7 +1390,7 @@ if args.diff:
         log_orchestrator(f"Diff Engine failed: {e}")
 
 # --- PING INDEX HOOK ---
-if args.rebuild_ping_index or args.ping_matrix:
+if args.rebuild_index or args.ping_matrix:
     print(f"\n{C_CYAN}--- Rebuilding Ping Matrix Master Index ---{C_RESET}")
     try:
         # If we are in a normal extraction, TIMESTAMP_DIR is the current run.

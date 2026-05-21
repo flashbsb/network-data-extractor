@@ -2,7 +2,7 @@
   <h1>🌐 Network Data Extractor</h1>
   <p><strong>The Ultimate Multivendor NOC Orchestrator & Autonomous Discovery Engine</strong></p>
   
-  ![Version](https://img.shields.io/badge/version-1.59.0-blue.svg)
+  ![Version](https://img.shields.io/badge/version-1.59.5-blue.svg)
   ![Python](https://img.shields.io/badge/python-3.8%2B-green.svg)
 </div>
 
@@ -77,7 +77,7 @@ graph TD
         MODE -->|"--diff"| DIFF_GEN[Drift Analysis Engine]:::module
         DIFF_GEN --> DIFF_HTML{{"📲 diff/index.html"}}:::web
 
-        MODE -->|"--rebuild-ping-index"| PM_GEN[Master Index Generator]:::module
+        MODE -->|"--rebuild-index"| PM_GEN[Master Index Generator]:::module
         PING_HTML -.->|"Auto-trigger"| PM_GEN
         PM_GEN --> PM_HTML{{"🌐 infos/ping-matrix/index.html"}}:::web
     end
@@ -152,7 +152,7 @@ Re-processes historical snapshots to generate comparative UI dashboards without 
 ```bash
 python3 network-data-extractor.py --diff                 # Detects drift between two snapshots
 python3 network-data-extractor.py --inventory            # Builds a cumulative global inventory UI
-python3 network-data-extractor.py --rebuild-ping-index   # Regenerates the Ping Matrix navigation portal
+python3 network-data-extractor.py --rebuild-index        # Rebuild all dashboards (Root, Ping Matrix, Inventory, Diff) in the outbase using existing data.
 ```
 
 ### [E] Offline Parsing
