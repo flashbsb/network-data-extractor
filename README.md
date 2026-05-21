@@ -77,9 +77,20 @@ graph TD
         MODE -->|"--diff"| DIFF_GEN[Drift Analysis Engine]:::module
         DIFF_GEN --> DIFF_HTML{{"📲 diff/index.html"}}:::web
 
-        MODE -->|"--rebuild-index"| PM_GEN[Master Index Generator]:::module
+        MODE -->|"--rebuild-index"| REBUILD[Master Rebuild Engine]:::engine
+        REBUILD --> INV_GEN
+        REBUILD --> DIFF_GEN
+        REBUILD --> PM_GEN[Ping Matrix Index Generator]:::module
+        
         PING_HTML -.->|"Auto-trigger"| PM_GEN
-        PM_GEN --> PM_HTML{{"🌐 infos/ping-matrix/index.html"}}:::web
+        PM_GEN --> PM_HTML{{"📊 infos/ping-matrix/index.html"}}:::web
+        
+        REBUILD --> ROOT_GEN[Root Navigation Portal]:::module
+        INV_GEN -.->|"Auto-trigger"| ROOT_GEN
+        DIFF_GEN -.->|"Auto-trigger"| ROOT_GEN
+        PM_GEN -.->|"Auto-trigger"| ROOT_GEN
+        
+        ROOT_GEN --> ROOT_HTML{{"🧭 infos/index.html"}}:::web
     end
 
     %% Link styles
