@@ -1,37 +1,36 @@
-# Network Data Extractor
+<div align="center">
+  <h1>🌐 Network Data Extractor</h1>
+  <p><strong>The Ultimate Multivendor NOC Orchestrator & Autonomous Discovery Engine</strong></p>
+  
+  ![Version](https://img.shields.io/badge/version-1.58.5-blue.svg)
+  ![Python](https://img.shields.io/badge/python-3.8%2B-green.svg)
+</div>
 
-![Version](https://img.shields.io/badge/version-1.58.5-blue.svg)
-![Python](https://img.shields.io/badge/python-3.8%2B-green.svg)
+<br />
 
-**Network Data Extractor** is an automated orchestrator built for network engineers and NOCs (Network Operations Centers). It performs massive, parallel SSH polling across dozens or hundreds of network elements (Cisco, Datacom, Huawei, HP, etc.), extracting raw command outputs (`show interfaces`, `show lldp neighbors`, etc.) and consolidating this raw data into CSV spreadsheets and logical topology maps ready for structural analysis.
+## 📖 What is the Network Data Extractor?
 
-Its main goal is to eliminate the need for manual inventories or box-by-box access, providing automated visibility into the health of physical and logical connections that make up complex interconnected infrastructures.
+**Network Data Extractor** is a high-performance, asynchronous orchestration engine designed for Network Operations Centers (NOCs) and Network Engineers. It eliminates manual polling by performing massive, parallel SSH data extraction across multi-vendor topologies (Cisco, Datacom, Huawei, HP).
 
----
-
-## 🌟 Key Features & Strengths
-
-- **Massive Concurrency (Multi-Threading)**: Supports asynchronous extraction of multiple nodes simultaneously, reducing maintenance windows from hours to minutes.
-- **Global Inventory Dashboard**: Fully autonomous dashboard generated at the end of each collection. It consolidates all historical network interfaces and topology links into an interactive Web UI with CORS-free local execution (`--inventory`). Features advanced logical search engines, real-time reactive metric cards (including **Fault Analysis**), and local dynamic CSV export.
-- **Network Drift Analysis**: Interactive comparison engine to visualize changes between two network snapshots. Detects status changes, speed variations, and new/removed links.
-- **Ping Matrix Dashboard (Portable & Single-File)**: Embedded high-performance HTML/JS SPA Dashboard generating visual heatmaps and advanced analytical insights (Latency, Jitter, Packet Loss, Asymmetry, Node Isolation) from ICMP sweeps. The dashboard is 100% portable (JSON is embedded inside the HTML) and can run completely offline.
-- **Master Index Portal**: Automatically acts as a Web Portal for historical runs. The orchestrator compiles a dynamic `index.html` in the `ping-matrix/` folder of your output directory, creating an easy-to-use chronological side-bar to navigate past Dashboard reports.
-- **Multivendor by Design**: Not restricted to Cisco syntax. The script handles the native injection of pagination suppressors (`terminal length 0`, `terminal pager 0`, `screen-length 0 disable`), ensuring long outputs aren't swallowed by `--More--` prompts on Datacom, HP, or Huawei equipment.
-- **Universal Blind Analyzer (Regex)**: Features robust parsing and consolidation engines based on regular expressions, ignoring and bypassing human typos that frequently break interface "Descriptions" when building topologies.
-- **Interactive & Parameterized Wizard**: Can run "headless" via shell flags for cronjobs, but also includes an Interactive Configuration Wizard in the terminal at the start of each execution.
-- **Topology Isolation (Cross-Check)**: Actively maps connection failures, proactively warning the operator when a polled router has lost its logical LLDP adjacencies to the rest of the network.
+Beyond simple command execution, it acts as an **intelligence layer**—parsing raw CLI outputs into structured CSV datasets, automatically mapping L2/L3 topologies, detecting network drifts, and generating fully portable, interactive HTML dashboards for instant NOC diagnostics.
 
 ---
 
-## ⚙️ Operational Workflow
+## ⚡ Core Capabilities & Power
 
-The tool operates on a modular routing engine divided into five main execution branches ([A] to [E]):
+- **🚀 Massive Concurrency**: Multi-threaded SSH polling reduces collection windows from hours to seconds.
+- **🧭 Autonomous LLDP Discovery**: Recursively hops through the network, discovering missing devices and generating new inventory targets on the fly.
+- **🧩 Universal Multivendor Parsing**: Regex-based "Blind Analyzer" bypasses human typos in descriptions to seamlessly map logical and physical topologies across different vendors.
+- **📊 Local-First Dashboards**: Generates High-Performance SPAs (Single Page Applications) embedded directly in HTML. Works 100% offline without CORS issues.
+- **🔍 Network Drift Analysis**: Instantly compares historical snapshots to detect port status changes, bandwidth variations, and missing links.
+- **🛡️ Intelligent ICMP Diagnostics**: The *Ping Matrix* engine calculates latency, jitter, asymmetric routing, and highlights isolated nodes in a visual heatmap.
+- **⚠️ Topology Fault Isolation**: Actively maps connection failures, proactively warning the operator when a router loses its logical LLDP adjacencies.
 
-1.  **[A] Standard Mode**: Full SSH extraction and topology parsing.
-2.  **[B] Ping Matrix**: Latency and loss diagnostics (ICMP).
-3.  **[C] Discovery**: Recursive auto-expansion via LLDP.
-4.  **[D] Workspaces**: Offline generation of Comparative or Accumulative Dashboards.
-5.  **[E] Offline Parsing**: Re-processing of previously collected raw logs.
+---
+
+## 🏗️ Operational Architecture
+
+The orchestrator operates through five distinct modular branches, designed to handle everything from live extraction to offline post-mortem analysis:
 
 ```mermaid
 graph TD
@@ -89,246 +88,96 @@ graph TD
 
 ---
 
-## 🚀 How to Use
+## 🚀 Quick Start
 
-### 1. File Preparation
-The system relies on two fundamental configuration files located in the `config/` folder:
+### 1. Requirements & Installation
+Ensure you have Python 3.8+ installed.
 
-#### A. The Targets File (`elements.cfg`)
-This is the list of equipment to be polled and which *command profile* each one should receive.
-The required syntax per line is: `Node_A;IPv4;Profile_Key`
-
-*Fictional Example (`config/elements.cfg`)*:
-```text
-# Equipment List
-# Expected Format: HOSTNAME;IP;KEY
-ROUTER-CORE-01;192.168.10.1;cisco02
-ROUTER-CORE-02;192.168.10.2;cisco02
-EDGE-SWITCH-A;10.0.50.22;datacom01
-EDGE-SWITCH-B;10.0.50.23;datacom01
-```
-
-#### B. The Commands File (`commands.cfg`)
-Defines which CLI commands represent each *Profile* linked by the keys above (`cisco02`, `datacom01`, etc.).
-The required syntax per line is: `Profile_Key;Command to be executed`
-
-*Fictional Example (`config/commands.cfg`)*:
-```text
-# SSH Macros File
-# Expected Format: KEY;COMMAND_CLI
-cisco02;show int status
-cisco02;show lldp neighbors detail
-datacom01;show system
-datacom01;show interfaces status
-```
-
-### 2. Advanced Global Settings (`settings.json`)
-You don't need to touch Python code to adapt your Regex or change the tool's detection engine. Edit this `.json` file to tell the scripts what to ignore (logical interfaces, specific domains), which colors to use on maps, or which prefixes determine your company's base hardware models.
-
-### 3. Dependencies & Running the Tool
-Ensure you have Python 3.8+ installed. 
-
-**For Linux (Debian/Ubuntu):**
+**Linux (Debian/Ubuntu):**
 ```bash
 sudo ./installdep.sh
 python3 network-data-extractor.py
 ```
 
-**For Windows:**
-Open PowerShell or Command Prompt as Administrator and run:
+**Windows (PowerShell Admin):**
 ```powershell
 pip install pandas paramiko
 python network-data-extractor.py
 ```
 
-### 4. CLI Execution & Automation
-The script supports a comprehensive wizard, but it can also be fully automated out-of-the-box using arguments (useful for CI/CD or Linux `cron`). 
+### 2. Core Configuration Files (`config/`)
+The tool relies on two primary configuration files:
 
-#### Command Line Arguments
-```text
-usage: network-data-extractor.py [-h] [--settings SETTINGS]
-                                 [--outbase OUTBASE] [--skip-wizard] [--force]
-                                 [--user USER]
-                                 [--password PASSWORD | --key KEY]
-                                 [--elements ELEMENTS] [--commands COMMANDS]
-                                 [--threads THREADS] [--randomize]
-                                 [--no-randomize] [--filter FILTER]
-                                 [--ping-matrix]
-                                 [--ping-commands PING_COMMANDS]
-                                 [--ping-format PING_FORMAT] [--discovery]
-                                 [--hops HOPS] [--diff [DIFF]]
-                                 [--inventory [INV]] [--rebuild-ping-index]
-                                 [--offline DIR]
+- **`elements.cfg`** (The targets list). Syntax: `Hostname;IP;ProfileKey`
+  ```text
+  CORE-ROUTER-A;10.0.0.1;cisco02
+  EDGE-SW-01;10.0.50.22;datacom01
+  ```
 
-optional arguments:
-  -h, --help            show this help message and exit
+- **`commands.cfg`** (The SSH macros assigned). Syntax: `ProfileKey;Command`
+  ```text
+  cisco02;show int status
+  cisco02;show lldp neighbors detail
+  datacom01;show system
+  ```
 
-Global Settings:
-  --settings SETTINGS   Path to JSON settings file (default: config/settings.json)
-  --outbase OUTBASE     Root directory for outputs (default: infos)
-  --skip-wizard         Skip configuration confirmation prompt
-  --force               Force execution even if collection fails (ignored in --ping-matrix/--diff)
+*(Note: Global behaviors, regex topology patterns, and authentication fallback configurations are safely managed in `config/settings.json`)*
 
-Authentication (ignored in --offline/--diff):
-  --user USER           SSH Username (required for automated auth)
-  --password PASSWORD   [INSECURE] SSH Password (requires --user)
-  --key KEY             Path to SSH Private Key (requires --user)
+---
 
-Mode A: Standard Extraction (Default):
-  --elements ELEMENTS   Input elements file (default: config/elements.cfg)
-  --commands COMMANDS   Input commands file (default: config/commands.cfg)
-  --threads THREADS     Number of concurrent SSH sessions (default: 20)
-  --randomize           Randomize connection order (default: True)
-  --no-randomize        Keep connection order sequential
-  --filter FILTER       Filter elements by prefix (e.g. 'in:RT1;RT2' to include, 'rn:RT1;RT2' to exclude)
+## 🛠️ Execution Modes
 
-Mode B: Ping Matrix:
-  --ping-matrix         Omit regular tests and execute ICMP Ping Matrix
-  --ping-commands PING_COMMANDS
-                        (requires --ping-matrix) Input ICMP commands file (default: config/commands.icmp.cfg)
-  --ping-format PING_FORMAT
-                        (requires --ping-matrix) Output format: csv, json, html (comma-separated)
+You can run the orchestrator interactively via the terminal wizard, or fully automate it via CLI flags (perfect for CI/CD or Cron jobs).
 
-Mode C: Discovery:
-  --discovery           Enable recursive discovery via LLDP neighbors
-  --hops HOPS           (requires --discovery) Number of recursive hops to perform
-
-Mode D: Workspace Modes:
-  --diff [DIFF]         Build Network Drift Workspace in 'diff/' folder. Optional: provide path to collections.
-  --inventory [INV]     Build Global Inventory Dashboard in 'inventory/' folder. Optional: provide path to collections.
-  --rebuild-ping-index  Rebuild the Historical Analysis Portal (index.html) in 'ping-matrix/' folder using existing data.
-
-Mode E: Offline Processing:
-  --offline DIR         Process existing data in DIR (Incompatible with --discovery/--diff/--inventory)
+### [A] Standard Extraction (Live Data & Topology)
+Performs live multithreaded SSH polling and generates the base CSV tables and L2/L3 topology maps.
+```bash
+python3 network-data-extractor.py --skip-wizard --user "nocadmin" --key "~/.ssh/id_rsa"
 ```
 
-#### Examples
-**Interactive Mode (Default):**
-Executes normally, confirming configuration files and asking for the SSH password via an invisible prompt. You can also leave the password blank to let the script attempt to use your local SSH Agent keys (`~/.ssh/id_rsa`).
+### [B] Ping Matrix Diagnostics
+Bypasses standard parsing to execute a bidirectional ICMP sweep, generating an interactive offline heatmap to detect routing issues.
 ```bash
-python3 network-data-extractor.py
-```
-
-### Mode B: Ping Matrix Dashboard
-Generates a portable HTML dashboard analyzing the connectivity of your entire core network by shooting ICMP probes bidirectionally.
-
-```bash
-# Online Execution (Live network polling)
 python3 network-data-extractor.py --ping-matrix --ping-commands config/commands.icmp.cfg --ping-format html
-
-# Offline Execution (Regenerate HTML/CSVs from previously collected txt files)
-python3 network-data-extractor.py --offline infos/20260504_153131 --ping-matrix --ping-format html,csv
 ```
 
-### Mode E: Global Inventory Dashboard
-Automatically built at the end of standard extraction, but can be forced manually offline to regenerate the web portal encompassing all previous historical runs.
+### [C] Autonomous Discovery
+Tells the engine to automatically follow LLDP neighbors for `N` hops, mapping uncharted territories and identifying new IP targets.
 ```bash
-python3 network-data-extractor.py --inventory infos/
+python3 network-data-extractor.py --discovery --hops 3
 ```
 
-**Semi-Interactive Mode (User only):**
-Skips the wizard and passes the username, but still prompts securely for the password.
+### [D] Workspace Generation (Offline Analytics)
+Re-processes historical snapshots to generate comparative UI dashboards without logging into the live network.
 ```bash
-python3 network-data-extractor.py --skip-wizard --user "admin"
+python3 network-data-extractor.py --diff                 # Detects drift between two snapshots
+python3 network-data-extractor.py --inventory            # Builds a cumulative global inventory UI
+python3 network-data-extractor.py --rebuild-ping-index   # Regenerates the Ping Matrix navigation portal
 ```
 
-**Headless / CI-CD Mode (No prompts):**
-> **⚠️ SECURITY WARNING**: Passing `--password` in plaintext on the terminal is bad practice as it remains in your `.bash_history`. The script mitigates this slightly by issuing a `clear` command upon startup, but it is highly recommended to transition to SSH Key/Certificate authentication for unattended execution.
-
-**Offline Data Processing:**
-If you have already collected data or had a partial failure and simply want to rerun the parsing stack against an existing `collect/` folder, use the `--offline` flag. This will skip polling the equipment and will just parse data residing in that folder.
+### [E] Offline Parsing
+If you have already collected raw data and simply want to rerun the parsing stack against an existing folder.
 ```bash
-python3 network-data-extractor.py --offline infos/20260306_104132
-```
-
-Skips the wizard and receives all SSH credentials via parameters. Ideal for scripts running asynchronously in the background.
-```bash
-python3 network-data-extractor.py --skip-wizard --user "admin" --password "super_secret"
-```
-
-**Secure Certificate Auth (Recommended):**
-Skips the password entirely by relying on an SSH private certificate. Perfect for secure, automated production pipelines.
-```bash
-python3 network-data-extractor.py --skip-wizard --user "admin" --key "/home/user/.ssh/id_rsa"
-```
-
-**Tuning Performance Constraints:**
-Bypass the wizard and restrict exactly how many SSH threads you want open at roughly the exact same time (to alleviate TACACS/Radius strain).
-```bash
-python3 network-data-extractor.py --skip-wizard --threads 10
+python3 network-data-extractor.py --offline infos/20261231_235959
 ```
 
 ---
 
-## 🗺️ Topology Discovery Logic (Regex)
+## 📂 Output Directory Structure
 
-The `core/interface2connection.py` script relies on a "Universal Blind Analyzer" to identify interconnects between equipment without requiring a rigid registration database. Here's how it works:
+Every run is securely encapsulated in an isolated, timestamped folder (`infos/YYYYMMDD_HHMMSS/`). If configured, the engine performs automatic post-execution zip compression to save disk space.
 
-1.  **Description Scanning**: The script analyzes the `description` fields of all collected physical interfaces.
-2.  **Naming Convention Pattern (Regex)**: It hunts for strings matching your network's hostname standard. By default, it looks for:
-    - `((?:RT|SW|SM|PTT|DW)[A-Za-z0-9]+-[A-Za-z0-9-]+)`
-    - This means it expects names starting with known prefixes (like `RT-`, `SW-`, etc.), followed by alphanumerics and hyphens.
-3.  **Custom Configuration**: You can easily adjust which prefixes the tool recognizes by editing the `config/settings.json` file:
-    ```json
-    "topology": {
-        "device_name_prefixes": ["RT", "SW", "SM", "PTT", "DW"]
-    }
-    ```
-4.  **Intelligent Deduplication**: The engine naturally understands that if `Node A` sees `Node B`, and `Node B` sees `Node A`, they both represent a single physical cable (bidirectional deduplication).
+* `collect/` → Raw `.txt` logs directly from the equipment (Audit Proof).
+* `resume/` → Clean, actionable `.csv` datasets (Interfaces, Licensing, Asset Matrix, Modules).
+* `connections/` → Mathematically deduplicated L2/L3 physical topology links (`topology.connections.csv`).
+* `log/` → Full audit trails of the execution and parsing errors.
+
+At the root of the output base, you will find special portals like `infos/ping-matrix/index.html` acting as chronological side-bars to navigate past Dashboard reports.
 
 ---
 
-## 🔍 Recursive Network Discovery
+## 🤝 Ecosystem & Related Tools
 
-The tool can automatically expand your inventory:
-
-1.  **Hop-by-Hop Crawling**: Use `--discovery --hops X` to start a recursive search. At the end of each collection cycle, the script identifies unknown LLDP neighbors and targets them in the next "hop".
-2.  **Management IP Election**: Uses `preferred_management_subnets` from `settings.json` to choose the best IP (e.g., Loopbacks) for accessing discovered devices.
-3.  **Authentication Fallback**: Discovered devices are tested against a list of `fallback_cmd_keys`. The orchestrator tries each profile (Cisco, Huawei, Datacom) until it succeeds.
-4.  **Immutability**: Your original `elements.cfg` is never modified. New devices are saved to `discovery_hop_X.elements.cfg` within the output folder for your review.
-
----
-
-## 🗜️ Output Compression (Space Saving)
-
-For massive networks, the `collect/` folder might rapidly consume disk space with thousands of raw text files. Because of this, the orchestrator features automatic post-execution folder compression.
-
-Configure it inside `config/settings.json`:
-```json
-"compression": {
-    "enabled": true,
-    "format": "zip",
-    "delete_after_compression": true,
-    "folders": ["collect", "log"]
-}
-```
-- **enabled**: Enables or disables the feature.
-- **format**: Supported archive formats (`zip`, `tar`, `gztar`).
-- **delete_after_compression**: If set to `true`, permanently deletes the original raw folder immediately after creating the archive.
-- **folders**: The array subset of output folders to target (usually `collect` and `log`).
-
----
-
-## 📂 Output Format (Directory Structure)
-
-Upon each execution, the entire ecosystem will be securely encapsulated in a folder named after the **Date and Time** of your extraction (Example: `infos/20261231_235959/`).
-Inside the root folder (e.g. `infos/`), you will find the **Master Index Portal** (`index.html`) if you are running Ping Matrix scans. Inside each specific run folder, you will find:
-
-- `/collect/`: The raw `.txt` files returned by the Switches and Routers, displaying pure SSH output logs.
-- `/collect/successful_keys.csv`: A simple mapping of which command profile (`cmd_key`) finally worked for each device.
-- `/resume/`: The valuable, consolidated, and sanitized tables (`.csv`) ready to be imported into a Grafana/PowerBI Dashboard or opened in Excel for quick network management decisions.
-- `/resume/status.elements.csv`: Who failed to respond, who was successfully accessed, and a dedicated **working_key** column showing the successful authentication profile used.
-- `/connections/topology.connections.csv`: Formal A->B edge mapping, cross-checked without bidirectional redundancy biases.
-
----
-
-🔗 Repository - Follow on GitHub for new versions and updates
-
-Generate topologies dynamically
-https://github.com/flashbsb/network-topology-generator
-
-Execute massive commands simply and generate connection information between network elements
-https://github.com/flashbsb/network-data-extractor
-
-Dimension backbone topologies for testing:
-https://github.com/flashbsb/backbone-network-topology-generator
+Expand your automation suite with related NOC tools:
+- [Network Topology Generator](https://github.com/flashbsb/network-topology-generator) - Generate physical topology visualisations dynamically.
+- [Backbone Network Topology Generator](https://github.com/flashbsb/backbone-network-topology-generator) - Dimension backbone topologies for testing.
