@@ -5,8 +5,8 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
- Version : 1.58.5
- Date    : 2026-05-15
+ Version : 1.59.0
+ Date    : 2026-05-21
  Author  : flashbsb (and contributors)
 
 """
@@ -22,8 +22,8 @@ import getpass
 from datetime import datetime
 from glob import glob
 
-APP_VERSION = "1.58.5"
-APP_DATE = "2026-05-15"
+APP_VERSION = "1.59.0"
+APP_DATE = "2026-05-21"
 
 # ANSI Colors
 C_GREEN = '\033[92m'
@@ -442,6 +442,11 @@ if args.diff:
         base_path = args.outbase if args.diff == 'DEFAULT' else args.diff
         engine = DiffEngine(base_path)
         engine.run()
+        try:
+            from core.root_portal_engine import generate_root_portal
+            generate_root_portal(args.outbase)
+        except Exception:
+            pass
         sys.exit(0)
     else:
         # We will run this at the end of the collection
@@ -458,6 +463,11 @@ if args.inventory:
         base_path = args.outbase if args.inventory == 'DEFAULT' else args.inventory
         engine = InventoryEngine(base_path)
         engine.run()
+        try:
+            from core.root_portal_engine import generate_root_portal
+            generate_root_portal(args.outbase)
+        except Exception:
+            pass
         sys.exit(0)
     else:
         # We will run this at the end of the collection (it already runs by default for standard mode)
@@ -471,6 +481,11 @@ if args.rebuild_ping_index:
     if is_standalone:
         print(f"\n{C_CYAN}--- Rebuilding Ping Matrix Master Index ---{C_RESET}")
         generate_master_dashboard(args.outbase)
+        try:
+            from core.root_portal_engine import generate_root_portal
+            generate_root_portal(args.outbase)
+        except Exception:
+            pass
         sys.exit(0)
 
 # 5. Hops Logic
@@ -1384,6 +1399,14 @@ if comp_cfg.get("enabled", False):
             except Exception as e:
                 print(f" {C_RED}[FAILED]{C_RESET}: {e}")
                 log_orchestrator(f"Compression failed for {f_name}: {e}")
+
+# --- ROOT PORTAL HOOK ---
+print(f"\n{C_CYAN}--- Rebuilding Root Navigation Portal ---{C_RESET}")
+try:
+    from core.root_portal_engine import generate_root_portal
+    generate_root_portal(args.outbase)
+except Exception as e:
+    print(f"{C_RED}[!] Failed to rebuild Root Portal: {e}{C_RESET}")
 
 print(f"\n{C_CYAN}🔗 Repository - Follow on GitHub for new versions and updates{C_RESET}")
 print(f"\n{C_GREEN}Generate topologies dynamically{C_RESET}")

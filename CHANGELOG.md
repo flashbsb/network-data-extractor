@@ -2,6 +2,11 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.59.0] - 2026-05-21
+### Added
+- **Root Navigation Portal**: Developed a central, interactive `index.html` hub that is automatically generated at the root of the `--outbase` directory. It actively detects and bridges access to the Diff, Inventory, and Ping Matrix workspaces in a highly polished, NOC-focused dark mode interface.
+- **Dynamic Portal Links**: The Root Portal uses strictly relative paths and automatically provides actionable commands to the user if a specific workspace hasn't been generated yet (e.g., `Run with --diff`).
+
 ## [1.58.5] - 2026-05-15
 ### Changed
 - **Documentation**: Updated `README.md` flowchart and help texts to accurately reflect current `--rebuild-ping-index` functionality and correct portal paths.
