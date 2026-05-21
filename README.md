@@ -280,7 +280,7 @@ The `core/interface2connection.py` script relies on a "Universal Blind Analyzer"
 
 ## 🔍 Recursive Network Discovery
 
-Starting with version 1.30.0, the tool can automatically expand your inventory:
+The tool can automatically expand your inventory:
 
 1.  **Hop-by-Hop Crawling**: Use `--discovery --hops X` to start a recursive search. At the end of each collection cycle, the script identifies unknown LLDP neighbors and targets them in the next "hop".
 2.  **Management IP Election**: Uses `preferred_management_subnets` from `settings.json` to choose the best IP (e.g., Loopbacks) for accessing discovered devices.
