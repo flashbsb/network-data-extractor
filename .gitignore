@@ -1,5 +1,6 @@
 # APP
 diff/
+inventory/
 
 # Python & Cache
 __pycache__/

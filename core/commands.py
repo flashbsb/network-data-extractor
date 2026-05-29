@@ -17,8 +17,8 @@ if os.path.exists("config/settings.json"):
     try:
         with open("config/settings.json", "r") as f:
             json_config = json.load(f)
-    except:
-        pass
+    except Exception as e:
+        print(f"Warning: Failed to load config/settings.json: {e}")
 
 ssh_cfg = json_config.get("ssh", {})
 SSH_TIMEOUT = ssh_cfg.get("timeout", 10)
@@ -74,10 +74,14 @@ def sanitize_filename(s):
 
 
 def execute_commands_shell(client, cmds):
+    import re
+    # Matches CLI prompts like: ROUTER#, ROUTER>, RP/0/RSP0/CPU0:ROUTER#, etc.
+    PROMPT_RE = re.compile(r'[A-Za-z0-9_\-\.\:\/]+[#>]\s*$')
+
     shell = client.invoke_shell()
     time.sleep(1)
     shell.recv(1000)  # clear banner
-    
+
     # Disable pagination (Universal Shotgun Strategy)
     paginators = [
         'terminal length 0',      # Cisco IOS / IOS-XE
@@ -87,49 +91,55 @@ def execute_commands_shell(client, cmds):
     for p_cmd in paginators:
         shell.send(p_cmd + '\n')
         time.sleep(0.5)
-        
+
     # Flush the pager command echos
     while shell.recv_ready():
         shell.recv(65535)
 
     output_map = {}
     for cmd in cmds:
-        # logging.info(f"Sending command: {cmd}") # Suppressed
         shell.send(cmd + '\n')
-        
+
         buff = b''
         timeout_limit = 20  # Maximum seconds to wait total per command
         start_time = time.time()
         last_recv_time = time.time()
-        
+
         while True:
-            # If we've hit the hard timeout limit, break out
+            # Hard timeout: always bail after timeout_limit seconds
             if time.time() - start_time > timeout_limit:
                 break
-                
+
             if shell.recv_ready():
                 chunk = shell.recv(65535)
                 if chunk:
                     buff += chunk
                     last_recv_time = time.time()
-                    
-                    # Detect pagination markers in the last tailored chunk
+
                     text_chunk = chunk.decode('utf-8', errors='ignore').lower()
+
+                    # Handle mid-output pagination markers
                     if '--more--' in text_chunk or '---- more' in text_chunk or 'press any key' in text_chunk:
-                        shell.send(' ') # Send Spacebar to continue
-                        time.sleep(0.1) # Give it a fraction to respond
+                        shell.send(' ')  # Send Spacebar to continue
+                        time.sleep(0.1)
+                        continue
+
+                    # PERF: prompt detected — output is complete, no need to wait CMD_DELAY
+                    tail = buff.decode('utf-8', errors='ignore').rstrip()
+                    last_line = tail.split('\n')[-1] if tail else ''
+                    if PROMPT_RE.search(last_line):
+                        break
             else:
-                # If we haven't received anything new for CMD_DELAY seconds, assume it's done
+                # Idle fallback: if no data for CMD_DELAY seconds, assume output finished
                 if time.time() - last_recv_time > CMD_DELAY:
                     break
                 time.sleep(0.1)
-                
+
         output_map[cmd] = buff.decode('utf-8', errors='ignore')
     shell.close()
     return output_map
 
 
-import argparse
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--outdir", default=".")
@@ -248,8 +258,10 @@ def main():
                         except Exception as e:
                             logging.error(f"Error saving '{fname}': {e}")
                     
-                    # Log the successful key for the user (to adjust elements.cfg)
-                    success_keys_file = os.path.join(args.resumedir or args.outdir, "successful_keys.csv")
+                    # Log the successful key for element_status.py to consume.
+                    # IMPORTANT: Must be written to outdir (collect_dir), because
+                    # element_status.py reads it from collect_dir (not resumedir).
+                    success_keys_file = os.path.join(args.outdir, "successful_keys.csv")
                     with files_written_lock:
                         with open(success_keys_file, 'a') as skf:
                             skf.write(f"{host};{current_ip};{current_key}\n")
@@ -261,7 +273,7 @@ def main():
                 except Exception as e:
                     logging.warning(f"Connection/Execution failed for {host} at {current_ip} with key '{current_key}': {e}")
                     try: client.close()
-                    except: pass
+                    except Exception: pass
                     continue
 
         with counter_lock:

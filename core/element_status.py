@@ -19,8 +19,8 @@ def load_settings(custom_path=None):
         try:
             with open(config_path, "r") as f:
                 return json.load(f)
-        except:
-            pass
+        except Exception as e:
+            print(f"Warning: Failed to load {config_path}: {e}")
     return {}
 
 def is_ignored(name, ignore_prefixes):
@@ -62,6 +62,7 @@ def main():
     found_elements = set()
 
     # 2. Load Successful Keys from commands.py run (if any)
+    # Note: successful_keys.csv is written to collect_dir by commands.py
     working_keys = {}
     success_keys_file = os.path.join(args.collect_dir, "successful_keys.csv")
     if os.path.isfile(success_keys_file):
@@ -70,9 +71,6 @@ def main():
                 parts = line.strip().split(';')
                 if len(parts) >= 3:
                     working_keys[parts[0]] = parts[2]
-
-    report_data = []
-    found_elements = set()
 
     # 3. Scan collect_dir for successful TXT extractions
     for expected in expected_elements:

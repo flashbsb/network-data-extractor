@@ -2,7 +2,7 @@
     "_help": "Global Configuration for Network Data Extractor. Note: JSON does not support standard comments, so '_help' variables are used for documentation and ignored by the script.",
     "extractor": {
         "_help_extractor": "Main orchestrator execution settings. Controls the concurrency and output destinations.",
-        "threads": 20,
+        "threads": 10,
         "randomize_order": true,
         "output_base_dir": "infos",
         "elements_file": "config/elements.cfg",
@@ -109,7 +109,7 @@
         "datagram_size": 100,
         "timeout": 2,
         "max_latency_warning": 200,
-        "parallel_sessions": 15,
+        "parallel_sessions": 10,
         "delay_between_commands": 1.0,
         "asymmetric_threshold_pct": 25.0
     }

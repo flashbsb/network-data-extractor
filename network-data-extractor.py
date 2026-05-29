@@ -25,8 +25,13 @@ from glob import glob
 APP_VERSION = "1.59.5"
 APP_DATE = "2026-05-21"
 
-# ANSI Colors
-C_GREEN = '\033[92m'
+# ANSI Colors — must be declared before any function that uses them
+C_GREEN  = '\033[92m'
+C_RED    = '\033[91m'
+C_CYAN   = '\033[96m'
+C_YELLOW = '\033[93m'
+C_RESET  = '\033[0m'
+
 # --- MASTER INDEX DASHBOARD ---
 def generate_master_dashboard(outbase):
     import re
@@ -67,7 +72,7 @@ def generate_master_dashboard(outbase):
                 # Derive display date from folder name YYYYMMDD_HHMMSS
                 try:
                     dt_label = f"{ts_id[:4]}-{ts_id[4:6]}-{ts_id[6:8]} {ts_id[9:11]}:{ts_id[11:13]}:{ts_id[13:15]}"
-                except:
+                except (IndexError, ValueError):
                     dt_label = ts_id
                 
                 runs.append({
@@ -89,7 +94,7 @@ def generate_master_dashboard(outbase):
         print(f"    {C_YELLOW}    (Run with --ping-matrix to generate new runs){C_RESET}")
         return
 
-    # Sort runs by ID descending (newest first)
+    # Sort runs by ID descending (newest first — already done by sorted() above, kept for safety)
     runs.sort(key=lambda x: x["id"], reverse=True)
 
     html = """<!DOCTYPE html>
@@ -262,13 +267,11 @@ def generate_master_dashboard(outbase):
         print(f"[*] Portal available at: {index_path}")
     except Exception as e:
         print(f"\n{C_RED}[!] Failed to generate Master Index: {e}{C_RESET}")
-C_RED = '\033[91m'
-C_CYAN = '\033[96m'
-C_YELLOW = '\033[93m'
-C_RESET = '\033[0m'
 
-# Exclude scripts that are manually called later in specialized 'consolidation' blocks to avoid double execution with wrong args
-consolidation_scripts = [
+# Scripts excluded from the global SCRIPTS list because they are called later
+# in the specialized 'consolidation' block with specific arguments.
+# Renamed from consolidation_scripts to avoid collision with the runtime variable below.
+_GLOB_EXCLUSION_LIST = [
     "parsers/generate_max_speed_interfaces.py",
     "parsers/generate_service_inventory.py",
     "parsers/license_matrix.py",
@@ -278,8 +281,8 @@ consolidation_scripts = [
     "parsers/transceiver_matrix.py",
     "parsers/show.bgp.vpnv4.unicast.all.summary.py"
 ]
-parsers_show = sorted([p for p in glob("parsers/show.*.py") if p not in consolidation_scripts])
-parsers_others = sorted([p for p in glob("parsers/*.py") if p not in parsers_show and p not in consolidation_scripts])
+parsers_show = sorted([p for p in glob("parsers/show.*.py") if p not in _GLOB_EXCLUSION_LIST])
+parsers_others = sorted([p for p in glob("parsers/*.py") if p not in parsers_show and p not in _GLOB_EXCLUSION_LIST])
 
 SCRIPTS = ["core/commands.py"] + parsers_show + parsers_others + ["core/element_status.py"]
 
@@ -758,56 +761,69 @@ def run_and_stream_capture(cmd, env=None, out_path=None):
     return rc
 
 
-def check_data_presence(script_path, collect_dir, resume_dir):
-    """Returns True if there is data for the script to process."""
+def check_data_presence(script_path, collect_dir, resume_dir, collect_files=None):
+    """Returns True if there is data for the script to process.
+
+    Args:
+        script_path:   relative path to the script being evaluated.
+        collect_dir:   path to the collect/ directory.
+        resume_dir:    path to the resume/ directory.
+        collect_files: optional pre-built set of basenames in collect_dir.
+                       When provided, avoids repeated glob/os.listdir calls
+                       per script (PERF optimisation for large collect dirs).
+    """
     script_name = os.path.basename(script_path)
-    
-    if script_name == "commands.py": 
+
+    if script_name == "commands.py":
         return True
-        
+
+    # Build the file set on first use if caller did not pre-build it
+    if collect_files is None:
+        try:
+            collect_files = set(os.listdir(collect_dir))
+        except OSError:
+            collect_files = set()
+
+    def _has_suffix(suffix):
+        """Return True if any file in collect_files ends with suffix."""
+        return any(f.endswith(suffix) for f in collect_files)
+
     if script_name.startswith("show."):
-         # parsers/show.X.py -> *.show.X.txt
-         cmd_part = script_name.replace(".py", "")
-         return len(glob(os.path.join(collect_dir, f"*.{cmd_part}.txt"))) > 0
+        # parsers/show.X.py -> *.show.X.txt
+        cmd_part = script_name.replace(".py", "")
+        return _has_suffix(f".{cmd_part}.txt")
 
     if script_name == "system_asset.py":
-        # system_asset.py parses Datacom show system, and Cisco show version / show platform
-        return any(len(glob(os.path.join(collect_dir, pat))) > 0 for pat in ["*.show.system.txt", "*.show.version.txt", "*.show.platform.txt"])
+        return any(_has_suffix(s) for s in (".show.system.txt", ".show.version.txt", ".show.platform.txt"))
 
     if script_name == "transceiver_matrix.py":
-        # transceiver_matrix.py parses Datacom hardware-status AND Cisco inventory/inventory details
-        return any(len(glob(os.path.join(collect_dir, pat))) > 0 for pat in [
-            "*.show.hardware-status.transceivers.detail.txt",
-            "*.show.inventory.details.txt", 
-            "*.show.inventory.txt"
-        ])
+        return any(_has_suffix(s) for s in (
+            ".show.hardware-status.transceivers.detail.txt",
+            ".show.inventory.details.txt",
+            ".show.inventory.txt",
+        ))
 
     if script_name == "subcomponents.py":
-        # subcomponents.py parses show inventory
-        return any(len(glob(os.path.join(collect_dir, pat))) > 0 for pat in ["*.show.inventory.txt", "*.show.inventory.details.txt"])
+        return any(_has_suffix(s) for s in (".show.inventory.txt", ".show.inventory.details.txt"))
 
     if script_name == "license_matrix.py":
-        return any(len(glob(os.path.join(collect_dir, pat))) > 0 for pat in ["*.show.license.summary.txt", "*.show.license.feature.txt", "*.show.license.txt"])
+        return any(_has_suffix(s) for s in (".show.license.summary.txt", ".show.license.feature.txt", ".show.license.txt"))
 
     if script_name == "port_census.py":
         return os.path.isfile(os.path.join(resume_dir, "interfaces_all.csv"))
 
-    if script_name == "generate_service_inventory.py":
+    if script_name in ("generate_service_inventory.py", "lldp_consistency_checker.py"):
         return os.path.isfile(os.path.join(resume_dir, "show_lldp_neighbors_detail_all.csv"))
 
-    if script_name == "lldp_consistency_checker.py":
-         return os.path.isfile(os.path.join(resume_dir, "show_lldp_neighbors_detail_all.csv"))
-
     if script_name == "interface2connection.py":
-         return os.path.isfile(os.path.join(resume_dir, "interfaces_all.csv"))
+        return os.path.isfile(os.path.join(resume_dir, "interfaces_all.csv"))
 
     if script_name == "topology_checker.py":
-         # Check in the connections directory, which is a sibling to resume
-         conn_dir = os.path.join(os.path.dirname(resume_dir), "connections")
-         return os.path.isfile(os.path.join(conn_dir, "topology.connections.csv"))
-    
+        conn_dir = os.path.join(os.path.dirname(resume_dir), "connections")
+        return os.path.isfile(os.path.join(conn_dir, "topology.connections.csv"))
+
     if script_name == "element_status.py":
-         return len(glob(os.path.join(collect_dir, "*.txt"))) > 0
+        return any(f.endswith(".txt") for f in collect_files)
 
     return True
 
@@ -908,6 +924,16 @@ while True:
         print(f"\n{C_CYAN}>>> DISCOVERY HOP {current_hop}/{max_hops} <<<{C_RESET}")
         print(f"Targeting: {current_elements_file}\n")
 
+    # PERF: Build collect_dir file set once per hop to avoid repeated os.listdir/glob
+    # calls inside check_data_presence for every script.
+    # - Offline mode: collect/ already populated → valid immediately.
+    # - Live mode:    collect/ is empty here; cache is REBUILT after commands.py completes.
+    # - Ping-matrix standalone: no parsers use this cache.
+    try:
+        _collect_files_cache = set(os.listdir(COLLECT_DIR))
+    except OSError:
+        _collect_files_cache = set()
+
     total_scripts = len(SCRIPTS)
     for i, script in enumerate(SCRIPTS, start=1):
         step_prefix = f"[{i:2d}/{total_scripts:2d}] {script:40s}"
@@ -922,7 +948,7 @@ while True:
 
         log_orchestrator(f"Executing {script_name}...")
 
-        if not args.force and not check_data_presence(script, COLLECT_DIR, RESUME_DIR):
+        if not args.force and not check_data_presence(script, COLLECT_DIR, RESUME_DIR, _collect_files_cache):
             print(f"{step_prefix} {C_YELLOW}[SKIPPED - NO DATA]{C_RESET}")
             log_orchestrator(f"Skipped {script_name}: No data found in collect/ to process.")
             continue
@@ -969,6 +995,14 @@ while True:
                         print(f"Check {LOG_DIR}/commands.log for connection details.")
                         log_orchestrator("Stopping orchestrator: No data collected.")
                         sys.exit(100)
+
+                # PERF: Rebuild the collect_dir cache NOW that commands.py has populated it.
+                # The cache was pre-built at loop start when collect/ was still empty.
+                try:
+                    _collect_files_cache = set(os.listdir(COLLECT_DIR))
+                except OSError:
+                    _collect_files_cache = set()
+
             except KeyboardInterrupt:
                 print(f"{step_prefix} {C_RED}[INTERRUPTED]{C_RESET}")
                 log_orchestrator("Orchestrator interrupted by user during commands.py")
@@ -985,7 +1019,7 @@ while True:
                 with open(out_file_name, "w", encoding="utf-8") as fh:
                     fh.write(f"COMMAND: {' '.join(cmd)}\n")
                     fh.write("START: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n\n")
-            except:
+            except (OSError, IOError):
                 out_file_name = None
 
             script_start_time = datetime.now()
@@ -1129,7 +1163,7 @@ while True:
             log_orchestrator(f"Skipped {script_name}: File not found at {script_abs}")
             continue
         
-        if not args.force and not check_data_presence(script_rel, COLLECT_DIR, RESUME_DIR):
+        if not args.force and not check_data_presence(script_rel, COLLECT_DIR, RESUME_DIR, _collect_files_cache):
             print(f"[*] {script_name:40s} {C_YELLOW}[SKIPPED - NO DATA]{C_RESET}")
             log_orchestrator(f"Skipped {script_name}: No data found to process.")
             continue

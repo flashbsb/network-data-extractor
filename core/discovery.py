@@ -29,7 +29,7 @@ def is_ip_in_subnets(ip, subnets):
         for subnet in subnets:
             if ip_obj in ipaddress.ip_network(subnet):
                 return True
-    except:
+    except (ValueError, TypeError):
         pass
     return False
 
@@ -217,7 +217,8 @@ def main():
             with open(csv_report_path, 'r', encoding='utf-8') as f:
                 reader = csv.DictReader(f, delimiter=';')
                 for r in reader: existing_report.append(r)
-        except: pass
+        except Exception:
+            pass
 
     # Merge Logic
     # We use all discoveries (even those without new IPs for next hop) to populate the master report

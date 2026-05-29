@@ -86,7 +86,7 @@ def main():
             print(f"  [-] {C_YELLOW}Pending{C_RESET}: Topology missing for {ts_id}. Generating...")
             
             cmd = [
-                "python3", args.topology_generator_path,
+                sys.executable, args.topology_generator_path,
                 "-t", args.theme,
                 "-c", os.path.abspath(args.topo_config),
                 "-e", os.path.abspath(args.topo_elements),
