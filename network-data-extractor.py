@@ -434,10 +434,14 @@ if args.offline:
         print(f"{C_RED}ERROR: --offline and --inventory are mutually exclusive.{C_RESET}")
         sys.exit(1)
 
+# Computed once: True when running a standalone mode (no live collection, no offline parsing).
+# Used by --diff, --inventory and --rebuild-index to decide whether to run immediately and exit
+# or defer execution to the end of a full collection pipeline.
+is_standalone = not (args.user or args.ping_matrix or args.discovery or args.offline)
+
 # 4. Mode D: Drift Analysis Validations
 if args.diff:
     # If we are NOT doing a live run or offline parsing, run standalone and exit
-    is_standalone = not (args.user or args.ping_matrix or args.discovery or args.offline)
     
     if is_standalone:
         print(f"\n{C_CYAN}--- Network Drift Workspace: Initialization ---{C_RESET}")
@@ -458,7 +462,6 @@ if args.diff:
 # 4.1 Mode D: Inventory Dashboard Validations
 if args.inventory:
     # If we are NOT doing a live run or offline parsing, run standalone and exit
-    is_standalone = not (args.user or args.ping_matrix or args.discovery or args.offline)
     
     if is_standalone:
         print(f"\n{C_CYAN}--- Network Inventory Workspace: Initialization ---{C_RESET}")
@@ -479,7 +482,6 @@ if args.inventory:
 # 4.2 Mode D: Rebuild All Indexes
 if args.rebuild_index:
     # If we are NOT doing a live run or offline parsing, run standalone and exit
-    is_standalone = not (args.user or args.ping_matrix or args.discovery or args.offline)
     
     if is_standalone:
         print(f"\n{C_CYAN}--- Rebuilding All Master Dashboards ---{C_RESET}")
