@@ -62,7 +62,8 @@ graph LR
         PARSE --> CSV_INT["📄 interfaces.csv"]:::csv
         PARSE --> CSV_LLDP["📄 lldp.csv"]:::csv
         
-        CSV_INT & CSV_LLDP --> TOPO[Topology Checker]:::module
+        CSV_INT --> TOPO[Topology Checker]:::module
+        CSV_LLDP --> TOPO
         TOPO --> CSV_WARN["📄 warnings.csv"]:::csv
     end
 
@@ -84,14 +85,21 @@ graph LR
 
         MODE -->|"--rebuild-index"| REBUILD[Master Rebuild]:::engine
         
-        PING_HTML & HIST_HTML & PATH_HTML -.->|"Auto-trigger"| PM_GEN[Ping Matrix Index]:::module
-        REBUILD --> INV_GEN & DIFF_GEN & PM_GEN
+        PING_HTML -.->|"Auto-trigger"| PM_GEN[Ping Matrix Index]:::module
+        HIST_HTML -.->|"Auto-trigger"| PM_GEN
+        PATH_HTML -.->|"Auto-trigger"| PM_GEN
+        
+        REBUILD --> INV_GEN
+        REBUILD --> DIFF_GEN
+        REBUILD --> PM_GEN
         
         PM_GEN --> PM_HTML{{"📊 ping-matrix/index.html"}}:::web
         PM_GEN --> HIST_VIEW{{"📈 ping-matrix/history.html"}}:::web
         PM_GEN --> PATH_VIEW{{"🗺️ ping-matrix/path.html"}}:::web
         
-        INV_GEN & DIFF_GEN & PM_GEN -.->|"Auto-trigger"| ROOT_GEN[Root Navigation Portal]:::module
+        INV_GEN -.->|"Auto-trigger"| ROOT_GEN[Root Navigation Portal]:::module
+        DIFF_GEN -.->|"Auto-trigger"| ROOT_GEN
+        PM_GEN -.->|"Auto-trigger"| ROOT_GEN
         REBUILD --> ROOT_GEN
         
         ROOT_GEN --> ROOT_HTML{{"🧭 infos/index.html"}}:::web
