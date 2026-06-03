@@ -5,8 +5,8 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
- Version : 1.59.5
- Date    : 2026-05-21
+ Version : 1.60.0
+ Date    : 2026-06-03
  Author  : flashbsb (and contributors) 
 
 """
@@ -23,8 +23,8 @@ import types
 from datetime import datetime
 from glob import glob
 
-APP_VERSION = "1.59.5"
-APP_DATE = "2026-05-21"
+APP_VERSION = "1.60.0"
+APP_DATE = "2026-06-03"
 
 # ANSI Colors — must be declared before any function that uses them
 C_GREEN  = '\033[92m'
@@ -35,7 +35,6 @@ C_RESET  = '\033[0m'
 
 # --- MASTER INDEX DASHBOARD ---
 def generate_master_dashboard(outbase):
-    import re
     portal_dir = os.path.join(outbase, "ping-matrix")
     os.makedirs(portal_dir, exist_ok=True)
     index_path = os.path.join(portal_dir, "index.html")
@@ -44,6 +43,27 @@ def generate_master_dashboard(outbase):
     abs_outbase = os.path.abspath(outbase)
     portal_dir = os.path.join(abs_outbase, "ping-matrix")
     os.makedirs(portal_dir, exist_ok=True)
+
+    # Copy history.html, path.html, and chart.js template files from repository to active outbase
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    src_history = os.path.join(script_dir, "infos", "ping-matrix", "history.html")
+    src_path = os.path.join(script_dir, "infos", "ping-matrix", "path.html")
+    src_chart = os.path.join(script_dir, "infos", "ping-matrix", "chart.js")
+    
+    dest_history = os.path.join(portal_dir, "history.html")
+    dest_path = os.path.join(portal_dir, "path.html")
+    dest_chart = os.path.join(portal_dir, "chart.js")
+    
+    import shutil
+    try:
+        if os.path.isfile(src_history) and os.path.abspath(src_history) != os.path.abspath(dest_history):
+            shutil.copy2(src_history, dest_history)
+        if os.path.isfile(src_path) and os.path.abspath(src_path) != os.path.abspath(dest_path):
+            shutil.copy2(src_path, dest_path)
+        if os.path.isfile(src_chart) and os.path.abspath(src_chart) != os.path.abspath(dest_chart):
+            shutil.copy2(src_chart, dest_chart)
+    except Exception as e:
+        print(f"    {C_RED}[!] Failed to copy dashboard templates to outbase: {e}{C_RESET}")
     
     # Search for all timestamped run subfolders inside ping-matrix/
     run_dirs = sorted(glob(os.path.join(portal_dir, "20*_*")), reverse=True)
@@ -102,6 +122,8 @@ def generate_master_dashboard(outbase):
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="description" content="Ping Matrix Historical Snapshots Navigation Portal">
+    <meta property="og:title" content="Ping Matrix Master Index">
     <title>Ping Matrix Master Index</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
@@ -120,7 +142,6 @@ def generate_master_dashboard(outbase):
         .sidebar.collapsed { width: 0; min-width: 0; border-right: none; overflow: hidden; }
         
         .toggle-sidebar {
-            position: absolute; top: 15px; left: 15px; z-index: 100;
             background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(8px);
             border: 1px solid rgba(56,189,248,0.3); color: #38bdf8;
             padding: 8px 12px; border-radius: 8px; cursor: pointer;
@@ -132,11 +153,11 @@ def generate_master_dashboard(outbase):
             padding: 25px 20px;
             border-bottom: 1px solid rgba(255,255,255,0.05);
         }
-        .sidebar-header h1 {
+        .sidebar-header .sidebar-title {
             font-family: 'Outfit', sans-serif;
             font-size: 22px; font-weight: 800; margin: 0;
             background: linear-gradient(90deg, #38bdf8, #818cf8);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
         }
         .sidebar-header p { font-size: 11px; color: #64748b; margin: 5px 0 0 0; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
         
@@ -182,6 +203,41 @@ def generate_master_dashboard(outbase):
         /* Main View */
         .main-content { flex-grow: 1; position: relative; background: #020617; display: flex; flex-direction: column; }
         #viewer { width: 100%; height: 100%; border: none; }
+        .hud-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding: 15px 25px;
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(8px);
+            position: sticky;
+            top: 0;
+            z-index: 300;
+            width: 100%;
+        }
+        .hud-title h1 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #38bdf8;
+            font-family: 'Outfit', sans-serif;
+            margin: 0;
+        }
+        .hud-title p {
+            font-size: 0.7rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 2px;
+        }
+        .back-portal {
+            background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(8px);
+            border: 1px solid rgba(56,189,248,0.3); color: #38bdf8;
+            padding: 8px 12px; border-radius: 8px; cursor: pointer;
+            font-size: 14px; font-weight: 600; text-decoration: none;
+            transition: all 0.2s; display: flex; align-items: center; gap: 8px;
+        }
+        .back-portal:hover { background: rgba(15, 23, 42, 1); border-color: #38bdf8; box-shadow: 0 0 10px rgba(56,189,248,0.2); }
         
         #placeholder {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -197,10 +253,9 @@ def generate_master_dashboard(outbase):
     </style>
 </head>
 <body>
-    <button class="toggle-sidebar" onclick="toggleSidebar()" title="Toggle Sidebar">☰ Menu</button>
     <div class="sidebar collapsed" id="sidebar">
         <div class="sidebar-header">
-            <h1>📡 Ping Matrix</h1>
+            <div class="sidebar-title">📡 Ping Matrix</div>
             <p>Historical Analysis Portal</p>
         </div>
         <div class="run-list">
@@ -225,6 +280,16 @@ def generate_master_dashboard(outbase):
         </div>
     </div>
     <div class="main-content">
+        <div class="hud-header">
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <button class="toggle-sidebar" onclick="toggleSidebar()" title="Toggle Sidebar">☰ Menu</button>
+                <div class="hud-title">
+                    <h1>📡 Ping Matrix Portal</h1>
+                    <p>Historical Analysis Portal</p>
+                </div>
+            </div>
+            <a class="back-portal" href="../index.html">← Network Portal</a>
+        </div>
         <iframe id="viewer" src="about:blank"></iframe>
         <div id="placeholder">
             <h2>No run selected</h2>
@@ -487,12 +552,17 @@ if args.rebuild_index:
     if is_standalone:
         print(f"\n{C_CYAN}--- Rebuilding All Master Dashboards ---{C_RESET}")
         
-        # 1. Ping Matrix
-        print(f"[*] Rebuilding Ping Matrix Index...")
+        # 1. Ping Matrix & History
+        print("[*] Rebuilding Ping Matrix Index and History...")
+        try:
+            from core.ping_history_generator import PingHistoryGenerator
+            PingHistoryGenerator(args.outbase).run(force_rebuild=True)
+        except Exception as e:
+            print(f"{C_RED}[!] Failed to rebuild Ping History: {e}{C_RESET}")
         generate_master_dashboard(args.outbase)
         
         # 2. Inventory
-        print(f"[*] Rebuilding Inventory Dashboard...")
+        print("[*] Rebuilding Inventory Dashboard...")
         try:
             from core.inventory_engine import InventoryEngine
             InventoryEngine(args.outbase).run()
@@ -500,7 +570,7 @@ if args.rebuild_index:
             print(f"{C_YELLOW}    └─> Skipped (No data): {e}{C_RESET}")
             
         # 3. Diff
-        print(f"[*] Rebuilding Drift Analysis Dashboard...")
+        print("[*] Rebuilding Drift Analysis Dashboard...")
         try:
             from core.diff_engine import DiffEngine
             DiffEngine(args.outbase).run()
@@ -508,7 +578,7 @@ if args.rebuild_index:
             print(f"{C_YELLOW}    └─> Skipped (Requires 2+ snapshots): {e}{C_RESET}")
             
         # 4. Root Portal
-        print(f"[*] Rebuilding Root Navigation Portal...")
+        print("[*] Rebuilding Root Navigation Portal...")
         try:
             from core.root_portal_engine import generate_root_portal
             generate_root_portal(args.outbase)
@@ -614,7 +684,7 @@ if args.offline:
     print(f"Start: {start_time.strftime('%Y-%m-%d %H:%M:%S')} {C_YELLOW}(OFFLINE MODE){C_RESET}")
     print(f"Target Root: {TIMESTAMP_DIR}\n")
     print(f"{C_CYAN}----------------------------------------{C_RESET}")
-    print(f"Offline processing initializing...")
+    print("Offline processing initializing...")
     print("")
 
 else:
@@ -731,7 +801,7 @@ else:
 
         
         print(f"{C_CYAN}----------------------------------------{C_RESET}")
-        print(f"Extraction initializing...")
+        print("Extraction initializing...")
         print("")
 
 cwd = os.getcwd()
@@ -1158,11 +1228,11 @@ while True:
             if out_file_name:
                 try:
                     with open(out_file_name, "a", encoding="utf-8") as fh:
-                        fh.write(f"\n\n--- EXECUTION SUMMARY ---\n")
+                        fh.write("\n\n--- EXECUTION SUMMARY ---\n")
                         fh.write(f"FINAL STATUS: {status} (Return Code: {rc})\n")
                         fh.write(f"PROCESSING TIME: {script_duration:.2f} seconds\n")
                         fh.write("END: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n")
-                except Exception as e:
+                except Exception:
                     pass # Silently drop missing summary lines instead of breaking terminal display
 
             print(f"{step_prefix} {status_text} ({script_duration:5.1f}s)")
@@ -1305,7 +1375,7 @@ while True:
             disco_duration = (datetime.now() - disco_start_time).total_seconds()
             
             with open(disco_log_path, "a", encoding="utf-8") as fh:
-                fh.write(f"\n\n--- EXECUTION SUMMARY ---\n")
+                fh.write("\n\n--- EXECUTION SUMMARY ---\n")
                 fh.write(f"FINAL STATUS: {'SUCCESS' if rc_disco.returncode == 0 else 'FAILURE/WARNING'} (Return Code: {rc_disco.returncode})\n")
                 fh.write(f"PROCESSING TIME: {disco_duration:.2f} seconds\n")
                 fh.write("END: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n")
@@ -1390,8 +1460,8 @@ print("\n" + "=" * 60)
 if args.ping_matrix:
     print(f"{C_CYAN}                PING MATRIX SUMMARY{C_RESET}")
     print("=" * 60)
-    print(f"  * Mode             : Origin x Destination Pings")
-    print(f"  └─> View Matrix in : resume/ping_matrix_list.csv")
+    print("  * Mode             : Origin x Destination Pings")
+    print("  └─> View Matrix in : resume/ping_matrix_list.csv")
 else:
     print(f"{C_CYAN}                CONSOLIDATION SUMMARY{C_RESET}")
     print("=" * 60)
@@ -1443,7 +1513,12 @@ if args.diff:
 
 # --- PING INDEX HOOK ---
 if args.rebuild_index or args.ping_matrix:
-    print(f"\n{C_CYAN}--- Rebuilding Ping Matrix Master Index ---{C_RESET}")
+    print(f"\n{C_CYAN}--- Rebuilding Ping Matrix Master Index & History ---{C_RESET}")
+    try:
+        from core.ping_history_generator import PingHistoryGenerator
+        PingHistoryGenerator(args.outbase).run(force_rebuild=bool(args.rebuild_index))
+    except Exception as e:
+        print(f"{C_RED}[!] Failed to update Ping History Database: {e}{C_RESET}")
     try:
         # If we are in a normal extraction, TIMESTAMP_DIR is the current run.
         # Master index should be in the parent (args.outbase)

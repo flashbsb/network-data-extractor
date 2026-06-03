@@ -2,6 +2,20 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.60.0] - 2026-06-03
+### Added
+- **Dynamic Datalist Autocomplete**: Replaced the static selection dropdowns in both the Ping History (`history.html`) and Dijkstra Route Analysis (`path.html`) dashboards with text inputs connected to HTML5 `<datalist>` elements. This provides instant dynamic filtering, handles large lists without browser lag, supports native keyboard navigation, and runs CORS-free.
+- **Dijkstra Route Analysis**: Added a path simulator inside the Ping Matrix workspace (`path.html`) using Dijkstra's algorithm to compute shortest paths between nodes based on real-time latency and packet loss.
+- **Ping History Telemetry**: Introduced a telemetry dashboard (`history.html`) to visualize and analyze historical ping metrics (latency, jitter, packet loss, and node availability) over time.
+- **Project Requirements**: Added a `requirements.txt` file listing python dependencies (`pandas` and `paramiko`) to standardize environment setups.
+
+### Changed
+- **Unified Portal Headers**: Harmonized navigation styling across all sub-workspaces, introducing a "Network Portal" back-navigation link in the top-right corner.
+- **Iframe Navigation Handling**: Implemented a responsive check (`window.self !== window.top`) in the master templates to dynamically hide duplicate portal buttons when a sub-dashboard is loaded inside the Root Navigation iframe.
+
+### Fixed
+- **Network Drift Layout Overlap**: Corrected absolute overlay positions, padding, and sidebar toggle behaviors in the Drift Analyzer (`diff/index.html`) to prevent the header navigation links from being clipped or blocked.
+
 ## [1.59.0] - 2026-05-21
 ### Added
 - **Root Navigation Portal**: Developed a central, interactive `index.html` hub that is automatically generated at the root of the `--outbase` directory. It actively detects and bridges access to the Diff, Inventory, and Ping Matrix workspaces in a highly polished, NOC-focused dark mode interface.

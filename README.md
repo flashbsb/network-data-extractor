@@ -2,7 +2,7 @@
   <h1>🌐 Network Data Extractor</h1>
   <p><strong>The Ultimate Multivendor NOC Orchestrator & Autonomous Discovery Engine</strong></p>
   
-  ![Version](https://img.shields.io/badge/version-1.59.5-blue.svg)
+  ![Version](https://img.shields.io/badge/version-1.60.0-blue.svg)
   ![Python](https://img.shields.io/badge/python-3.8%2B-green.svg)
 </div>
 
@@ -24,6 +24,8 @@ Beyond simple command execution, it acts as an **intelligence layer**—parsing 
 - **📊 Local-First Dashboards**: Generates High-Performance SPAs (Single Page Applications) embedded directly in HTML. Works 100% offline without CORS issues.
 - **🔍 Network Drift Analysis**: Instantly compares historical snapshots to detect port status changes, bandwidth variations, and missing links.
 - **🛡️ Intelligent ICMP Diagnostics**: The *Ping Matrix* engine calculates latency, jitter, asymmetric routing, and highlights isolated nodes in a visual heatmap.
+- **📈 Historical Telemetry (Ping History)**: Tracks latency, packet loss, jitter, and node availability over time to identify chronic degradation trends and trigger anomaly warnings.
+- **🗺️ Dijkstra Route Analysis**: Simulator that computes the shortest path between network nodes based on active latency and loss telemetry.
 - **⚠️ Topology Fault Isolation**: Actively maps connection failures, proactively warning the operator when a router loses its logical LLDP adjacencies.
 
 ---
@@ -64,10 +66,12 @@ graph LR
         TOPO --> CSV_WARN["📄 warnings.csv"]:::csv
     end
 
-    subgraph "B: Ping Matrix"
+    subgraph "B: Ping Matrix & History"
         MODE -->|"--ping-matrix"| ICMP[ICMP Motor]:::engine
         ICMP --> PING_RES[("📁 PING_DATA")]:::storage
         PING_RES --> PING_HTML{{"📲 ping_matrix.html"}}:::web
+        PING_RES --> HIST_HTML{{"📲 history.html"}}:::web
+        PING_RES --> PATH_HTML{{"📲 path.html"}}:::web
     end
 
     subgraph "D: Visual Workspaces"
@@ -80,10 +84,12 @@ graph LR
 
         MODE -->|"--rebuild-index"| REBUILD[Master Rebuild]:::engine
         
-        PING_HTML -.->|"Auto-trigger"| PM_GEN[Ping Matrix Index]:::module
+        PING_HTML & HIST_HTML & PATH_HTML -.->|"Auto-trigger"| PM_GEN[Ping Matrix Index]:::module
         REBUILD --> INV_GEN & DIFF_GEN & PM_GEN
         
         PM_GEN --> PM_HTML{{"📊 ping-matrix/index.html"}}:::web
+        PM_GEN --> HIST_VIEW{{"📈 ping-matrix/history.html"}}:::web
+        PM_GEN --> PATH_VIEW{{"🗺️ ping-matrix/path.html"}}:::web
         
         INV_GEN & DIFF_GEN & PM_GEN -.->|"Auto-trigger"| ROOT_GEN[Root Navigation Portal]:::module
         REBUILD --> ROOT_GEN

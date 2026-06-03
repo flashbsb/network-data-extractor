@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import re, glob, csv, os
+import re
+import glob
+import csv
+import os
 
 def safe_search(pattern, text, default=''):
     m = re.search(pattern, text, re.MULTILINE)
@@ -28,7 +31,8 @@ def parse_show_firmware(filename):
     }
 
 if __name__ == '__main__':
-    import argparse, os
+    import argparse
+    import os
     parser = argparse.ArgumentParser()
     parser.add_argument('--outdir', default='.')
     parser.add_argument('--indir', default='.')

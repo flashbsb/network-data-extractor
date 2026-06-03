@@ -113,7 +113,7 @@ def main():
                     print(f"      {C_RED}└─> Error executing command: {e}{C_RESET}")
 
     print(f"\n{C_CYAN}============================================================{C_RESET}")
-    print(f"[*] Summary:")
+    print("[*] Summary:")
     print(f"    - Processed Runs: {len(run_dirs)}")
     print(f"    - Already Synced: {C_GREEN}{skipped_count}{C_RESET}")
     print(f"    - Generated Now : {C_YELLOW}{generated_count}{C_RESET}")

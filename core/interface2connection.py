@@ -293,8 +293,8 @@ def main():
         df_sum.to_csv(output_sum, sep=';', index=False)
         print(f" -> Generated: {output_sum} ({len(df_sum)} unified edge summaries)")
 
-    print(f"\n--- Final Connection Summary ---")
-    print(f"Completed Successfully.")
+    print("\n--- Final Connection Summary ---")
+    print("Completed Successfully.")
     print(f"Total resolved physical links: {len(df_detailed)}")
     print(f"Total summarized edge pairs: {len(df_sum)}")
     print(f"Total ignored virtual interfaces: {ignored_virtual}")

@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import re, glob, csv, os, json
+import re
+import glob
+import csv
+import os
+import json
 
 def parse_show_interfaces(filename):
     # Extracts hostname and id from filename
@@ -99,7 +103,8 @@ def parse_datacom_interfaces_status(filename):
     return data
 
 if __name__ == '__main__':
-    import argparse, os
+    import argparse
+    import os
     parser = argparse.ArgumentParser()
     parser.add_argument('--outdir', default='.')
     parser.add_argument('--indir', default='.')

@@ -1,7 +1,6 @@
 import os
 import json
 import csv
-import shutil
 from glob import glob
 
 class DiffEngine:
@@ -211,6 +210,8 @@ class DiffEngine:
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="description" content="Network Configuration Drift and Change Analysis Dashboard">
+    <meta property="og:title" content="Network Drift Analyzer">
     <title>Network Drift Analysis Workspace</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -255,22 +256,73 @@ class DiffEngine:
         .compare-btn:active:not(:disabled) { transform: translateY(0); }
         .compare-btn:disabled { background: #334155; color: #64748b; cursor: not-allowed; box-shadow: none; opacity: 0.5; }
 
-        .main-content { flex: 1; position: relative; background: radial-gradient(circle at top right, #1e293b, #020617); display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .main-content { flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative; background: radial-gradient(circle at top right, #1e293b, #020617); overflow-y: auto; overflow-x: hidden; transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         
-        .sidebar-toggle-btn { position: absolute; top: 20px; left: 20px; z-index: 400; background: rgba(15, 23, 42, 0.8); color: white; border: 1px solid var(--border); padding: 10px 15px; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: all 0.2s; }
+        .hud-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            padding: 15px 25px;
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 300;
+            width: 100%;
+        }
+        .hud-title h1 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--accent);
+            font-family: 'Outfit', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 0;
+        }
+        .hud-title p {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 2px;
+        }
+        .sidebar-toggle-btn { background: rgba(15, 23, 42, 0.8); color: white; border: 1px solid var(--border); padding: 10px 15px; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: all 0.2s; }
         .sidebar-toggle-btn:hover { background: var(--sidebar-bg); border-color: var(--accent); color: var(--accent); }
+        .back-portal {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--border);
+            color: var(--accent);
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-weight: 600;
+            text-decoration: none;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        .back-portal:hover {
+            background: var(--sidebar-bg);
+            border-color: var(--accent);
+            color: white;
+            box-shadow: 0 0 10px rgba(56,189,248,0.2);
+        }
 
-        #welcome { text-align: center; max-width: 600px; animation: fadeIn 1s ease-out; }
+        #welcome { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; max-width: 600px; margin: 0 auto; padding: 40px; animation: fadeIn 1s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
-        #compareOverlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg-dark); z-index: 300; display: none; flex-direction: column; animation: slideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        #compareOverlay { display: none; flex-direction: column; width: 100%; animation: slideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
         @keyframes slideIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
 
-        .compare-header { padding: 20px 40px; padding-left: 200px; background: var(--sidebar-bg); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .compare-header { padding: 20px 40px; background: var(--sidebar-bg); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
         .compare-title-box h2 { font-family: 'Outfit'; font-size: 1.8rem; color: var(--accent); }
         .compare-title-box p { color: var(--text-dim); font-size: 0.9rem; margin-top: 4px; font-weight: 500; }
 
-        .compare-filters { padding: 15px 40px; padding-left: 200px; background: rgba(15, 23, 42, 0.6); border-bottom: 1px solid var(--border); display: flex; gap: 30px; align-items: center; flex-wrap: wrap; }
+        .compare-filters { padding: 15px 40px; background: rgba(15, 23, 42, 0.6); border-bottom: 1px solid var(--border); display: flex; gap: 30px; align-items: center; flex-wrap: wrap; }
         .filter-group { display: flex; align-items: center; gap: 12px; }
         .filter-group label { font-size: 0.75rem; font-weight: 700; color: var(--text-dim); text-transform: uppercase; }
         
@@ -310,8 +362,8 @@ class DiffEngine:
         .drift-arrow { color: var(--accent); font-weight: 800; font-size: 1.1rem; }
         .drift-to { color: var(--text); font-weight: 700; background: rgba(56, 189, 248, 0.1); padding: 2px 6px; border-radius: 4px; }
         
-        .loader { display: none; text-align: center; }
-        .spinner { width: 60px; height: 60px; border: 5px solid rgba(56, 189, 248, 0.1); border-top: 5px solid var(--accent); border-radius: 50%; animation: spin 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite; margin-bottom: 20px; }
+        .loader { display: none; text-align: center; padding: 40px; margin-top: 50px; }
+        .spinner { width: 60px; height: 60px; border: 5px solid rgba(56, 189, 248, 0.1); border-top: 5px solid var(--accent); border-radius: 50%; animation: spin 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite; margin: 0 auto 20px auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
     </style>
@@ -334,14 +386,23 @@ class DiffEngine:
     </div>
     
     <div class="main-content">
-        <button class="sidebar-toggle-btn" onclick="toggleSidebar()">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-            DRIFT ANALYZER
-        </button>
+        <div class="hud-header">
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <button class="sidebar-toggle-btn" onclick="toggleSidebar()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                    DRIFT ANALYZER
+                </button>
+                <div class="hud-title">
+                    <h1 id="dashTitle">⚖️ Drift Analyzer</h1>
+                    <p id="dashSubTitle">Select two snapshots from the sidebar</p>
+                </div>
+            </div>
+            <a class="back-portal" href="../index.html">← Network Portal</a>
+        </div>
 
         <div id="welcome">
             <div style="font-size: 5rem; margin-bottom: 20px;">🕵️‍♂️</div>
-            <h1 style="font-family:'Outfit'; color:var(--accent); font-size:3.5rem; margin-bottom:10px; letter-spacing: -1px;">Ready for Audit.</h1>
+            <div style="font-family:'Outfit'; color:var(--accent); font-size:3.5rem; font-weight:800; margin-bottom:10px; letter-spacing: -1px;">Ready for Audit.</div>
             <p style="color:var(--text-dim); font-size: 1.1rem; font-weight: 500;">Select exactly two snapshots from the sidebar to visualize <span style="color: var(--accent)">configuration drift</span> and network changes.</p>
         </div>
 
@@ -355,11 +416,8 @@ class DiffEngine:
             <div class="compare-filters">
                 <div class="filter-group">
                     <label>Search</label>
-                    <input type="text" id="filterEl" class="input-styled" placeholder="Hostname or IP..." oninput="applyFilters()" style="min-width: 150px;">
-                </div>
-                <div class="filter-group">
-                    <label>Exclude</label>
-                    <input type="text" id="excludeEl" class="input-styled" placeholder="Exclude text..." oninput="applyFilters()" style="min-width: 150px;">
+                    <input type="text" id="filterEl" class="input-styled" placeholder="Hostname or IP..." oninput="applyFilters()" style="min-width: 150px;" aria-label="Filter element">
+                    <input type="text" id="excludeEl" class="input-styled" placeholder="Exclude text..." oninput="applyFilters()" style="min-width: 150px;" aria-label="Exclude text">
                 </div>
                 <div class="filter-group">
                     <label>Change Type</label>
@@ -445,7 +503,7 @@ class DiffEngine:
             const hh = idStr.substring(9, 11);
             const mm = idStr.substring(11, 13);
             const ss = idStr.substring(13, 15);
-            return `${dd}/${MM}/${yyyy} ${hh}:${mm}:${ss}`;
+            return `${yyyy}-${MM}-${dd} ${hh}:${mm}:${ss}`;
         }
 
         function renderList() {
@@ -455,7 +513,7 @@ class DiffEngine:
             
             list.innerHTML = manifest.map((m, i) => `
                 <div class="run-item" onclick="toggleItem(this)" data-id="${m.id}" data-file="${m.file}">
-                    <input type="checkbox" class="run-checkbox" onclick="event.stopPropagation(); updateCount();">
+                    <input type="checkbox" class="run-checkbox" onclick="event.stopPropagation(); updateCount();" aria-label="Select snapshot for comparison">
                     <div class="run-content">
                         <div class="run-date">${formatDate(m.id)}</div>
                         <div class="run-id">${m.id}</div>

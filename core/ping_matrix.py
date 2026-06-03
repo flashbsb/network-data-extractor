@@ -316,7 +316,7 @@ def main():
         files = glob.glob(os.path.join(args.collect_dir, "*.ping_to_*.txt"))
         print(f" • Found {len(files)} cached result files.")
         print("="*60)
-        print(f"Parsing cached ICMP responses...")
+        print("Parsing cached ICMP responses...")
         
         for fpath in files:
             fname = os.path.basename(fpath)
@@ -530,6 +530,8 @@ def main():
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="description" content="Network Ping Matrix Telemetry Dashboard">
+<meta property="og:title" content="Network Ping Matrix">
 <title>Ping Matrix Dashboard - PRO</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
@@ -544,9 +546,39 @@ body {
 }
 h1, h2, h3, h4, .outfit { font-family: 'Outfit', sans-serif; }
 
-.header { text-align: center; margin-bottom: 30px; animation: fadeIn 0.8s ease; }
+.hud-header { 
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    padding-bottom: 15px;
+    margin-bottom: 30px; 
+    animation: fadeIn 0.8s ease; 
+}
+.title-group {
+    text-align: left;
+}
 .header h1 { font-size: 38px; font-weight: 800; margin: 0; background: linear-gradient(90deg, #38bdf8, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 10px rgba(56,189,248,0.3)); }
 #sub-header { color: #94a3b8; font-size: 14px; margin-top: 5px; line-height: 1.4; }
+.back-portal {
+    background: #020408;
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #06b6d4;
+    padding: 8px 15px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-decoration: none;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+    cursor: pointer;
+    border-radius: 1px;
+}
+.back-portal:hover {
+    border-color: #06b6d4;
+    background: rgba(6, 182, 212, 0.1);
+    text-shadow: 0 0 5px #06b6d4;
+}
 
 /* Dashboard UI Panels */
 .dashboard-metrics { 
@@ -683,9 +715,12 @@ td:hover { background-color: rgba(255,255,255,0.1) !important; transform: scale(
 </head>
 <body>
 <div id="dropOverlay">Drop JSON file to load!</div>
-<div class="header">
-    <h1>📡 Network Ping Matrix</h1>
-    <p id="sub-header">Loading local data...</p>
+<div class="hud-header">
+    <div class="title-group">
+        <h1>📡 Network Ping Matrix</h1>
+        <p id="sub-header">Loading local data...</p>
+    </div>
+    <a class="back-portal" href="../../index.html">← Network Portal</a>
 </div>
 <div class="dashboard-metrics" id="metricsbox"></div>
 <div class="analytics-panel" id="analyticsPanels" style="display:none;"></div>
@@ -709,8 +744,8 @@ td:hover { background-color: rgba(255,255,255,0.1) !important; transform: scale(
         <label class="toggle-btn" style="border-color: rgba(248, 113, 113, 0.4);"><input type="checkbox" id="sevAsym" checked onchange="renderMatrix()"> ⚖️ Asym</label>
         <label class="toggle-btn" style="border-color: rgba(74, 222, 128, 0.4);"><input type="checkbox" id="sevHealthy" checked onchange="renderMatrix()"> ✅ Healthy</label>
     </div>
-    <input type="text" id="filterOrigin" placeholder="Filter Origin (eg. bsa;gti)..." onkeyup="renderMatrix()">
-    <input type="text" id="filterDest" placeholder="Filter Dest (eg. bsa;gti)..." onkeyup="renderMatrix()">
+    <input type="text" id="filterOrigin" placeholder="Filter Origin (eg. bsa;gti)..." onkeyup="renderMatrix()" aria-label="Filter origin elements">
+    <input type="text" id="filterDest" placeholder="Filter Dest (eg. bsa;gti)..." onkeyup="renderMatrix()" aria-label="Filter destination elements">
     <button class="reset-btn" onclick="resetFilters()">🧹 Reset</button>
 </div>
 <div class="matrix-wrapper">
@@ -748,6 +783,10 @@ td:hover { background-color: rgba(255,255,255,0.1) !important; transform: scale(
     Contribute or check for <a href="https://github.com/flashbsb/network-data-extractor" target="_blank" style="color: #38bdf8; text-decoration: none; border-bottom: 1px dashed #38bdf8;">new versions on GitHub</a>.
 </div>
 <script>
+if (window.self !== window.top) {
+    const backBtn = document.querySelector('.back-portal');
+    if (backBtn) backBtn.style.display = 'none';
+}
 let globalData = __JSON_PAYLOAD_HERE__;
 let dataMap = {};
 

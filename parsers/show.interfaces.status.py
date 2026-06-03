@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import re, glob, csv, os
+import re
+import glob
+import csv
+import os
 
 def parse_show_int_status(filename):
     base = os.path.basename(filename)
@@ -31,7 +34,8 @@ def parse_show_int_status(filename):
     return data
 
 if __name__ == '__main__':
-    import argparse, os
+    import argparse
+    import os
     parser = argparse.ArgumentParser()
     parser.add_argument('--outdir', default='.')
     parser.add_argument('--indir', default='.')

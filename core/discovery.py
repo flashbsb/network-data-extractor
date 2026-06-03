@@ -6,7 +6,6 @@ import csv
 import json
 import ipaddress
 import argparse
-import logging
 
 def load_settings(custom_path=None):
     if custom_path:

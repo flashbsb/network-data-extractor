@@ -1,0 +1,15 @@
+# .ruff.toml - Ruff configuration
+
+line-length = 120
+
+[lint]
+# Ignore legacy styling constraints to maintain code stability
+ignore = [
+    "E701",  # Multiple statements on one line (colon)
+    "E702",  # Multiple statements on one line (semicolon)
+    "E722",  # Do not use bare `except`
+    "E402",  # Module level import not at top of file
+    "F841",  # Local variable is assigned to but never used
+    "F401",  # Unused import
+    "E741",  # Ambiguous variable name (like 'l')
+]

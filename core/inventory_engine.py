@@ -160,7 +160,7 @@ class InventoryEngine:
                             "connection_text": row.get("connection_text", ""),
                             "dashed": row.get("dashed", "")
                         })
-            except Exception as e:
+            except Exception:
                 pass
         return data
 
@@ -169,6 +169,8 @@ class InventoryEngine:
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="description" content="Network Inventory Management Dashboard">
+    <meta property="og:title" content="Network Inventory Portal">
     <title>Network Inventory & Connections</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -208,13 +210,63 @@ class InventoryEngine:
         /* Main Content */
         .main-content { flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative; background: radial-gradient(circle at top right, #0f172a, #020617); overflow-y: auto; overflow-x: hidden; }
         .sidebar.collapsed ~ .main-content { width: 100vw; }
-        .sidebar-toggle-btn { position: absolute; top: 15px; left: 15px; z-index: 400; background: var(--glass); backdrop-filter: blur(10px); color: white; border: 1px solid var(--border); padding: 8px 12px; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s; }
+        .hud-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            padding: 15px 25px;
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 300;
+            width: 100%;
+        }
+        .hud-title h1 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--accent);
+            font-family: 'Outfit', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 0;
+        }
+        .hud-title p {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 2px;
+        }
+        .sidebar-toggle-btn { background: var(--glass); backdrop-filter: blur(10px); color: white; border: 1px solid var(--border); padding: 8px 12px; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s; }
         .sidebar-toggle-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .back-portal {
+            background: var(--glass);
+            backdrop-filter: blur(10px);
+            color: var(--accent);
+            border: 1px solid var(--border);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            text-decoration: none;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .back-portal:hover {
+            border-color: var(--accent);
+            color: #fff;
+            background: rgba(56, 189, 248, 0.15);
+        }
 
         #welcome { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px; animation: fadeIn 1s; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        #dashboardOverlay { display: none; flex-direction: column; padding: 20px 40px; padding-top: 60px; animation: slideIn 0.4s ease; min-height: 100vh; max-width: 100%;}
+        #dashboardOverlay { display: none; flex-direction: column; padding: 20px 40px; animation: slideIn 0.4s ease; min-height: 100vh; max-width: 100%;}
         @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
         .dashboard-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px; border-bottom: 1px solid var(--border); padding-bottom: 20px;}
@@ -299,14 +351,23 @@ class InventoryEngine:
     </div>
     
     <div class="main-content">
-        <button class="sidebar-toggle-btn" onclick="toggleSidebar()">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-            HISTORY
-        </button>
+        <div class="hud-header">
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <button class="sidebar-toggle-btn" onclick="toggleSidebar()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                    HISTORY
+                </button>
+                <div class="hud-title">
+                    <h1 id="dashTitle">📡 Global Inventory</h1>
+                    <p id="dashSubTitle">Select a Snapshot from the sidebar</p>
+                </div>
+            </div>
+            <a class="back-portal" href="../index.html">← Network Portal</a>
+        </div>
 
         <div id="welcome">
             <div style="font-size: 4rem; margin-bottom: 20px;">🗄️</div>
-            <h1 style="font-family:'Outfit'; color:var(--accent); font-size:3rem; margin-bottom:10px;">Select a Snapshot.</h1>
+            <div style="font-family:'Outfit'; color:var(--accent); font-size:3rem; font-weight:800; margin-bottom:10px;">Select a Snapshot.</div>
             <p style="color:var(--text-dim); font-size: 1.1rem;">Choose a date from the sidebar to view its complete interface inventory and physical topology state.</p>
         </div>
 
@@ -316,12 +377,6 @@ class InventoryEngine:
         </div>
 
         <div id="dashboardOverlay">
-            <div class="dashboard-header">
-                <div class="dashboard-title">
-                    <h1 id="dashTitle">Inventory Dashboard</h1>
-                    <p id="dashSubTitle">Timestamp</p>
-                </div>
-            </div>
 
             <div class="metrics-grid">
                 <div class="metric-card">
@@ -373,7 +428,7 @@ class InventoryEngine:
                         </div>
                     </div>
                     <div class="search-wrapper">
-                        <input type="text" id="searchInput" class="input-styled" placeholder="Search device, port, desc..." oninput="handleSearch()">
+                        <input type="text" id="searchInput" class="input-styled" placeholder="Search device, port, desc..." oninput="handleSearch()" aria-label="Search">
                         <button class="clear-btn" onclick="clearFilters()" title="Clear Filters">✕</button>
                         <div class="help-icon">?
                             <div class="help-tooltip">
@@ -384,7 +439,7 @@ class InventoryEngine:
                                 <em>Examples:</em><br>
                                 • <code>RT-A | RT-B</code><br>
                                   (Matches RT-A OR RT-B)<br><br>
-                                • <code>RT-A ; CONEXAO</code><br>
+                                • <code>RT-A ; CONNECTION</code><br>
                                   (Matches rows containing BOTH terms)<br><br>
                                 • <code>RT-A | RT-B ; !loopback</code><br>
                                   (Matches RT-A OR RT-B, but EXCLUDES loopbacks)
@@ -444,7 +499,7 @@ class InventoryEngine:
             const hh = idStr.substring(9, 11);
             const mm = idStr.substring(11, 13);
             const ss = idStr.substring(13, 15);
-            return `${dd}/${MM}/${yyyy} ${hh}:${mm}:${ss}`;
+            return `${yyyy}-${MM}-${dd} ${hh}:${mm}:${ss}`;
         }
 
         function renderList() {
@@ -473,6 +528,7 @@ class InventoryEngine:
 
             currentData = await loadRunData(id, file);
             
+            document.getElementById('dashTitle').innerText = '📡 Inventory Dashboard';
             document.getElementById('dashSubTitle').innerText = formatDate(id);
             applyFilters();
             

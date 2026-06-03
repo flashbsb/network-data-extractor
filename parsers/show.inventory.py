@@ -32,7 +32,8 @@ def parse_inventory(file_path):
     return results
 
 if __name__ == '__main__':
-    import argparse, os
+    import argparse
+    import os
     parser = argparse.ArgumentParser()
     parser.add_argument('--outdir', default='.')
     parser.add_argument('--indir', default='.')

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import os
-import re
 import csv
 from glob import glob
 
@@ -39,7 +38,8 @@ def parse_transceivers_detail(file_path):
     return results
 
 if __name__ == '__main__':
-    import argparse, os
+    import argparse
+    import os
     parser = argparse.ArgumentParser()
     parser.add_argument('--outdir', default='.')
     parser.add_argument('--indir', default='.')

@@ -6,7 +6,6 @@ import glob
 import re
 import argparse
 import json
-from datetime import datetime
 
 def load_settings(custom_path=None):
     if custom_path:
@@ -107,7 +106,7 @@ def main():
                         prompt_match = re.search(r'[:]?([A-Za-z0-9_-]+)[#>]', last_line)
                         if prompt_match:
                             real_hostname = prompt_match.group(1).strip()
-            except Exception as e:
+            except Exception:
                 pass
             
             report_data.append({

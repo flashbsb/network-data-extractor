@@ -3,7 +3,6 @@ import os
 import glob
 import csv
 import argparse
-from datetime import datetime
 
 def parse_system_files(collect_dir, out_dir):
     """

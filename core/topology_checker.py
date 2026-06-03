@@ -52,7 +52,7 @@ def main():
             isolated.append(node)
 
     # 4. Generate Audit Report & Signal Orchestrator
-    print(f"Audit Results:")
+    print("Audit Results:")
     print(f"  * Total Successful Elements: {len(ok_elements)}")
     print(f"  * Elements in Topology    : {len(topology_nodes)}")
     print(f"  * Isolated Elements Found : {len(isolated)}")

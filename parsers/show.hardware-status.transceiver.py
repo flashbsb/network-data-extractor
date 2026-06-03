@@ -1,5 +1,4 @@
 import os
-import re
 import csv
 from glob import glob
 
@@ -34,7 +33,7 @@ def parse_transceiver_simple(file_path):
 
     return results
 
-import argparse, os
+import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('--outdir', default='.')
 parser.add_argument('--indir', default='.')
