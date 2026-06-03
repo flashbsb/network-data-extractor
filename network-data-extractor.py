@@ -19,6 +19,7 @@ import argparse
 import json
 import csv
 import getpass
+import types
 from datetime import datetime
 from glob import glob
 
@@ -434,10 +435,14 @@ if args.offline:
         print(f"{C_RED}ERROR: --offline and --inventory are mutually exclusive.{C_RESET}")
         sys.exit(1)
 
+# Computed once: True when running a standalone mode (no live collection, no offline parsing).
+# Used by --diff, --inventory and --rebuild-index to decide whether to run immediately and exit
+# or defer execution to the end of a full collection pipeline.
+is_standalone = not (args.user or args.ping_matrix or args.discovery or args.offline)
+
 # 4. Mode D: Drift Analysis Validations
 if args.diff:
     # If we are NOT doing a live run or offline parsing, run standalone and exit
-    is_standalone = not (args.user or args.ping_matrix or args.discovery or args.offline)
     
     if is_standalone:
         print(f"\n{C_CYAN}--- Network Drift Workspace: Initialization ---{C_RESET}")
@@ -458,7 +463,6 @@ if args.diff:
 # 4.1 Mode D: Inventory Dashboard Validations
 if args.inventory:
     # If we are NOT doing a live run or offline parsing, run standalone and exit
-    is_standalone = not (args.user or args.ping_matrix or args.discovery or args.offline)
     
     if is_standalone:
         print(f"\n{C_CYAN}--- Network Inventory Workspace: Initialization ---{C_RESET}")
@@ -479,7 +483,6 @@ if args.inventory:
 # 4.2 Mode D: Rebuild All Indexes
 if args.rebuild_index:
     # If we are NOT doing a live run or offline parsing, run standalone and exit
-    is_standalone = not (args.user or args.ping_matrix or args.discovery or args.offline)
     
     if is_standalone:
         print(f"\n{C_CYAN}--- Rebuilding All Master Dashboards ---{C_RESET}")
@@ -556,21 +559,42 @@ if comp_cfg.get("enabled", False):
         comp_cfg["enabled"] = False
         json_config["compression"] = comp_cfg
 
+
+def _init_run_dirs(timestamp_dir, create_connections=True):
+    """Derive the four standard subdirectory paths and create them on disk.
+
+    Args:
+        timestamp_dir:      Absolute path to the run root (TIMESTAMP_DIR).
+        create_connections: If False, skip creating the connections/ dir
+                            (used during discovery hops and ping-matrix-only runs).
+
+    Returns a SimpleNamespace with attributes: log, collect, resume, connections.
+    """
+    dirs = types.SimpleNamespace(
+        log         = os.path.join(timestamp_dir, "log"),
+        collect     = os.path.join(timestamp_dir, "collect"),
+        resume      = os.path.join(timestamp_dir, "resume"),
+        connections = os.path.join(timestamp_dir, "connections"),
+    )
+    os.makedirs(dirs.log,     exist_ok=True)
+    os.makedirs(dirs.collect, exist_ok=True)
+    os.makedirs(dirs.resume,  exist_ok=True)
+    if create_connections:
+        os.makedirs(dirs.connections, exist_ok=True)
+    return dirs
+
+
 if args.offline:
     TIMESTAMP_DIR = os.path.abspath(args.offline)
     if not os.path.isdir(TIMESTAMP_DIR):
         print(f"{C_RED}ERROR: Offline directory '{args.offline}' not found.{C_RESET}")
         sys.exit(1)
         
-    LOG_DIR = os.path.join(TIMESTAMP_DIR, "log")
-    COLLECT_DIR = os.path.join(TIMESTAMP_DIR, "collect")
-    RESUME_DIR = os.path.join(TIMESTAMP_DIR, "resume")
-    CONNECTIONS_DIR = os.path.join(TIMESTAMP_DIR, "connections")
-
-    os.makedirs(LOG_DIR, exist_ok=True)
-    os.makedirs(COLLECT_DIR, exist_ok=True)
-    os.makedirs(RESUME_DIR, exist_ok=True)
-    os.makedirs(CONNECTIONS_DIR, exist_ok=True)
+    _dirs = _init_run_dirs(TIMESTAMP_DIR, create_connections=True)
+    LOG_DIR         = _dirs.log
+    COLLECT_DIR     = _dirs.collect
+    RESUME_DIR      = _dirs.resume
+    CONNECTIONS_DIR = _dirs.connections
 
     orchestrator_log = os.path.join(LOG_DIR, "orchestrator.log")
     def log_orchestrator(msg):
@@ -596,16 +620,14 @@ if args.offline:
 else:
     DIR_SUFFIX = datetime.now().strftime("%Y%m%d_%H%M%S")
     TIMESTAMP_DIR = os.path.abspath(os.path.join(args.outbase, DIR_SUFFIX))
-    LOG_DIR = os.path.join(TIMESTAMP_DIR, "log")
-    COLLECT_DIR = os.path.join(TIMESTAMP_DIR, "collect")
-    RESUME_DIR = os.path.join(TIMESTAMP_DIR, "resume")
-    CONNECTIONS_DIR = os.path.join(TIMESTAMP_DIR, "connections")
-
-    os.makedirs(LOG_DIR, exist_ok=True)
-    os.makedirs(COLLECT_DIR, exist_ok=True)
-    os.makedirs(RESUME_DIR, exist_ok=True)
-    if not args.discovery and not args.ping_matrix:
-        os.makedirs(CONNECTIONS_DIR, exist_ok=True)
+    _dirs = _init_run_dirs(
+        TIMESTAMP_DIR,
+        create_connections=not (args.discovery or args.ping_matrix),
+    )
+    LOG_DIR         = _dirs.log
+    COLLECT_DIR     = _dirs.collect
+    RESUME_DIR      = _dirs.resume
+    CONNECTIONS_DIR = _dirs.connections
 
     orchestrator_log = os.path.join(LOG_DIR, "orchestrator.log")
     def log_orchestrator(msg):
@@ -699,18 +721,14 @@ else:
             print("\nAborted by user.")
             sys.exit(130)
         
-        # Re-evaluate TIMESTAMP_DIR just in case Outbase changed
-        TIMESTAMP_DIR = os.path.abspath(os.path.join(args.outbase, DIR_SUFFIX))
-        LOG_DIR = os.path.join(TIMESTAMP_DIR, "log")
-        COLLECT_DIR = os.path.join(TIMESTAMP_DIR, "collect")
-        RESUME_DIR = os.path.join(TIMESTAMP_DIR, "resume")
-        CONNECTIONS_DIR = os.path.join(TIMESTAMP_DIR, "connections")
+        # Re-evaluate paths in case outbase changed in the wizard
+        TIMESTAMP_DIR   = os.path.abspath(os.path.join(args.outbase, DIR_SUFFIX))
+        _dirs = _init_run_dirs(TIMESTAMP_DIR, create_connections=not args.ping_matrix)
+        LOG_DIR         = _dirs.log
+        COLLECT_DIR     = _dirs.collect
+        RESUME_DIR      = _dirs.resume
+        CONNECTIONS_DIR = _dirs.connections
 
-        os.makedirs(LOG_DIR, exist_ok=True)
-        os.makedirs(COLLECT_DIR, exist_ok=True)
-        os.makedirs(RESUME_DIR, exist_ok=True)
-        if not args.ping_matrix:
-            os.makedirs(CONNECTIONS_DIR, exist_ok=True)
         
         print(f"{C_CYAN}----------------------------------------{C_RESET}")
         print(f"Extraction initializing...")

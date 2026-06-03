@@ -12,12 +12,13 @@ def load_settings(custom_path=None):
     if custom_path:
         settings_path = custom_path
     else:
-        # Default relative to root
-        settings_path = "config/settings.json"
-        
+        # Derive path from __file__ so it works regardless of cwd
+        _dir = os.path.dirname(os.path.abspath(__file__))
+        settings_path = os.path.normpath(os.path.join(_dir, "..", "config", "settings.json"))
+
     if os.path.exists(settings_path):
         try:
-            with open(settings_path, "r") as f:
+            with open(settings_path, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception as e:
             print(f"Warning: Failed to load {settings_path}: {e}")

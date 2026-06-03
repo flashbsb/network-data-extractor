@@ -18,18 +18,23 @@ SPEED_COLORS = {
 
 def load_settings(custom_path=None):
     global IGNORE_VIRTUAL_PREFIXES, NEIGHBOR_PREFIXES, DEVICE_NAME_PREFIXES, SPEED_COLORS
-    config_path = custom_path if custom_path else "config/settings.json"
-    
+    if custom_path:
+        config_path = custom_path
+    else:
+        # Derive path from __file__ so it works regardless of cwd
+        _dir = os.path.dirname(os.path.abspath(__file__))
+        config_path = os.path.normpath(os.path.join(_dir, "..", "config", "settings.json"))
+
     if os.path.exists(config_path):
         try:
-            with open(config_path, "r") as f:
+            with open(config_path, "r", encoding="utf-8") as f:
                 json_config = json.load(f)
                 topology_cfg = json_config.get("topology", {})
                 IGNORE_VIRTUAL_PREFIXES = tuple(topology_cfg.get("ignore_virtual_prefixes", IGNORE_VIRTUAL_PREFIXES))
                 NEIGHBOR_PREFIXES = topology_cfg.get("neighbor_regex_prefixes", NEIGHBOR_PREFIXES)
                 DEVICE_NAME_PREFIXES = topology_cfg.get("device_name_prefixes", DEVICE_NAME_PREFIXES)
                 SPEED_COLORS = topology_cfg.get("speed_colors", SPEED_COLORS)
-        except:
+        except Exception:
             pass
 
 def parse_neighbor(description):

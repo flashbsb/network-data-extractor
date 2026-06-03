@@ -11,14 +11,20 @@ import argparse
 
 # Logging will be configured in main()
 
-# Load Global Settings once
+# Load Global Settings once.
+# Path is derived from __file__ so the file is found regardless of the
+# current working directory from which commands.py is invoked.
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+_SETTINGS_PATH = os.path.join(_SCRIPT_DIR, "..", "config", "settings.json")
+_SETTINGS_PATH = os.path.normpath(_SETTINGS_PATH)
+
 json_config = {}
-if os.path.exists("config/settings.json"):
+if os.path.exists(_SETTINGS_PATH):
     try:
-        with open("config/settings.json", "r") as f:
+        with open(_SETTINGS_PATH, "r", encoding="utf-8") as f:
             json_config = json.load(f)
     except Exception as e:
-        print(f"Warning: Failed to load config/settings.json: {e}")
+        print(f"Warning: Failed to load settings.json ({_SETTINGS_PATH}): {e}")
 
 ssh_cfg = json_config.get("ssh", {})
 SSH_TIMEOUT = ssh_cfg.get("timeout", 10)
