@@ -1,0 +1,1388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="Ping Path Analyzer and Topology Routing Dashboard">
+    <meta property="og:title" content="Ping Path Analyzer">
+    <title>Ping Path Analyzer - Swiss Cybernetic HUD</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;700;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-darker: #020408;
+            --bg-dark: #080c14;
+            --panel-bg: #0d121f;
+            --border-color: #1e293b;
+            --text-main: #e2e8f0;
+            --text-dim: #64748b;
+            --color-healthy: #10b981;
+            --color-healthy-glow: rgba(16, 185, 129, 0.2);
+            --color-warn: #f97316;
+            --color-asym: #eab308;
+            --color-crit: #ef4444;
+            --color-action: #06b6d4;
+            --font-display: 'Outfit', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: radial-gradient(circle at top, var(--bg-dark) 0%, var(--bg-darker) 100%);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        h1, h2, h3, h4, .outfit {
+            font-family: 'Outfit', sans-serif;
+        }
+
+        /* HUD Header */
+        .hud-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+        }
+
+        .hud-title h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--text-main);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .hud-title h1 span {
+            color: var(--color-action);
+            text-shadow: 0 0 10px rgba(6, 182, 212, 0.4);
+        }
+
+        .hud-title p {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-top: 4px;
+        }
+
+        .back-portal {
+            background: var(--bg-darker);
+            border: 1px solid var(--border-color);
+            color: var(--color-action);
+            padding: 8px 15px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.2s;
+            cursor: pointer;
+            border-radius: 1px;
+        }
+
+        .back-portal:hover {
+            border-color: var(--color-action);
+            background: rgba(6, 182, 212, 0.1);
+            text-shadow: 0 0 5px var(--color-action);
+        }
+
+        /* HUD Banner */
+        .hud-status-banner {
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid var(--color-action);
+            padding: 10px 15px;
+            font-size: 0.85rem;
+            margin-bottom: 20px;
+            display: none;
+            border-radius: 1px;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Control Grid */
+        .control-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 2px;
+            padding: 20px;
+            margin-bottom: 25px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            align-items: end;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .input-group label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+            font-weight: 700;
+        }
+
+        .control-select, .control-input {
+            background: var(--bg-darker);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 8px 12px;
+            font-size: 0.85rem;
+            border-radius: 1px;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .control-select:focus, .control-input:focus {
+            border-color: var(--color-action);
+            box-shadow: 0 0 5px rgba(6, 182, 212, 0.2);
+        }
+
+        .action-btn {
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid var(--color-action);
+            color: var(--color-action);
+            padding: 10px 20px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-radius: 1px;
+        }
+
+        .action-btn:hover {
+            background: var(--color-action);
+            color: #fff;
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.4);
+        }
+
+        /* Toggle Checkboxes */
+        .pill-btn {
+            background: var(--bg-darker);
+            border: 1px solid var(--border-color);
+            color: var(--text-dim);
+            padding: 6px 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-radius: 1px;
+            text-transform: uppercase;
+        }
+
+        .pill-btn.active {
+            background: rgba(6, 182, 212, 0.1);
+            border-color: var(--color-action);
+            color: var(--color-action);
+        }
+
+        /* Visual Graph Workspace */
+        .workspace {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 2px;
+            padding: 25px;
+            margin-bottom: 25px;
+            position: relative;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .panel-header h2 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-main);
+            border-left: 3px solid var(--color-action);
+            padding-left: 10px;
+        }
+
+        /* Dynamic horizontal path map */
+        .path-flow-container {
+            display: flex;
+            align-items: center;
+            overflow-x: auto;
+            padding: 20px 0;
+            gap: 10px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-color) transparent;
+        }
+
+        .node-box {
+            background: var(--bg-darker);
+            border: 2px solid var(--border-color);
+            padding: 15px 20px;
+            border-radius: 1px;
+            text-align: center;
+            min-width: 140px;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .node-box:hover, .node-box.selected {
+            border-color: var(--color-action);
+            box-shadow: 0 0 10px rgba(6, 182, 212, 0.3);
+        }
+
+        .node-box h4 {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .node-box span {
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+
+        .path-connector {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-width: 120px;
+            position: relative;
+            padding: 0 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .path-connector:hover, .path-connector.selected {
+            background: rgba(255,255,255,0.02);
+        }
+
+        .connector-line {
+            width: 100%;
+            height: 3px;
+            background: var(--border-color);
+            position: relative;
+        }
+
+        .connector-line::after {
+            content: '➔';
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 10px;
+            color: var(--border-color);
+        }
+
+        .path-connector.healthy .connector-line { background: var(--color-healthy); }
+        .path-connector.healthy .connector-line::after { color: var(--color-healthy); }
+        
+        .path-connector.warning .connector-line { background: var(--color-warn); }
+        .path-connector.warning .connector-line::after { color: var(--color-warn); }
+
+        .path-connector.critical .connector-line { background: var(--color-crit); }
+        .path-connector.critical .connector-line::after { color: var(--color-crit); }
+
+        .path-connector.no-telemetry .connector-line { background: var(--text-dim); }
+        .path-connector.no-telemetry .connector-line::after { color: var(--text-dim); }
+
+        .connector-info {
+            font-size: 0.7rem;
+            font-family: 'JetBrains Mono', monospace;
+            text-align: center;
+            margin-top: 5px;
+            color: var(--text-main);
+        }
+
+        .connector-label {
+            font-size: 0.6rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Detail split layout */
+        .detail-layout {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 20px;
+        }
+
+        @media (max-width: 900px) {
+            .detail-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Detail sidebar card */
+        .drawer-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            padding: 20px;
+            border-radius: 2px;
+            position: sticky;
+            top: 20px;
+        }
+
+        .drawer-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--color-action);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.02);
+        }
+
+        .detail-row span.lbl {
+            color: var(--text-dim);
+        }
+
+        .detail-row span.val {
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Path Alternate Selector */
+        .alt-paths-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .alt-btn {
+            background: var(--bg-darker);
+            border: 1px solid var(--border-color);
+            color: var(--text-dim);
+            padding: 8px 16px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            border-radius: 1px;
+        }
+
+        .alt-btn:hover {
+            color: var(--text-main);
+        }
+
+        .alt-btn.active {
+            background: rgba(6, 182, 212, 0.1);
+            border-color: var(--color-action);
+            color: var(--color-action);
+        }
+
+        /* Summary Panel */
+        .summary-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            padding: 20px;
+            border-radius: 2px;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .summary-item {
+            padding: 10px;
+            background: var(--bg-darker);
+            border-left: 3px solid var(--border-color);
+        }
+
+        .summary-item.healthy { border-left-color: var(--color-healthy); }
+        .summary-item.warning { border-left-color: var(--color-warn); }
+        .summary-item.critical { border-left-color: var(--color-crit); }
+
+        .summary-item h5 {
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .summary-item p {
+            font-size: 0.9rem;
+            font-weight: 700;
+        }
+    </style>
+    <!-- Load inventory manifest for dates -->
+    <script src="../inventory/manifest.js" onerror="handleManifestError()"></script>
+</head>
+<body>
+
+    <div class="hud-status-banner" id="statusBanner">
+        <span id="bannerText">Loading data...</span>
+        <button class="pill-btn" onclick="document.getElementById('statusBanner').style.display='none'">✕</button>
+    </div>
+
+    <!-- HUD Header -->
+    <div class="hud-header">
+        <div class="hud-title">
+            <h1>🕸️ Ping Path Analyzer <span>diagnostic</span></h1>
+            <p>Correlation of Physical Topology, Interface Status, and Latency Telemetry</p>
+        </div>
+        <a class="back-portal" href="../index.html">← Network Portal</a>
+    </div>
+
+    <!-- Control Panel -->
+    <div class="control-panel">
+        <div class="input-group">
+            <label for="selSnapshot">Snapshot / Date</label>
+            <select class="control-select" id="selSnapshot" onchange="onSnapshotChange()"></select>
+        </div>
+        <div class="input-group">
+            <label for="selOrigin">Source</label>
+            <input type="text" class="control-select" id="selOrigin" list="datalistOrigin" placeholder="Search source..." onchange="onNodeChange()" oninput="onNodeSelectorInput(this)" autocomplete="off">
+            <datalist id="datalistOrigin"></datalist>
+        </div>
+        <div class="input-group">
+            <label for="selDest">Destination</label>
+            <input type="text" class="control-select" id="selDest" list="datalistDest" placeholder="Search destination..." onchange="onNodeChange()" oninput="onNodeSelectorInput(this)" autocomplete="off">
+            <datalist id="datalistDest"></datalist>
+        </div>
+        <div class="input-group">
+            <label>Analysis Mode</label>
+            <div style="display:flex; gap: 5px;">
+                <button class="pill-btn active" id="btnAuto" onclick="setMode('auto')">Automatic</button>
+                <button class="pill-btn" id="btnManual" onclick="setMode('manual')">Manual</button>
+            </div>
+        </div>
+        <div class="input-group" id="manualInputGroup" style="display: none; grid-column: span 2;">
+            <label for="inputHops">Manual Hops (Comma-separated)</label>
+            <input type="text" class="control-input" id="inputHops" placeholder="RT-A, SW-B, RT-C, RT-D">
+        </div>
+        <button class="action-btn" onclick="calculateRoute()">⚡ Analyze</button>
+    </div>
+
+    <!-- Workspace -->
+    <div class="workspace">
+        <div class="panel-header">
+            <h2>Path Visualization</h2>
+            <button class="pill-btn" onclick="exportPathHTML()" id="btnExport" style="display:none;">📥 Export HTML</button>
+        </div>
+        
+        <!-- Alternate Paths Selector (Auto Mode Only) -->
+        <div class="alt-paths-selector" id="altPathsSelector" style="display: none;"></div>
+
+        <!-- Path Map SVG/HTML Flow -->
+        <div class="path-flow-container" id="pathFlowContainer">
+            <div style="color:var(--text-dim); text-align:center; width:100%; padding:20px 0;">Select parameters and click Analyze to render path.</div>
+        </div>
+    </div>
+
+    <!-- Detail Layout -->
+    <div class="detail-layout">
+        
+        <!-- Segment Detailed Table -->
+        <div class="summary-card">
+            <div class="panel-header">
+                <h2>Route Analytical Summary</h2>
+            </div>
+            
+            <div class="summary-grid" id="summaryGrid" style="margin-bottom: 25px;">
+                <div class="summary-item">
+                    <h5>Bandwidth Bottleneck</h5>
+                    <p id="sumBw">-</p>
+                </div>
+                <div class="summary-item">
+                    <h5>Worst Hop Latency</h5>
+                    <p id="sumLat">-</p>
+                </div>
+                <div class="summary-item">
+                    <h5>Worst Hop Loss</h5>
+                    <p id="sumLoss">-</p>
+                </div>
+                <div class="summary-item">
+                    <h5>Path Score</h5>
+                    <p id="sumScore">-</p>
+                </div>
+            </div>
+
+            <div class="panel-header">
+                <h2>Route Segments</h2>
+            </div>
+            <table style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:left;">
+                <thead>
+                    <tr style="border-bottom:1px solid var(--border-color); color:var(--text-dim); text-transform:uppercase; font-size:0.65rem;">
+                        <th style="padding:10px;">Link (A ⇄ B)</th>
+                        <th style="padding:10px;">Link Status</th>
+                        <th style="padding:10px;">Ping A ➔ B</th>
+                        <th style="padding:10px;">Ping B ➔ A</th>
+                        <th style="padding:10px;">Bandwidth</th>
+                        <th style="padding:10px;">Interface A</th>
+                        <th style="padding:10px;">Interface B</th>
+                    </tr>
+                </thead>
+                <tbody id="tblSegments">
+                    <tr><td colspan="7" style="padding:20px; text-align:center; color:var(--text-dim);">No calculated path.</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Detail Sidebar Drawer -->
+        <div class="drawer-card" id="detailDrawer">
+            <div class="drawer-title" id="drawerTitle">Hop Metadata</div>
+            <div id="drawerContent">
+                <div style="color:var(--text-dim); text-align:center; padding:20px 0; font-size:0.8rem;">Select a segment or node in the flow diagram to view metadata.</div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Priority Queue implementation for Dijkstra -->
+    <script>
+        class PriorityQueue {
+            constructor() { this.values = []; }
+            enqueue(val, priority) {
+                this.values.push({ element: val, priority });
+                this.values.sort((a, b) => a.priority - b.priority);
+            }
+            dequeue() { return this.values.shift(); }
+            isEmpty() { return this.values.length === 0; }
+        }
+    </script>
+
+    <script>
+        let hasInventory = true;
+        let snapshots = window.inv_manifest || [];
+        let currentSnapshotId = "";
+        let currentSnapshotData = null; // Contains .interfaces and .connections
+        let currentPingData = null; // Parsed ping data for the snapshot if fetched
+        let mode = 'auto'; // 'auto' | 'manual'
+        let validNodes = new Set();
+
+        // Handle dynamic input typing validation
+        function onNodeSelectorInput(el) {
+            const val = el.value;
+            if (val && !validNodes.has(val)) {
+                el.style.borderColor = 'var(--color-danger, #ef4444)';
+            } else {
+                el.style.borderColor = '';
+                if (validNodes.has(val)) {
+                    onNodeChange();
+                }
+            }
+        }
+        
+        let calculatedPaths = []; // Cache of calculated paths
+        let activePathIdx = 0; // Selected path index
+        
+        function handleManifestError() {
+            hasInventory = false;
+            showBanner("⚠️ Failed to load the inventory manifest. Verify that the inventory module was run.", "crit");
+        }
+
+        function showBanner(text, type="info") {
+            const banner = document.getElementById('statusBanner');
+            banner.style.display = 'flex';
+            if (type === "crit") {
+                banner.style.background = 'rgba(239, 68, 68, 0.15)';
+                banner.style.borderColor = 'var(--color-crit)';
+            } else {
+                banner.style.background = 'rgba(6, 182, 212, 0.1)';
+                banner.style.borderColor = 'var(--color-action)';
+            }
+            document.getElementById('bannerText').innerText = text;
+        }
+
+        // Initialize selectors
+        function initSelectors() {
+            if (!hasInventory || snapshots.length === 0) {
+                showBanner("No inventory snapshot found.", "crit");
+                return;
+            }
+            
+            snapshots.sort((a,b) => b.id.localeCompare(a.id));
+            const selSnapshot = document.getElementById('selSnapshot');
+            selSnapshot.innerHTML = snapshots.map(s => `<option value="${s.id}">${formatDate(s.id)}</option>`).join('');
+            
+            onSnapshotChange();
+        }
+
+        function formatDate(idStr) {
+            if (!idStr || idStr.length !== 15) return idStr;
+            const yyyy = idStr.substring(0, 4);
+            const MM = idStr.substring(4, 6);
+            const dd = idStr.substring(6, 8);
+            const hh = idStr.substring(9, 11);
+            const mm = idStr.substring(11, 13);
+            const ss = idStr.substring(13, 15);
+            return `${dd}/${MM}/${yyyy} ${hh}:${mm}:${ss}`;
+        }
+
+        async function onSnapshotChange() {
+            currentSnapshotId = document.getElementById('selSnapshot').value;
+            if (!currentSnapshotId) return;
+
+            showBanner("Loading snapshot inventory...");
+            currentSnapshotData = await loadSnapshotData(currentSnapshotId);
+            
+            // Try to fetch corresponding ping data JSON (fails gracefully on file:// due to CORS)
+            try {
+                const response = await fetch(`${currentSnapshotId}/resume/ping_matrix_list.json`);
+                if (response.ok) {
+                    const payload = await response.json();
+                    currentPingData = {};
+                    payload.data.forEach(p => {
+                        currentPingData[`${p.origin}|${p.dest}`] = p;
+                    });
+                    showBanner("Snapshot and telemetry data loaded successfully.");
+                } else {
+                    currentPingData = null;
+                    showBanner("Snapshot loaded (Telemetry unavailable via CORS, using static history data as fallback).");
+                }
+            } catch (err) {
+                currentPingData = null;
+                showBanner("Snapshot loaded (Telemetry unavailable via CORS, using static history data as fallback).");
+            }
+
+            populateNodes();
+        }
+
+        async function loadSnapshotData(id) {
+            return new Promise((resolve) => {
+                if (window.inv_data && window.inv_data[id]) return resolve(window.inv_data[id]);
+                const s = document.createElement('script');
+                s.src = `../inventory/data/${id}.js`;
+                s.onload = () => resolve(window.inv_data[id]);
+                document.head.appendChild(s);
+            });
+        }
+
+        function populateNodes() {
+            if (!currentSnapshotData) return;
+            
+            const nodes = new Set();
+            (currentSnapshotData.connections || []).forEach(c => {
+                nodes.add(c.endpoint_a);
+                nodes.add(c.endpoint_b);
+            });
+
+            const sortedNodes = Array.from(nodes).sort();
+            validNodes = new Set(nodes);
+            
+            const datalistOrigin = document.getElementById('datalistOrigin');
+            const datalistDest = document.getElementById('datalistDest');
+
+            datalistOrigin.innerHTML = sortedNodes.map(n => `<option value="${n}">`).join('');
+            datalistDest.innerHTML = sortedNodes.map(n => `<option value="${n}">`).join('');
+
+            const selOrigin = document.getElementById('selOrigin');
+            const selDest = document.getElementById('selDest');
+
+            if (sortedNodes.length > 0) selOrigin.value = sortedNodes[0];
+            if (sortedNodes.length > 0) {
+                selDest.value = sortedNodes.length > 1 ? sortedNodes[1] : sortedNodes[0];
+            }
+        }
+
+        function onNodeChange() {
+            // clear display
+        }
+
+        function setMode(newMode) {
+            mode = newMode;
+            if (mode === 'manual') {
+                document.getElementById('btnManual').classList.add('active');
+                document.getElementById('btnAuto').classList.remove('active');
+                document.getElementById('manualInputGroup').style.display = 'flex';
+                document.getElementById('altPathsSelector').style.display = 'none';
+            } else {
+                document.getElementById('btnAuto').classList.add('active');
+                document.getElementById('btnManual').classList.remove('active');
+                document.getElementById('manualInputGroup').style.display = 'none';
+            }
+        }
+
+        // Bandwidth Parsing
+        function parseBandwidth(bwText) {
+            if (!bwText) return 0;
+            let val = parseFloat(bwText);
+            if (isNaN(val)) return 0;
+            let upper = bwText.toUpperCase();
+            if (upper.includes('G')) return val * 1000000;
+            if (upper.includes('M')) return val * 1000;
+            if (upper.includes('K')) return val;
+            return val;
+        }
+
+        // Dijkstra Calculation
+        function calculateDijkstra(graph, startNode, endNode, pingData = null, disabledEdges = new Set()) {
+            let distances = {};
+            let prev = {};
+            let pq = new PriorityQueue();
+
+            for (let node in graph) {
+                distances[node] = Infinity;
+                prev[node] = null;
+            }
+            distances[startNode] = 0;
+            pq.enqueue(startNode, 0);
+
+            while (!pq.isEmpty()) {
+                let { element: u, priority: dist } = pq.dequeue();
+
+                if (u === endNode) break;
+
+                if (dist > distances[u]) continue;
+
+                let neighbors = graph[u] || [];
+                for (let edge of neighbors) {
+                    let v = edge.node;
+                    
+                    // Check if edge is disabled
+                    const edgeKey = `${u}|${v}`;
+                    const edgeKeyInv = `${v}|${u}`;
+                    if (disabledEdges.has(edgeKey) || disabledEdges.has(edgeKeyInv)) continue;
+
+                    let weight = 1; // Base cost
+                    
+                    // Status Penalty
+                    if (edge.dashed === "1" || edge.dashed === 1) {
+                        weight += 10000;
+                    }
+                    
+                    // Capacity Penalty
+                    let bw = parseBandwidth(edge.bandwidth); // Kbps
+                    if (bw > 0) {
+                        weight += (100000000 / bw); // 100G = 1, 10G = 10, 1G = 100
+                    } else {
+                        weight += 1000;
+                    }
+                    
+                    // Telemetry Penalty
+                    if (pingData) {
+                        let pingKey = `${u}|${v}`;
+                        let p = pingData[pingKey];
+                        if (p) {
+                            if (p.is_unreachable || p.loss_pct === 100.0) {
+                                weight += 10000;
+                            } else {
+                                weight += p.avg;
+                                weight += p.loss_pct * 50;
+                            }
+                        }
+                    }
+
+                    let alt = distances[u] + weight;
+                    if (alt < distances[v]) {
+                        distances[v] = alt;
+                        prev[v] = u;
+                        pq.enqueue(v, alt);
+                    }
+                }
+            }
+
+            let path = [];
+            let curr = endNode;
+            while (curr) {
+                path.unshift(curr);
+                curr = prev[curr];
+            }
+
+            if (path.length > 1 && path[0] === startNode) {
+                return { path, cost: distances[endNode] };
+            }
+            return null;
+        }
+
+        // Yen's Disjoint Path Algorithm Simulation
+        function calculateTopKPaths(graph, startNode, endNode, pingData = null, k = 3) {
+            let paths = [];
+            let primary = calculateDijkstra(graph, startNode, endNode, pingData);
+            
+            if (!primary) return [];
+            paths.push(primary);
+
+            let disabledEdges = new Set();
+            
+            for (let i = 1; i < k; i++) {
+                // To find disjoint paths, we disable the "worst" or "middle" edge of the previous path
+                let prevPath = paths[i - 1].path;
+                if (prevPath.length < 3) break;
+                
+                // Pick edge in the middle to disable
+                let midIdx = Math.floor(prevPath.length / 2);
+                let u = prevPath[midIdx - 1];
+                let v = prevPath[midIdx];
+                
+                disabledEdges.add(`${u}|${v}`);
+                
+                let altPath = calculateDijkstra(graph, startNode, endNode, pingData, disabledEdges);
+                if (altPath && !paths.some(p => p.path.join(',') === altPath.path.join(','))) {
+                    paths.push(altPath);
+                } else {
+                    break;
+                }
+            }
+            return paths;
+        }
+
+        // Dynamic Loading of Link script for Hop Enrichment
+        function loadLinkHistory(origin, dest) {
+            return new Promise((resolve) => {
+                const key = `${origin}_${dest}`;
+                if (window.ping_link_history && window.ping_link_history[key]) {
+                    return resolve(window.ping_link_history[key]);
+                }
+                const script = document.createElement('script');
+                script.src = `history/links/${origin}_${dest}.js`;
+                script.onload = () => {
+                    resolve(window.ping_link_history ? window.ping_link_history[key] : null);
+                };
+                script.onerror = () => {
+                    // Try inverse file
+                    const invScript = document.createElement('script');
+                    const invKey = `${dest}_${origin}`;
+                    invScript.src = `history/links/${invKey}.js`;
+                    invScript.onload = () => {
+                        resolve(window.ping_link_history ? window.ping_link_history[invKey] : null);
+                    };
+                    invScript.onerror = () => resolve(null);
+                    document.head.appendChild(invScript);
+                };
+                document.head.appendChild(script);
+            });
+        }
+
+        // Query historical ping data for a specific timestamp
+        async function getPingDataForHop(origin, dest, timestamp) {
+            // 1. Try local memory matrix
+            if (currentPingData) {
+                const p = currentPingData[`${origin}|${dest}`];
+                if (p) return p;
+            }
+
+            // 2. Load historical time series script
+            const history = await loadLinkHistory(origin, dest);
+            if (history) {
+                // Find matching entry by timestamp date
+                const targetDate = formatDate(timestamp).split(' ')[0]; // DD/MM/YYYY
+                // Format history timestamps from YYYY-MM-DD to DD/MM/YYYY
+                const match = history.find(h => {
+                    const parts = h.t.split(' ')[0].split('-');
+                    const hDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                    return hDate === targetDate;
+                });
+                if (match) return match;
+            }
+            return null;
+        }
+
+        async function calculateRoute() {
+            if (!currentSnapshotData) return;
+
+            const origin = document.getElementById('selOrigin').value;
+            const dest = document.getElementById('selDest').value;
+
+            const originInput = document.getElementById('selOrigin');
+            const destInput = document.getElementById('selDest');
+            
+            const isOriginValid = validNodes.has(origin);
+            const isDestValid = validNodes.has(dest);
+            
+            originInput.style.borderColor = (origin && !isOriginValid) ? 'var(--color-danger, #ef4444)' : '';
+            destInput.style.borderColor = (dest && !isDestValid) ? 'var(--color-danger, #ef4444)' : '';
+            
+            if (!isOriginValid || !isDestValid) {
+                alert("Please select valid Source and Destination elements.");
+                return;
+            }
+
+            if (origin === dest) {
+                alert("Source and Destination must be different.");
+                return;
+            }
+
+            let pathHops = [];
+
+            if (mode === 'manual') {
+                const hopsVal = document.getElementById('inputHops').value;
+                if (!hopsVal) {
+                    alert("Please input manual hops.");
+                    return;
+                }
+                pathHops = hopsVal.split(',').map(s => s.trim()).filter(s => s.length > 0);
+                if (pathHops[0] !== origin || pathHops[pathHops.length - 1] !== dest) {
+                    alert("The first hop must be the Source and the last must be the Destination.");
+                    return;
+                }
+                calculatedPaths = [{ path: pathHops, cost: 0 }];
+                activePathIdx = 0;
+            } else {
+                // Build adjacency list graph from connections
+                const graph = {};
+                (currentSnapshotData.connections || []).forEach(c => {
+                    if (!graph[c.endpoint_a]) graph[c.endpoint_a] = [];
+                    if (!graph[c.endpoint_b]) graph[c.endpoint_b] = [];
+                    
+                    graph[c.endpoint_a].push({
+                        node: c.endpoint_b,
+                        dashed: c.dashed,
+                        bandwidth: c.connection_text
+                    });
+                    graph[c.endpoint_b].push({
+                        node: c.endpoint_a,
+                        dashed: c.dashed,
+                        bandwidth: c.connection_text
+                    });
+                });
+
+                calculatedPaths = calculateTopKPaths(graph, origin, dest, currentPingData);
+                if (calculatedPaths.length === 0) {
+                    document.getElementById('pathFlowContainer').innerHTML = `<div style="color:var(--color-crit); text-align:center; width:100%; padding:20px 0;">Error: No path found in graph between ${origin} and ${dest}.</div>`;
+                    return;
+                }
+                activePathIdx = 0;
+            }
+
+            renderSelectedPath();
+        }
+
+        async function renderSelectedPath() {
+            if (calculatedPaths.length === 0) return;
+
+            const currentRunId = document.getElementById('selSnapshot').value;
+            const pathInfo = calculatedPaths[activePathIdx];
+            const path = pathInfo.path;
+
+            // Render Alternate Paths Selector (Auto Mode Only)
+            const altPathsSelector = document.getElementById('altPathsSelector');
+            if (mode === 'auto') {
+                altPathsSelector.innerHTML = calculatedPaths.map((p, idx) => `
+                    <button class="alt-btn ${idx === activePathIdx ? 'active' : ''}" onclick="selectPath(${idx})">Path ${idx + 1} (${p.path.length - 1} Hops)</button>
+                `).join('');
+                altPathsSelector.style.display = 'flex';
+            } else {
+                altPathsSelector.style.display = 'none';
+            }
+
+            document.getElementById('pathFlowContainer').innerHTML = `<div style="text-align:center; width:100%; color:var(--color-action);">Enriching hop metrics...</div>`;
+
+            // Compile segment datasets
+            const segments = [];
+            for (let i = 0; i < path.length - 1; i++) {
+                const u = path[i];
+                const v = path[i + 1];
+                
+                // Lookup physical connections
+                const conn = (currentSnapshotData.connections || []).find(c => 
+                    (c.endpoint_a === u && c.endpoint_b === v) || 
+                    (c.endpoint_a === v && c.endpoint_b === u)
+                );
+                
+                // Lookup interface details from inventory
+                const ifaceA = (currentSnapshotData.interfaces || []).find(f => f.element === u && f.description.includes(v));
+                const ifaceB = (currentSnapshotData.interfaces || []).find(f => f.element === v && f.description.includes(u));
+
+                // Fetch telemetry pings A -> B and B -> A
+                const pingAB = await getPingDataForHop(u, v, currentRunId);
+                const pingBA = await getPingDataForHop(v, u, currentRunId);
+
+                segments.push({
+                    from: u,
+                    to: v,
+                    connText: conn ? conn.connection_text : "Unknown",
+                    dashed: conn ? (conn.dashed === "1" || conn.dashed === 1) : false,
+                    ifaceA: ifaceA,
+                    ifaceB: ifaceB,
+                    pingDirect: pingAB,
+                    pingReverse: pingBA
+                });
+            }
+
+            renderFlowGraph(path, segments);
+            renderSegmentTable(segments);
+            renderSummary(segments);
+            
+            document.getElementById('btnExport').style.display = 'block';
+        }
+
+        function selectPath(idx) {
+            activePathIdx = idx;
+            renderSelectedPath();
+        }
+
+        // Render nodes and links in horizontal flow
+        function renderFlowGraph(path, segments) {
+            const container = document.getElementById('pathFlowContainer');
+            let html = '';
+
+            for (let i = 0; i < path.length; i++) {
+                // Node
+                const nodeName = path[i];
+                html += `
+                    <div class="node-box" id="node-${nodeName}" onclick="selectNodeDetails('${nodeName}')">
+                        <h4>${nodeName}</h4>
+                        <span>Node ${i + 1}</span>
+                    </div>
+                `;
+
+                // Connector
+                if (i < path.length - 1) {
+                    const seg = segments[i];
+                    
+                    let lossVal = 0;
+                    let latencyVal = -1;
+                    let hasPingData = (seg.pingDirect !== null && seg.pingDirect !== undefined) || (seg.pingReverse !== null && seg.pingReverse !== undefined);
+
+                    if (seg.pingDirect) {
+                        lossVal = seg.pingDirect.loss_pct || seg.pingDirect.loss || 0;
+                        latencyVal = seg.pingDirect.avg || 0;
+                    }
+                    if (seg.pingReverse) {
+                        lossVal = Math.max(lossVal, seg.pingReverse.loss_pct || seg.pingReverse.loss || 0);
+                        latencyVal = Math.max(latencyVal, seg.pingReverse.avg || 0);
+                    }
+
+                    let statusClass = 'healthy';
+                    if (!hasPingData) {
+                        statusClass = 'no-telemetry';
+                    } else if (seg.dashed || lossVal === 100.0 || latencyVal < 0) {
+                        statusClass = 'critical';
+                    } else if (lossVal > 5.0) {
+                        statusClass = 'critical';
+                    } else if (lossVal > 0.0 || latencyVal > 150.0) {
+                        statusClass = 'warning';
+                    }
+
+                    const displayLat = hasPingData ? (latencyVal >= 0 ? `${latencyVal.toFixed(0)}ms` : 'FAIL') : 'N/A';
+                    const displayLoss = (hasPingData && lossVal > 0) ? `| ${lossVal.toFixed(0)}%` : '';
+
+                    html += `
+                        <div class="path-connector ${statusClass}" id="connector-${i}" onclick="selectConnectorDetails(${i})">
+                            <span class="connector-label">${seg.connText}</span>
+                            <div class="connector-line"></div>
+                            <span class="connector-info">${displayLat} ${displayLoss}</span>
+                        </div>
+                    `;
+                }
+            }
+            container.innerHTML = html;
+        }
+
+        function renderSegmentTable(segments) {
+            const tbody = document.getElementById('tblSegments');
+            
+            tbody.innerHTML = segments.map((s, idx) => {
+                const hasAB = s.pingDirect !== null && s.pingDirect !== undefined;
+                const hasBA = s.pingReverse !== null && s.pingReverse !== undefined;
+
+                const latAB = hasAB ? (s.pingDirect.avg >= 0 ? `${s.pingDirect.avg}ms (${s.pingDirect.loss_pct || s.pingDirect.loss || 0}%)` : 'FAIL') : 'N/A';
+                const latBA = hasBA ? (s.pingReverse.avg >= 0 ? `${s.pingReverse.avg}ms (${s.pingReverse.loss_pct || s.pingReverse.loss || 0}%)` : 'FAIL') : 'N/A';
+                
+                const ifNameA = s.ifaceA ? s.ifaceA.interface : '-';
+                const ifNameB = s.ifaceB ? s.ifaceB.interface : '-';
+                
+                let status = '🟢 UP';
+                if (s.dashed) status = '🔴 LINK DOWN';
+                else if (latAB === 'FAIL' || latBA === 'FAIL') status = '🔴 LOSS 100%';
+                else if (!hasAB && !hasBA) status = '⚪ NO TELEMETRY';
+
+                return `
+                    <tr style="border-bottom:1px solid rgba(255,255,255,0.02); cursor:pointer;" onclick="selectConnectorDetails(${idx})">
+                        <td style="padding:12px; font-weight:700;">${s.from} ➔ ${s.to}</td>
+                        <td style="padding:12px;">${status}</td>
+                        <td style="padding:12px;">${latAB}</td>
+                        <td style="padding:12px;">${latBA}</td>
+                        <td style="padding:12px; font-family:'JetBrains Mono', monospace;">${s.connText}</td>
+                        <td style="padding:12px; font-family:'JetBrains Mono', monospace;">${ifNameA}</td>
+                        <td style="padding:12px; font-family:'JetBrains Mono', monospace;">${ifNameB}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function renderSummary(segments) {
+            let minBw = Infinity;
+            let worstLat = 0;
+            let worstLoss = 0;
+            let pathScore = 100;
+            let hasAnyTelemetry = false;
+            
+            segments.forEach(s => {
+                // Capacity bottleneck
+                let bw = parseBandwidth(s.connText);
+                if (bw > 0 && bw < minBw) minBw = bw;
+
+                // Ping metrics
+                let lat = 0;
+                let loss = 0;
+                let segmentHasTelemetry = false;
+
+                if (s.pingDirect) {
+                    lat = s.pingDirect.avg || 0;
+                    loss = s.pingDirect.loss_pct || s.pingDirect.loss || 0;
+                    segmentHasTelemetry = true;
+                    hasAnyTelemetry = true;
+                }
+                if (s.pingReverse) {
+                    lat = Math.max(lat, s.pingReverse.avg || 0);
+                    loss = Math.max(loss, s.pingReverse.loss_pct || s.pingReverse.loss || 0);
+                    segmentHasTelemetry = true;
+                    hasAnyTelemetry = true;
+                }
+
+                if (segmentHasTelemetry) {
+                    if (lat > worstLat) worstLat = lat;
+                    if (loss > worstLoss) worstLoss = loss;
+
+                    // Calculate Path Score deduction (only deduct if we have telemetry)
+                    if (s.dashed) pathScore -= 50;
+                    else if (loss === 100) pathScore -= 40;
+                    else {
+                        pathScore -= (loss * 3);
+                        if (lat > 200) pathScore -= 10;
+                    }
+                } else {
+                    // No telemetry for this segment, only deduct if link is physically down in inventory
+                    if (s.dashed) pathScore -= 50;
+                }
+            });
+
+            if (pathScore < 0) pathScore = 0;
+
+            document.getElementById('sumBw').innerText = minBw === Infinity ? 'Unknown' : formatBw(minBw);
+            document.getElementById('sumLat').innerText = hasAnyTelemetry ? `${worstLat.toFixed(1)}ms` : 'N/A';
+            document.getElementById('sumLoss').innerText = hasAnyTelemetry ? `${worstLoss.toFixed(1)}%` : 'N/A';
+            document.getElementById('sumScore').innerText = `${pathScore}/100`;
+
+            const scoreCard = document.getElementById('sumScore').parentElement;
+            scoreCard.className = `summary-item ${pathScore >= 95 ? 'healthy' : (pathScore < 60 ? 'critical' : 'warning')}`;
+        }
+
+        function formatBw(kbit) {
+            if(kbit >= 1000000) return (kbit/1000000) + ' Gbps';
+            if(kbit >= 1000) return (kbit/1000) + ' Mbps';
+            return kbit + ' Kbps';
+        }
+
+        // Selection details in dynamic side panel
+        function selectNodeDetails(nodeName) {
+            document.querySelectorAll('.node-box').forEach(el => el.classList.remove('selected'));
+            document.querySelectorAll('.path-connector').forEach(el => el.classList.remove('selected'));
+            
+            document.getElementById(`node-${nodeName}`).classList.add('selected');
+
+            document.getElementById('drawerTitle').innerText = `Device: ${nodeName}`;
+            
+            // Gather all interfaces for this node in the snapshot
+            const nodeIfaceList = (currentSnapshotData.interfaces || []).filter(f => f.element === nodeName);
+
+            let html = `
+                <div style="font-size:0.8rem; margin-bottom: 15px;">Active interfaces in inventory:</div>
+                <table style="width:100%; border-collapse:collapse; font-size:0.75rem;">
+                    <thead>
+                        <tr style="border-bottom:1px solid var(--border-color); color:var(--text-dim); text-align:left;">
+                            <th style="padding:5px;">Porta</th>
+                            <th style="padding:5px;">Protocolo</th>
+                            <th style="padding:5px;">Banda</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            if (nodeIfaceList.length > 0) {
+                html += nodeIfaceList.map(i => `
+                    <tr style="border-bottom:1px solid rgba(255,255,255,0.01);">
+                        <td style="padding:5px; font-weight:700;">${i.interface}</td>
+                        <td style="padding:5px; color:${i.line_protocol.includes('up') ? 'var(--color-healthy)' : 'var(--color-crit)'}">${i.line_protocol}</td>
+                        <td style="padding:5px;">${formatBw(parseBandwidth(i.bandwidth_kbit))}</td>
+                    </tr>
+                `).join('');
+            } else {
+                html += `<tr><td colspan="3" style="padding:10px; text-align:center; color:var(--text-dim);">No ports found in inventory.</td></tr>`;
+            }
+
+            html += `</tbody></table>`;
+            document.getElementById('drawerContent').innerHTML = html;
+        }
+
+        function selectConnectorDetails(idx) {
+            document.querySelectorAll('.node-box').forEach(el => el.classList.remove('selected'));
+            document.querySelectorAll('.path-connector').forEach(el => el.classList.remove('selected'));
+            
+            document.getElementById(`connector-${idx}`).classList.add('selected');
+
+            const segment = calculatedPaths[activePathIdx];
+            const u = segment.path[idx];
+            const v = segment.path[idx + 1];
+
+            document.getElementById('drawerTitle').innerText = `Link: ${u} ⇄ ${v}`;
+            
+            // Fetch segment compiled dataset
+            getSegmentDetails(u, v, idx);
+        }
+
+        async function getSegmentDetails(u, v, idx) {
+            const currentRunId = document.getElementById('selSnapshot').value;
+            const conn = (currentSnapshotData.connections || []).find(c => 
+                (c.endpoint_a === u && c.endpoint_b === v) || (c.endpoint_a === v && c.endpoint_b === u)
+            );
+            const ifA = (currentSnapshotData.interfaces || []).find(f => f.element === u && f.description.includes(v));
+            const ifB = (currentSnapshotData.interfaces || []).find(f => f.element === v && f.description.includes(u));
+
+            const pingAB = await getPingDataForHop(u, v, currentRunId);
+            const pingBA = await getPingDataForHop(v, u, currentRunId);
+
+            let html = `
+                <div class="detail-row"><span class="lbl">Topological Capacity</span><span class="val">${conn ? conn.connection_text : 'Unknown'}</span></div>
+                <div class="detail-row"><span class="lbl">Dashed Link Status</span><span class="val" style="color:${conn && conn.dashed === '1' ? 'var(--color-crit)' : 'var(--color-healthy)'}">${conn && conn.dashed === '1' ? 'INACTIVE LOGICAL (DOWN)' : 'ACTIVE (UP)'}</span></div>
+                
+                <h4 style="font-size:0.75rem; text-transform:uppercase; margin-top:15px; border-bottom:1px dashed var(--border-color); padding-bottom:5px; color:var(--text-dim);">ICMP Connectivity Metrics</h4>
+                <div class="detail-row"><span class="lbl">Outbound Ping: ${u} ➔ ${v}</span><span class="val">${pingAB && pingAB.avg >= 0 ? pingAB.avg + 'ms (' + (pingAB.loss_pct || 0) + '% loss)' : 'FAIL'}</span></div>
+                <div class="detail-row"><span class="lbl">Inbound Ping: ${v} ➔ ${u}</span><span class="val">${pingBA && pingBA.avg >= 0 ? pingBA.avg + 'ms (' + (pingBA.loss_pct || 0) + '% loss)' : 'FAIL'}</span></div>
+                
+                <h4 style="font-size:0.75rem; text-transform:uppercase; margin-top:15px; border-bottom:1px dashed var(--border-color); padding-bottom:5px; color:var(--text-dim);">Interface on Device A (${u})</h4>
+                <div class="detail-row"><span class="lbl">Interface</span><span class="val">${ifA ? ifA.interface : 'N/A'}</span></div>
+                <div class="detail-row"><span class="lbl">Operational Status</span><span class="val" style="color:${ifA && ifA.line_protocol.includes('up') ? 'var(--color-healthy)' : 'var(--color-crit)'}">${ifA ? ifA.line_protocol : 'Unknown'}</span></div>
+                <div class="detail-row"><span class="lbl">Description</span><span class="val" style="font-size:0.65rem; word-break:break-all;">${ifA ? ifA.description : '-'}</span></div>
+
+                <h4 style="font-size:0.75rem; text-transform:uppercase; margin-top:15px; border-bottom:1px dashed var(--border-color); padding-bottom:5px; color:var(--text-dim);">Interface on Device B (${v})</h4>
+                <div class="detail-row"><span class="lbl">Interface</span><span class="val">${ifB ? ifB.interface : 'N/A'}</span></div>
+                <div class="detail-row"><span class="lbl">Operational Status</span><span class="val" style="color:${ifB && ifB.line_protocol.includes('up') ? 'var(--color-healthy)' : 'var(--color-crit)'}">${ifB ? ifB.line_protocol : 'Unknown'}</span></div>
+                <div class="detail-row"><span class="lbl">Description</span><span class="val" style="font-size:0.65rem; word-break:break-all;">${ifB ? ifB.description : '-'}</span></div>
+            `;
+            document.getElementById('drawerContent').innerHTML = html;
+        }
+
+        // Export diagnostic report as standalone HTML download
+        async function exportPathHTML() {
+            if (calculatedPaths.length === 0) return;
+            const pathInfo = calculatedPaths[activePathIdx];
+            const path = pathInfo.path;
+            const currentRunId = document.getElementById('selSnapshot').value;
+
+            // Generate detailed data dump
+            const segments = [];
+            for (let i = 0; i < path.length - 1; i++) {
+                const u = path[i];
+                const v = path[i + 1];
+                const conn = (currentSnapshotData.connections || []).find(c => (c.endpoint_a === u && c.endpoint_b === v) || (c.endpoint_a === v && c.endpoint_b === u));
+                const ifA = (currentSnapshotData.interfaces || []).find(f => f.element === u && f.description.includes(v));
+                const ifB = (currentSnapshotData.interfaces || []).find(f => f.element === v && f.description.includes(u));
+                const pingAB = await getPingDataForHop(u, v, currentRunId);
+                const pingBA = await getPingDataForHop(v, u, currentRunId);
+
+                segments.push({
+                    from: u, to: v,
+                    connText: conn ? conn.connection_text : "Unknown",
+                    dashed: conn ? (conn.dashed === "1" || conn.dashed === 1) : false,
+                    ifaceA: ifA ? ifA.interface : "N/A",
+                    ifaceB: ifB ? ifB.interface : "N/A",
+                    pingAB: pingAB ? `${pingAB.avg}ms (${pingAB.loss_pct || 0}% loss)` : "FAIL",
+                    pingBA: pingBA ? `${pingBA.avg}ms (${pingBA.loss_pct || 0}% loss)` : "FAIL"
+                });
+            }
+
+            const exportHTML = `
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <title>Route Diagnostic Report: ${path[0]} to ${path[path.length - 1]}</title>
+                <style>
+                    body { font-family: 'Inter', sans-serif; background: #020617; color: #cbd5e1; padding: 30px; }
+                    h1 { color: #f8fafc; border-bottom: 2px solid #1e293b; padding-bottom: 10px; }
+                    .meta { color: #64748b; font-size: 0.85rem; margin-bottom: 25px; }
+                    .flow { display: flex; align-items: center; gap: 10px; margin-bottom: 30px; background: #0d121f; padding: 20px; border: 1px solid #1e293b; }
+                    .node { background: #020408; padding: 10px 15px; border: 1px solid #06b6d4; font-weight: bold; }
+                    .arrow { color: #10b981; font-weight: bold; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th, td { border: 1px solid #1e293b; padding: 12px; text-align: left; }
+                    th { background: #0d121f; color: #64748b; font-size: 0.75rem; text-transform: uppercase; }
+                    tr:hover { background: rgba(255,255,255,0.01); }
+                </style>
+            </head>
+            <body>
+                <" + "h1>Route Diagnostic Report</h1" + ">
+                <div class="meta">
+                    <b>Snapshot Date:</b> ${formatDate(currentRunId)} <br>
+                    <b>Calculated Path:</b> ${path.join(' ➔ ')}
+                </div>
+                <div class="flow">
+                    ${path.map((n, idx) => `
+                        <div class="node">${n}</div>
+                        ${idx < path.length - 1 ? `<div class="arrow">➔ [${segments[idx].connText}] ➔</div>` : ''}
+                    `).join('')}
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Segment</th>
+                            <th>Capacity</th>
+                            <th>Ping A ➔ B</th>
+                            <th>Ping B ➔ A</th>
+                            <th>Port A</th>
+                            <th>Port B</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${segments.map(s => `
+                            <tr>
+                                <td><b>${s.from} ➔ ${s.to}</b></td>
+                                <td>${s.connText} ${s.dashed ? '(Inactive)' : ''}</td>
+                                <td>${s.pingAB}</td>
+                                <td>${s.pingBA}</td>
+                                <td>${s.ifaceA}</td>
+                                <td>${s.ifaceB}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </body>
+            </html>
+            `;
+
+            const blob = new Blob([exportHTML], { type: 'text/html;charset=utf-8;' });
+            const link = document.createElement("a");
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", `route_diagnostic_${path[0]}_to_${path[path.length-1]}_${currentRunId}.html`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
+
+        window.onload = () => {
+            initSelectors();
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,1328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="Ping Connectivity History and Temporal Performance Dashboard">
+    <meta property="og:title" content="Ping Connectivity History">
+    <title>Ping Connectivity History - Swiss Cybernetic HUD</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;700;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <script src="chart.js"></script>
+    <style>
+        :root {
+            --bg-darker: #020408;
+            --bg-dark: #080c14;
+            --panel-bg: #0d121f;
+            --border-color: #1e293b;
+            --text-main: #e2e8f0;
+            --text-dim: #64748b;
+            --color-healthy: #10b981;
+            --color-healthy-glow: rgba(16, 185, 129, 0.2);
+            --color-warn: #f97316;
+            --color-warn-glow: rgba(249, 115, 22, 0.2);
+            --color-asym: #eab308;
+            --color-crit: #ef4444;
+            --color-crit-glow: rgba(239, 68, 68, 0.2);
+            --color-action: #06b6d4;
+            --font-display: 'Outfit', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: radial-gradient(circle at top, var(--bg-dark) 0%, var(--bg-darker) 100%);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        h1, h2, h3, h4, .outfit {
+            font-family: 'Outfit', sans-serif;
+        }
+
+        /* HUD Header */
+        .hud-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+        }
+
+        .hud-title h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--text-main);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .hud-title h1 span {
+            color: var(--color-action);
+            text-shadow: 0 0 10px rgba(6, 182, 212, 0.4);
+        }
+
+        .hud-title p {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-top: 4px;
+        }
+
+        /* Control Panel */
+        .control-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 2px;
+            padding: 20px;
+            margin-bottom: 25px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            align-items: end;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .input-group label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+            font-weight: 700;
+        }
+
+        .control-select, .control-input {
+            background: var(--bg-darker);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 8px 12px;
+            font-size: 0.85rem;
+            border-radius: 1px;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .control-select:focus, .control-input:focus {
+            border-color: var(--color-action);
+            box-shadow: 0 0 5px rgba(6, 182, 212, 0.2);
+        }
+
+        .quick-select-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .pill-btn {
+            background: var(--bg-darker);
+            border: 1px solid var(--border-color);
+            color: var(--text-dim);
+            padding: 6px 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-radius: 1px;
+            text-transform: uppercase;
+        }
+
+        .pill-btn:hover {
+            color: var(--text-main);
+            border-color: var(--text-dim);
+        }
+
+        .pill-btn.active {
+            background: rgba(6, 182, 212, 0.1);
+            border-color: var(--color-action);
+            color: var(--color-action);
+            text-shadow: 0 0 5px rgba(6, 182, 212, 0.3);
+        }
+
+        /* Sliders Threshold */
+        .threshold-box {
+            grid-column: 1 / -1;
+            border-top: 1px dashed var(--border-color);
+            padding-top: 15px;
+            margin-top: 5px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+        }
+
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-dim);
+        }
+
+        .slider-header span.val {
+            color: var(--color-action);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .slider-control {
+            width: 100%;
+            accent-color: var(--color-action);
+            cursor: pointer;
+        }
+
+        /* KPI Grid */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .kpi-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 2px;
+            padding: 15px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--border-color);
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--color-action);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+        }
+
+        .kpi-card.healthy::before { background: var(--color-healthy); }
+        .kpi-card.warning::before { background: var(--color-warn); }
+        .kpi-card.critical::before { background: var(--color-crit); }
+
+        .kpi-card h3 {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .kpi-val {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 800;
+            margin-bottom: 2px;
+        }
+
+        .kpi-sub {
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+
+        /* Layout Grid */
+        .layout-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 25px;
+            margin-bottom: 25px;
+        }
+
+        @media (max-width: 1024px) {
+            .layout-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 2px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+
+        .panel-header h2 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-main);
+            border-left: 3px solid var(--color-action);
+            padding-left: 10px;
+        }
+
+        /* Heatmap Grid */
+        .heatmap-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 4px;
+            text-align: center;
+        }
+
+        .heatmap-cell {
+            aspect-ratio: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-dim);
+            border: 1px solid rgba(255,255,255,0.02);
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .heatmap-cell.header {
+            font-weight: 700;
+            color: var(--text-main);
+            background: rgba(255,255,255,0.02);
+            border: none;
+            aspect-ratio: auto;
+            padding: 8px 0;
+        }
+
+        .heatmap-cell.label {
+            font-weight: 700;
+            color: var(--text-main);
+            background: rgba(255,255,255,0.01);
+            aspect-ratio: auto;
+            min-height: 25px;
+        }
+
+        /* Sidebar Panels */
+        .sidebar-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 2px;
+            padding: 15px;
+            margin-bottom: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .sidebar-panel::-webkit-scrollbar { width: 4px; }
+        .sidebar-panel::-webkit-scrollbar-thumb { background: var(--border-color); }
+
+        .list-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+        }
+
+        .list-table th {
+            text-align: left;
+            padding: 8px;
+            color: var(--text-dim);
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.65rem;
+            text-transform: uppercase;
+        }
+
+        .list-table td {
+            padding: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.02);
+            font-weight: 500;
+        }
+
+        .list-table tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .txt-healthy { color: var(--color-healthy); }
+        .txt-warn { color: var(--color-warn); }
+        .txt-asym { color: var(--color-asym); }
+        .txt-crit { color: var(--color-crit); }
+
+        .anomaly-badge {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--color-crit);
+            color: var(--color-crit);
+            font-size: 0.6rem;
+            font-weight: 800;
+            padding: 2px 6px;
+            border-radius: 1px;
+            animation: pulse-glow 1.5s infinite;
+        }
+
+        @keyframes pulse-glow {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
+        /* Error/Status banner */
+        .hud-status-banner {
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid var(--color-action);
+            padding: 10px 15px;
+            font-size: 0.85rem;
+            margin-bottom: 20px;
+            display: none;
+            border-radius: 1px;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .back-portal {
+            background: var(--bg-darker);
+            border: 1px solid var(--border-color);
+            color: var(--color-action);
+            padding: 8px 15px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.2s;
+            cursor: pointer;
+            border-radius: 1px;
+        }
+
+        .back-portal:hover {
+            border-color: var(--color-action);
+            background: rgba(6, 182, 212, 0.1);
+            text-shadow: 0 0 5px var(--color-action);
+        }
+    </style>
+    <!-- Carrega manifestos históricos gerados por Python -->
+    <script src="history/history_manifest.js" onerror="handleLoadError('history_manifest.js')"></script>
+    <script src="history/history_rankings.js" onerror="handleLoadError('history_rankings.js')"></script>
+</head>
+<body>
+
+    <div class="hud-status-banner" id="statusBanner">
+        <span id="bannerText">Loading data...</span>
+        <button class="pill-btn" onclick="document.getElementById('statusBanner').style.display='none'">✕</button>
+    </div>
+
+    <!-- HUD Header -->
+    <div class="hud-header">
+        <div class="hud-title">
+            <h1>📡 p2p connectivity <span>history</span></h1>
+            <p>Baseline Analysis, Anomalies, and Temporal Performance</p>
+        </div>
+        <a class="back-portal" href="../index.html">← Network Portal</a>
+    </div>
+
+    <!-- Control Panel -->
+    <div class="control-panel">
+        <div class="input-group">
+            <label for="selOrigin">Origin (A)</label>
+            <input type="text" class="control-select" id="selOrigin" list="datalistOrigin" placeholder="Search origin..." onchange="onLinkSelectorChange()" oninput="onLinkSelectorInput(this)" autocomplete="off">
+            <datalist id="datalistOrigin"></datalist>
+        </div>
+        <div class="input-group">
+            <label for="selDest">Destination (B)</label>
+            <input type="text" class="control-select" id="selDest" list="datalistDest" placeholder="Search destination..." onchange="onLinkSelectorChange()" oninput="onLinkSelectorInput(this)" autocomplete="off">
+            <datalist id="datalistDest"></datalist>
+        </div>
+        <div class="input-group">
+            <label for="selMode">Directionality</label>
+            <select class="control-select" id="selMode" onchange="renderCharts()">
+                <option value="direct">Outbound: A 🡲 B</option>
+                <option value="reverse">Inbound: B 🡰 A</option>
+                <option value="both">Bidirectional: A ⇄ B</option>
+                <option value="worst">Worst Direction (Worst Case)</option>
+            </select>
+        </div>
+        <div class="input-group" style="grid-column: span 2;">
+            <label>Analysis Period</label>
+            <div class="quick-select-pills" id="periodPills">
+                <button class="pill-btn" onclick="setPeriodFilter(1)">Last 24h</button>
+                <button class="pill-btn" onclick="setPeriodFilter(7)">7 Days</button>
+                <button class="pill-btn active" onclick="setPeriodFilter(30)">30 Days</button>
+                <button class="pill-btn" onclick="setPeriodFilter(90)">All History</button>
+            </div>
+        </div>
+
+        <!-- Thresholds Sliders -->
+        <div class="threshold-box">
+            <div class="slider-group">
+                <div class="slider-header">Latency Limit <span class="val" id="valThrLat">200ms</span></div>
+                <input type="range" class="slider-control" id="rangeLat" min="10" max="500" value="200" oninput="updateSliders()">
+            </div>
+            <div class="slider-group">
+                <div class="slider-header">Loss Limit <span class="val" id="valThrLoss">1%</span></div>
+                <input type="range" class="slider-control" id="rangeLoss" min="0.1" max="10" step="0.1" value="1.0" oninput="updateSliders()">
+            </div>
+            <div class="slider-group">
+                <div class="slider-header">Jitter Limit <span class="val" id="valThrJitter">5ms</span></div>
+                <input type="range" class="slider-control" id="rangeJitter" min="1" max="50" value="5" oninput="updateSliders()">
+            </div>
+            <div class="slider-group">
+                <div class="slider-header">Availability SLA <span class="val" id="valThrAvail">99.5%</span></div>
+                <input type="range" class="slider-control" id="rangeAvail" min="95" max="100" step="0.1" value="99.5" oninput="updateSliders()">
+            </div>
+        </div>
+    </div>
+
+    <!-- KPI summary cards -->
+    <div class="kpi-grid" id="kpiGrid">
+        <div class="kpi-card" id="kpiAvail">
+            <h3>Availability</h3>
+            <div class="kpi-val outfit">-</div>
+            <div class="kpi-sub">SLA in Period</div>
+        </div>
+        <div class="kpi-card" id="kpiLat">
+            <h3>Avg Latency / P95</h3>
+            <div class="kpi-val outfit" style="font-size: 1.5rem; padding: 3px 0;">-</div>
+            <div class="kpi-sub">Min / Avg / Max (ms)</div>
+        </div>
+        <div class="kpi-card" id="kpiLoss">
+            <h3>Avg Loss</h3>
+            <div class="kpi-val outfit">-</div>
+            <div class="kpi-sub">Worst Loss Registered</div>
+        </div>
+        <div class="kpi-card" id="kpiJitter">
+            <h3>Avg Jitter</h3>
+            <div class="kpi-val outfit">-</div>
+            <div class="kpi-sub">Max Jitter Detected</div>
+        </div>
+        <div class="kpi-card" id="kpiAsym">
+            <h3>Asymmetry</h3>
+            <div class="kpi-val outfit">-</div>
+            <div class="kpi-sub">Outbound vs Inbound Delta</div>
+        </div>
+        <div class="kpi-card" id="kpiEvents">
+            <h3>Degradations</h3>
+            <div class="kpi-val outfit">-</div>
+            <div class="kpi-sub">Threshold Breaches</div>
+        </div>
+    </div>
+
+    <!-- Layout Grid -->
+    <div class="layout-grid">
+        
+        <!-- Left Side: Charts -->
+        <div>
+            <!-- Timeline Latency -->
+            <div class="chart-panel">
+                <div class="panel-header">
+                    <h2>Latency Timeline (ms)</h2>
+                </div>
+                <div style="position: relative; height: 320px;">
+                    <canvas id="chartLatency"></canvas>
+                </div>
+            </div>
+
+            <!-- Timeline Loss & Jitter -->
+            <div class="chart-panel">
+                <div class="panel-header">
+                    <h2>Packet Loss (%) & Jitter (ms)</h2>
+                </div>
+                <div style="position: relative; height: 260px;">
+                    <canvas id="chartLossJitter"></canvas>
+                </div>
+            </div>
+
+            <!-- Grid Heatmap & Probability -->
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div class="chart-panel" style="margin-bottom:0;">
+                    <div class="panel-header">
+                        <h2>Latency Density Analysis (Percentiles)</h2>
+                    </div>
+                    <div style="position: relative; height: 220px;">
+                        <canvas id="chartPercentiles"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-panel" style="margin-bottom:0;">
+                    <div class="panel-header">
+                        <h2>Weekly Heatmap (Worst Loss)</h2>
+                    </div>
+                    <div class="heatmap-grid" id="heatmapGrid"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side: Side Panels Rankings -->
+        <div>
+            <!-- Anomalies -->
+            <div class="sidebar-panel">
+                <div class="panel-header" style="margin-bottom:10px;">
+                    <h2>Recent Anomalies</h2>
+                </div>
+                <table class="list-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Link</th>
+                            <th>Measured</th>
+                            <th>Deviation</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tblAnomalies"></tbody>
+                </table>
+            </div>
+
+            <!-- Top Worst -->
+            <div class="sidebar-panel">
+                <div class="panel-header" style="margin-bottom:10px;">
+                    <h2>Top 10 Worst Circuits (Last 10 Snapshots)</h2>
+                </div>
+                <table class="list-table">
+                    <thead>
+                        <tr>
+                            <th>Origin ⇄ Destination</th>
+                            <th>Avg Loss</th>
+                            <th>Avg Latency</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tblWorst"></tbody>
+                </table>
+            </div>
+
+            <!-- Worsening Trend -->
+            <div class="sidebar-panel">
+                <div class="panel-header" style="margin-bottom:10px;">
+                    <h2>Degradation Trend (Regression)</h2>
+                </div>
+                <table class="list-table">
+                    <thead>
+                        <tr>
+                            <th>Link</th>
+                            <th>Coefficient (Δ/run)</th>
+                            <th>Evolution</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tblTrends"></tbody>
+                </table>
+            </div>
+
+            <!-- Instability (Variance) -->
+            <div class="sidebar-panel">
+                <div class="panel-header" style="margin-bottom:10px;">
+                    <h2>Instability Ranking (Std Dev)</h2>
+                </div>
+                <table class="list-table">
+                    <thead>
+                        <tr>
+                            <th>Circuit</th>
+                            <th>Std Dev (σ)</th>
+                            <th>Avg Latency</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tblStability"></tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let hasData = true;
+        
+        function handleLoadError(file) {
+            hasData = false;
+            const banner = document.getElementById('statusBanner');
+            banner.style.display = 'flex';
+            banner.style.background = 'rgba(239, 68, 68, 0.15)';
+            banner.style.borderColor = 'var(--color-crit)';
+            document.getElementById('bannerText').innerHTML = `⚠️ Failed to load <b>${file}</b>. Ensure the history aggregator has run or use <code>--rebuild-index</code>.`;
+        }
+
+        // Percentile calculator for JavaScript
+        function percentile(arr, p) {
+            if (arr.length === 0) return 0;
+            const sorted = arr.slice().sort((a, b) => a - b);
+            const pos = (sorted.length - 1) * p;
+            const base = Math.floor(pos);
+            const rest = pos - base;
+            if (sorted[base + 1] !== undefined) {
+                return sorted[base] + rest * (sorted[base + 1] - sorted[base]);
+            } else {
+                return sorted[base];
+            }
+        }
+
+        // Global State
+        let manifest = window.ping_history_manifest || [];
+        let rankings = window.ping_history_rankings || {};
+        let currentLinkHistory = null;
+        let chartInstanceLat = null;
+        let chartInstanceLossJit = null;
+        let chartInstancePercentiles = null;
+        let periodDays = 30;
+        let validOrigins = new Set();
+        let validDests = new Set();
+
+        // Sliders Threshold Values
+        let thrLat = 200;
+        let thrLoss = 1.0;
+        let thrJitter = 5;
+        let thrAvail = 99.5;
+
+        // Handle dynamic input typing validation
+        function onLinkSelectorInput(el) {
+            const val = el.value;
+            const validSet = el.id === 'selOrigin' ? validOrigins : validDests;
+            if (val && !validSet.has(val)) {
+                el.style.borderColor = 'var(--color-danger, #ef4444)';
+            } else {
+                el.style.borderColor = '';
+                if (validSet.has(val)) {
+                    onLinkSelectorChange();
+                }
+            }
+        }
+
+        // Initialize Options
+        function initSelectors() {
+            if (!hasData || manifest.length === 0) {
+                document.getElementById('statusBanner').style.display = 'flex';
+                document.getElementById('bannerText').innerText = "No history available. Run pings to populate.";
+                return;
+            }
+
+            const origins = new Set();
+            const dests = new Set();
+            validOrigins = new Set();
+            validDests = new Set();
+
+            // Populate selectors from rankings metadata (which lists all nodes)
+            if (rankings.rankings_by_origin) {
+                Object.keys(rankings.rankings_by_origin).forEach(k => {
+                    origins.add(k);
+                    validOrigins.add(k);
+                });
+            }
+            if (rankings.rankings_by_dest) {
+                Object.keys(rankings.rankings_by_dest).forEach(k => {
+                    dests.add(k);
+                    validDests.add(k);
+                });
+            }
+
+            const datalistOrigin = document.getElementById('datalistOrigin');
+            const datalistDest = document.getElementById('datalistDest');
+
+            datalistOrigin.innerHTML = Array.from(origins).sort().map(o => `<option value="${o}">`).join('');
+            datalistDest.innerHTML = Array.from(dests).sort().map(d => `<option value="${d}">`).join('');
+
+            const selOrigin = document.getElementById('selOrigin');
+            const selDest = document.getElementById('selDest');
+
+            const sortedOrigins = Array.from(origins).sort();
+            const sortedDests = Array.from(dests).sort();
+
+            if (sortedOrigins.length > 0) selOrigin.value = sortedOrigins[0];
+            if (sortedDests.length > 0) {
+                if (sortedDests.length > 1 && sortedOrigins[0] === sortedDests[0]) {
+                    selDest.value = sortedDests[1];
+                } else {
+                    selDest.value = sortedDests[0];
+                }
+            }
+
+            populateTables();
+            onLinkSelectorChange();
+        }
+
+        function populateTables() {
+            if (!rankings) return;
+
+            // 1. Anomalies
+            const tblAnomalies = document.getElementById('tblAnomalies');
+            if (rankings.anomaly_events && rankings.anomaly_events.length > 0) {
+                tblAnomalies.innerHTML = rankings.anomaly_events.slice(0, 15).map(e => `
+                    <tr>
+                        <td style="font-family:'JetBrains Mono', monospace; font-size:0.7rem;">${e.timestamp.split(' ')[0]}</td>
+                        <td><a href="#" style="color:var(--text-main); text-decoration:none;" onclick="selectLink('${e.origin}', '${e.dest}')">${e.origin} ➔ ${e.dest}</a></td>
+                        <td class="txt-crit">${e.actual}ms</td>
+                        <td><span class="anomaly-badge">Anomaly</span></td>
+                    </tr>
+                `).join('');
+            } else {
+                tblAnomalies.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--text-dim);">No anomalies identified in this period.</td></tr>`;
+            }
+
+            // 2. Worst
+            const tblWorst = document.getElementById('tblWorst');
+            if (rankings.top_worst_circuits && rankings.top_worst_circuits.length > 0) {
+                tblWorst.innerHTML = rankings.top_worst_circuits.slice(0, 10).map(c => `
+                    <tr>
+                        <td><b><a href="#" style="color:var(--text-main); text-decoration:none;" onclick="selectLink('${c.origin}', '${c.dest}')">${c.origin} ⇄ ${c.dest}</a></b></td>
+                        <td class="${c.avg_loss > 1.0 ? 'txt-crit' : 'txt-warn'}">${c.avg_loss}%</td>
+                        <td>${c.avg_latency}ms</td>
+                    </tr>
+                `).join('');
+            } else {
+                tblWorst.innerHTML = `<tr><td colspan="3" style="text-align:center;">No data.</td></tr>`;
+            }
+
+            // 3. Trends
+            const tblTrends = document.getElementById('tblTrends');
+            if (rankings.worsening_trend && rankings.worsening_trend.length > 0) {
+                tblTrends.innerHTML = rankings.worsening_trend.slice(0, 10).map(t => `
+                    <tr>
+                        <td><b><a href="#" style="color:var(--text-main); text-decoration:none;" onclick="selectLink('${t.origin}', '${t.dest}')">${t.origin} ➔ ${t.dest}</a></b></td>
+                        <td class="txt-warn">+${t.slope} ms/run</td>
+                        <td>${t.start_latency}ms ➔ ${t.end_latency}ms</td>
+                    </tr>
+                `).join('');
+            } else {
+                tblTrends.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--text-dim);">No significant worsening trends identified.</td></tr>`;
+            }
+
+            // 4. Instability
+            const tblStability = document.getElementById('tblStability');
+            if (rankings.rankings_by_stability && rankings.rankings_by_stability.length > 0) {
+                tblStability.innerHTML = rankings.rankings_by_stability.slice(0, 10).map(s => `
+                    <tr>
+                        <td><b><a href="#" style="color:var(--text-main); text-decoration:none;" onclick="selectLink('${s.origin}', '${s.dest}')">${s.origin} ⇄ ${s.dest}</a></b></td>
+                        <td class="txt-warn">σ = ${s.std_dev}</td>
+                        <td>Avg: ${s.avg}ms</td>
+                    </tr>
+                `).join('');
+            } else {
+                tblStability.innerHTML = `<tr><td colspan="3" style="text-align:center;">No data.</td></tr>`;
+            }
+        }
+
+        function selectLink(origin, dest) {
+            document.getElementById('selOrigin').value = origin;
+            document.getElementById('selDest').value = dest;
+            onLinkSelectorChange();
+        }
+
+        // Dynamic Loading of Link Script
+        function loadLinkHistory(origin, dest) {
+            return new Promise((resolve, reject) => {
+                const key = `${origin}_${dest}`;
+                if (window.ping_link_history && window.ping_link_history[key]) {
+                    resolve(window.ping_link_history[key]);
+                    return;
+                }
+                
+                const script = document.createElement('script');
+                script.src = `history/links/${origin}_${dest}.js`;
+                script.onload = () => {
+                    script.remove();
+                    if (window.ping_link_history && window.ping_link_history[key]) {
+                        resolve(window.ping_link_history[key]);
+                    } else {
+                        reject(new Error("Data not found"));
+                    }
+                };
+                script.onerror = () => {
+                    script.remove();
+                    reject(new Error(`Failed to load file for ${origin} ➔ ${dest}`));
+                };
+                document.head.appendChild(script);
+            });
+        }
+
+        async function onLinkSelectorChange() {
+            const origin = document.getElementById('selOrigin').value;
+            const dest = document.getElementById('selDest').value;
+            
+            const originInput = document.getElementById('selOrigin');
+            const destInput = document.getElementById('selDest');
+            
+            const isOriginValid = validOrigins.has(origin);
+            const isDestValid = validDests.has(dest);
+            
+            originInput.style.borderColor = (origin && !isOriginValid) ? 'var(--color-danger, #ef4444)' : '';
+            destInput.style.borderColor = (dest && !isDestValid) ? 'var(--color-danger, #ef4444)' : '';
+            
+            if (!isOriginValid || !isDestValid || origin === dest) {
+                document.getElementById('kpiGrid').querySelectorAll('.kpi-val').forEach(el => el.innerText = "-");
+                return;
+            }
+
+            document.getElementById('statusBanner').style.display = 'flex';
+            document.getElementById('bannerText').innerText = `Loading history for circuit ${origin} ⇄ ${dest}...`;
+
+            let directHistory = null;
+            let reverseHistory = null;
+
+            try {
+                directHistory = await loadLinkHistory(origin, dest);
+            } catch (e) {
+                console.log("Direct history not found:", e);
+            }
+
+            try {
+                reverseHistory = await loadLinkHistory(dest, origin);
+            } catch (e) {
+                console.log("Reverse history not found:", e);
+            }
+
+            if (directHistory) {
+                currentLinkHistory = directHistory;
+                document.getElementById('statusBanner').style.display = 'none';
+            } else if (reverseHistory) {
+                currentLinkHistory = reverseHistory;
+                document.getElementById('statusBanner').style.display = 'none';
+            } else {
+                document.getElementById('statusBanner').style.display = 'flex';
+                document.getElementById('statusBanner').style.background = 'rgba(6, 182, 212, 0.1)';
+                document.getElementById('statusBanner').style.borderColor = 'var(--color-action)';
+                document.getElementById('bannerText').innerHTML = `ℹ️ This circuit does not have ping monitoring configured or telemetry data has not been generated yet for route <b>${origin} ⇄ ${dest}</b>.`;
+                currentLinkHistory = null;
+            }
+
+            renderCharts();
+        }
+
+        function setPeriodFilter(days) {
+            periodDays = days;
+            document.querySelectorAll('#periodPills button').forEach((btn, idx) => {
+                const map = [1, 7, 30, 90];
+                if (map[idx] === days) btn.classList.add('active');
+                else btn.classList.remove('active');
+            });
+            renderCharts();
+        }
+
+        function updateSliders() {
+            thrLat = parseFloat(document.getElementById('rangeLat').value);
+            thrLoss = parseFloat(document.getElementById('rangeLoss').value);
+            thrJitter = parseFloat(document.getElementById('rangeJitter').value);
+            thrAvail = parseFloat(document.getElementById('rangeAvail').value);
+
+            document.getElementById('valThrLat').innerText = `${thrLat}ms`;
+            document.getElementById('valThrLoss').innerText = `${thrLoss}%`;
+            document.getElementById('valThrJitter').innerText = `${thrJitter}ms`;
+            document.getElementById('valThrAvail').innerText = `${thrAvail}%`;
+
+            renderCharts();
+        }
+
+        function filterHistoryByPeriod(history) {
+            if (!history) return [];
+            if (periodDays === 90) return history; // Total
+
+            const cutoffDate = new Date();
+            cutoffDate.setDate(cutoffDate.getDate() - periodDays);
+
+            return history.filter(h => {
+                // Parse timestamp format YYYY-MM-DD HH:MM:SS
+                const parts = h.t.split(' ');
+                const dateParts = parts[0].split('-');
+                const timeParts = parts[1].split(':');
+                const hDate = new Date(
+                    parseInt(dateParts[0]),
+                    parseInt(dateParts[1]) - 1,
+                    parseInt(dateParts[2]),
+                    parseInt(timeParts[0]),
+                    parseInt(timeParts[1]),
+                    parseInt(timeParts[2] || 0)
+                );
+                return hDate >= cutoffDate;
+            });
+        }
+
+        function renderCharts() {
+            if (!currentLinkHistory) {
+                // Clear KPIs
+                document.getElementById('kpiGrid').querySelectorAll('.kpi-val').forEach(el => el.innerText = "-");
+                document.getElementById('kpiGrid').querySelectorAll('.kpi-sub').forEach(el => el.innerText = "-");
+                document.querySelectorAll('.kpi-card').forEach(el => el.className = 'kpi-card');
+                
+                // Clear charts if they exist
+                if (chartInstanceLat) { chartInstanceLat.destroy(); chartInstanceLat = null; }
+                if (chartInstanceLossJit) { chartInstanceLossJit.destroy(); chartInstanceLossJit = null; }
+                if (chartInstancePercentiles) { chartInstancePercentiles.destroy(); chartInstancePercentiles = null; }
+                document.getElementById('heatmapGrid').innerHTML = '<div style="grid-column: 1 / -1; padding: 20px; color: var(--text-dim);">No historical data.</div>';
+                return;
+            }
+
+            const mode = document.getElementById('selMode').value;
+            const origin = document.getElementById('selOrigin').value;
+            const dest = document.getElementById('selDest').value;
+
+            // A->B (Direct) vs B->A (Reverse) logic
+            // Since we stored links under files origin_destination.js (e.g. NodeA_NodeB.js),
+            // if A is chosen as selOrigin, we map direct to file's A->B and reverse to B->A.
+            // If window.ping_link_history holds A_B, but file holds B_A, we must invert the mapping.
+            const fileKey = window.ping_link_history[`${origin}_${dest}`] ? "direct" : "inverted";
+
+            // Filter history by selected period
+            const filteredHistory = filterHistoryByPeriod(currentLinkHistory);
+
+            const labels = [];
+            const latAvg = [];
+            const latMin = [];
+            const latMax = [];
+            const loss = [];
+            const jitter = [];
+            const asymmetry = [];
+            
+            let totalLossSum = 0;
+            let worstLoss = 0;
+            let totalJitterSum = 0;
+            let maxJitter = 0;
+            let maxAsym = 0;
+            let sumAsym = 0;
+            
+            let latenciesForPerc = [];
+            let degradationEvents = 0;
+            let okSamples = 0;
+            let totalSamples = filteredHistory.length;
+
+            // Hourly Heatmap aggregations (24h x 7d)
+            // Day 0 = Sunday, 6 = Saturday
+            const heatmapData = Array(24).fill(null).map(() => Array(7).fill(null).map(() => ({ count: 0, max_loss: 0 })));
+
+            // Extract reverse data if both directions needed
+            // If direct, read h.avg, h.loss, etc.
+            // If both, direct = direct, reverse = loaded reverse script dynamically
+            // (For simplicity we assume bidirectional analysis compares direct vs reverse in the same loaded dataset
+            // if it exists, or just reads inverse attributes. Let's lookup key in inverse route)
+            let inverseHistoryMap = {};
+            const invKey = fileKey === "direct" ? `${dest}_${origin}` : `${origin}_${dest}`;
+            if (window.ping_link_history && window.ping_link_history[invKey]) {
+                window.ping_link_history[invKey].forEach(h => inverseHistoryMap[h.t] = h);
+            }
+
+            filteredHistory.forEach(h => {
+                labels.push(h.t.substring(5, 16)); // MM-DD HH:MM
+                
+                let curAvg = h.avg;
+                let curMin = h.min;
+                let curMax = h.max;
+                let curLoss = h.loss;
+                let curJit = h.jitter;
+                
+                const invH = inverseHistoryMap[h.t];
+                
+                if (mode === "reverse" && invH) {
+                    curAvg = invH.avg;
+                    curMin = invH.min;
+                    curMax = invH.max;
+                    curLoss = invH.loss;
+                    curJit = invH.jitter;
+                } else if (mode === "worst" && invH) {
+                    // Pick the worst direction per metric
+                    curLoss = Math.max(h.loss, invH.loss);
+                    curAvg = Math.max(h.avg, invH.avg);
+                    curMin = Math.min(h.min, invH.min);
+                    curMax = Math.max(h.max, invH.max);
+                    curJit = Math.max(h.jitter, invH.jitter);
+                }
+
+                latAvg.push(curAvg >= 0 ? curAvg : null);
+                latMin.push(curMin >= 0 ? curMin : null);
+                latMax.push(curMax >= 0 ? curMax : null);
+                loss.push(curLoss);
+                jitter.push(curJit);
+
+                if (curAvg >= 0) {
+                    latenciesForPerc.push(curAvg);
+                    totalJitterSum += curJit;
+                    if (curJit > maxJitter) maxJitter = curJit;
+                }
+                
+                totalLossSum += curLoss;
+                if (curLoss > worstLoss) worstLoss = curLoss;
+                if (curLoss === 100.0) {
+                    // dead
+                } else {
+                    okSamples++;
+                }
+
+                // Asymmetry (direct vs reverse)
+                if (invH && h.avg >= 0 && invH.avg >= 0) {
+                    let diff = Math.abs(h.avg - invH.avg);
+                    asymmetry.push(diff);
+                    sumAsym += diff;
+                    if (diff > maxAsym) maxAsym = diff;
+                } else {
+                    asymmetry.push(0);
+                }
+
+                // Threshold breaches
+                let breached = false;
+                if (curLoss > thrLoss) breached = true;
+                if (curAvg > thrLat) breached = true;
+                if (curJit > thrJitter) breached = true;
+                if (breached) degradationEvents++;
+
+                // Heatmap logic
+                try {
+                    // Parse timestamp to day of week / hour
+                    const parts = h.t.split(' ');
+                    const dateParts = parts[0].split('-');
+                    const timeParts = parts[1].split(':');
+                    const hDate = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
+                    const day = hDate.getDay(); // 0-6
+                    const hour = parseInt(timeParts[0]); // 0-23
+                    
+                    if (hour >= 0 && hour < 24 && day >= 0 && day < 7) {
+                        heatmapData[hour][day].count += 1;
+                        if (curLoss > heatmapData[hour][day].max_loss) {
+                            heatmapData[hour][day].max_loss = curLoss;
+                        }
+                    }
+                } catch(e){}
+            });
+
+            // Update KPIs
+            const overallAvail = totalSamples ? ((okSamples / totalSamples) * 100).toFixed(2) : "100.00";
+            const kpiAvail = document.getElementById('kpiAvail');
+            kpiAvail.querySelector('.kpi-val').innerText = `${overallAvail}%`;
+            kpiAvail.className = `kpi-card ${overallAvail >= thrAvail ? 'healthy' : (overallAvail < 98.0 ? 'critical' : 'warning')}`;
+
+            const avgLatVal = latenciesForPerc.length ? (latenciesForPerc.reduce((a,b)=>a+b, 0)/latenciesForPerc.length).toFixed(1) : "-";
+            const p95LatVal = latenciesForPerc.length ? percentile(latenciesForPerc, 0.95).toFixed(1) : "-";
+            const minLatVal = latenciesForPerc.length ? Math.min(...latenciesForPerc).toFixed(0) : "-";
+            const maxLatVal = latenciesForPerc.length ? Math.max(...latenciesForPerc).toFixed(0) : "-";
+            const kpiLat = document.getElementById('kpiLat');
+            kpiLat.querySelector('.kpi-val').innerHTML = `<span style="font-size:1.3rem;">Avg: <b>${avgLatVal}</b></span> &nbsp;<span style="color:var(--text-dim); font-size:1.1rem;">P95: ${p95LatVal}</span>`;
+            kpiLat.querySelector('.kpi-sub').innerText = `Min: ${minLatVal}ms / Max: ${maxLatVal}ms`;
+            kpiLat.className = `kpi-card ${avgLatVal === '-' ? '' : (avgLatVal < thrLat ? 'healthy' : 'critical')}`;
+
+            const avgLossVal = totalSamples ? (totalLossSum / totalSamples).toFixed(2) : "0.00";
+            const kpiLoss = document.getElementById('kpiLoss');
+            kpiLoss.querySelector('.kpi-val').innerText = `${avgLossVal}%`;
+            kpiLoss.querySelector('.kpi-sub').innerText = `Worst Loss: ${worstLoss.toFixed(1)}%`;
+            kpiLoss.className = `kpi-card ${avgLossVal <= thrLoss ? 'healthy' : (avgLossVal > 5.0 ? 'critical' : 'warning')}`;
+
+            const avgJitterVal = latenciesForPerc.length ? (totalJitterSum / latenciesForPerc.length).toFixed(1) : "0.0";
+            const kpiJitter = document.getElementById('kpiJitter');
+            kpiJitter.querySelector('.kpi-val').innerText = `${avgJitterVal}ms`;
+            kpiJitter.querySelector('.kpi-sub').innerText = `Max Peak: ${maxJitter.toFixed(1)}ms`;
+            kpiJitter.className = `kpi-card ${avgJitterVal < thrJitter ? 'healthy' : 'warning'}`;
+
+            const avgAsymVal = asymmetry.length ? (sumAsym / asymmetry.length).toFixed(1) : "0.0";
+            const kpiAsym = document.getElementById('kpiAsym');
+            kpiAsym.querySelector('.kpi-val').innerText = `${avgAsymVal}ms`;
+            kpiAsym.querySelector('.kpi-sub').innerText = `Maximum: ${maxAsym.toFixed(1)}ms`;
+            kpiAsym.className = `kpi-card ${avgAsymVal < 5.0 ? 'healthy' : 'warning'}`;
+
+            const kpiEvents = document.getElementById('kpiEvents');
+            kpiEvents.querySelector('.kpi-val').innerText = degradationEvents;
+            kpiEvents.className = `kpi-card ${degradationEvents === 0 ? 'healthy' : (degradationEvents > 5 ? 'critical' : 'warning')}`;
+
+            // --- Render Chart 1: Latency Timeline ---
+            if (chartInstanceLat) chartInstanceLat.destroy();
+            const ctxLat = document.getElementById('chartLatency').getContext('2d');
+            chartInstanceLat = new Chart(ctxLat, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Avg Latency',
+                            data: latAvg,
+                            borderColor: '#06b6d4',
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0.1
+                        },
+                        {
+                            label: 'Max Latency',
+                            data: latMax,
+                            borderColor: 'rgba(239, 68, 68, 0.4)',
+                            borderWidth: 1.5,
+                            borderDash: [3, 3],
+                            fill: false
+                        },
+                        {
+                            label: 'Min Latency',
+                            data: latMin,
+                            borderColor: 'rgba(16, 185, 129, 0.4)',
+                            borderWidth: 1,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { grid: { color: 'rgba(255,255,255,0.02)' }, ticks: { color: '#64748b', font: { size: 10 } } },
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#cbd5e1', font: { family: 'Outfit' } } }
+                    }
+                }
+            });
+
+            // --- Render Chart 2: Loss & Jitter Timeline ---
+            if (chartInstanceLossJit) chartInstanceLossJit.destroy();
+            const ctxLossJit = document.getElementById('chartLossJitter').getContext('2d');
+            chartInstanceLossJit = new Chart(ctxLossJit, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Packet Loss (%)',
+                            data: loss,
+                            borderColor: '#ef4444',
+                            backgroundColor: 'rgba(239, 68, 68, 0.05)',
+                            borderWidth: 2,
+                            yAxisID: 'yLoss',
+                            fill: true,
+                            tension: 0.1
+                        },
+                        {
+                            label: 'Jitter (ms)',
+                            data: jitter,
+                            borderColor: '#f97316',
+                            borderWidth: 1.5,
+                            yAxisID: 'yJitter',
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { grid: { color: 'rgba(255,255,255,0.02)' }, ticks: { color: '#64748b', font: { size: 10 } } },
+                        yLoss: {
+                            type: 'linear',
+                            position: 'left',
+                            min: 0,
+                            max: 100,
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#ef4444' }
+                        },
+                        yJitter: {
+                            type: 'linear',
+                            position: 'right',
+                            min: 0,
+                            grid: { drawOnChartArea: false },
+                            ticks: { color: '#f97316' }
+                        }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#cbd5e1', font: { family: 'Outfit' } } }
+                    }
+                }
+            });
+
+            // --- Render Chart 3: Percentiles Distribution ---
+            if (chartInstancePercentiles) chartInstancePercentiles.destroy();
+            const ctxPerc = document.getElementById('chartPercentiles').getContext('2d');
+            
+            // Build percentile labels
+            const pLabels = ['P50 (Median)', 'P90', 'P95', 'P99'];
+            const pValues = latenciesForPerc.length ? [
+                percentile(latenciesForPerc, 0.50),
+                percentile(latenciesForPerc, 0.90),
+                percentile(latenciesForPerc, 0.95),
+                percentile(latenciesForPerc, 0.99)
+            ] : [0, 0, 0, 0];
+
+            chartInstancePercentiles = new Chart(ctxPerc, {
+                type: 'bar',
+                data: {
+                    labels: pLabels,
+                    datasets: [{
+                        label: 'Latency by Percentile (ms)',
+                        data: pValues,
+                        backgroundColor: ['rgba(16, 185, 129, 0.6)', 'rgba(6, 182, 212, 0.6)', 'rgba(249, 115, 22, 0.6)', 'rgba(239, 68, 68, 0.6)'],
+                        borderColor: ['#10b981', '#06b6d4', '#f97316', '#ef4444'],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } },
+                        x: { ticks: { color: '#cbd5e1' } }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+
+            // --- Render Heatmap Grid ---
+            const heatmapGrid = document.getElementById('heatmapGrid');
+            const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            
+            let html = '<div class="heatmap-cell header">H</div>';
+            weekdays.forEach(day => html += `<div class="heatmap-cell header">${day}</div>`);
+            
+            // Hours loop (compact block: 4-hour aggregates to fit screen or all 24h as rows)
+            // Let's do 24 rows but condensed.
+            for (let hour = 0; hour < 24; hour++) {
+                const hourFmt = String(hour).padStart(2, '0') + ':00';
+                html += `<div class="heatmap-cell label">${hourFmt}</div>`;
+                
+                for (let day = 0; day < 7; day++) {
+                    const cell = heatmapData[hour][day];
+                    let color = 'rgba(255,255,255,0.01)';
+                    let textColor = 'var(--text-dim)';
+                    
+                    if (cell.count > 0) {
+                        const lossVal = cell.max_loss;
+                        if (lossVal > 50.0) {
+                            color = 'rgba(239, 68, 68, 0.8)';
+                            textColor = '#fff';
+                        } else if (lossVal > 5.0) {
+                            color = 'rgba(249, 115, 22, 0.6)';
+                            textColor = '#fff';
+                        } else if (lossVal > 0.0) {
+                            color = 'rgba(234, 179, 8, 0.4)';
+                            textColor = '#fff';
+                        } else {
+                            color = 'rgba(16, 185, 129, 0.15)';
+                            textColor = 'var(--color-healthy)';
+                        }
+                    }
+                    
+                    html += `
+                        <div class="heatmap-cell" style="background:${color}; color:${textColor};" title="Max Loss: ${cell.max_loss.toFixed(1)}% (${cell.count} collections)">
+                            ${cell.count > 0 ? cell.max_loss.toFixed(0) + '%' : '-'}
+                        </div>
+                    `;
+                }
+            }
+            heatmapGrid.innerHTML = html;
+        }
+
+        window.onload = () => {
+            initSelectors();
+        };
+    </script>
+</body>
+</html>

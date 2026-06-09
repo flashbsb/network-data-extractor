@@ -79,9 +79,9 @@ class PingHistoryGenerator:
 
         # Copy history.html, path.html, and chart.js templates to outbase
         script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        src_history = os.path.join(script_dir, "infos", "ping-matrix", "history.html")
-        src_path = os.path.join(script_dir, "infos", "ping-matrix", "path.html")
-        src_chart = os.path.join(script_dir, "infos", "ping-matrix", "chart.js")
+        src_history = os.path.join(script_dir, "templates", "ping-matrix", "history.html")
+        src_path = os.path.join(script_dir, "templates", "ping-matrix", "path.html")
+        src_chart = os.path.join(script_dir, "templates", "ping-matrix", "chart.js")
         
         dest_history = os.path.join(self.ping_matrix_dir, "history.html")
         dest_path = os.path.join(self.ping_matrix_dir, "path.html")
