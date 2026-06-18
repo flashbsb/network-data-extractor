@@ -112,5 +112,13 @@
         "parallel_sessions": 10,
         "delay_between_commands": 1.0,
         "asymmetric_threshold_pct": 25.0
+    },
+    "topology_generator": {
+        "_help_topology_generator": "Default paths and options for the external network-topology-generator integration.",
+        "generator_path": "../network-topology-generator/network-topology-generator.py",
+        "config_path": "../network-topology-generator/config/config.json",
+        "elements_path": "../d-network-topology-generator/config/elements.csv",
+        "locations_path": "../d-network-topology-generator/config/locations.csv",
+        "theme": "cog"
     }
 }

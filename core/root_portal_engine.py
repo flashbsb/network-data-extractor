@@ -9,10 +9,12 @@ def generate_root_portal(outbase):
     inv_path = os.path.join(abs_outbase, "inventory", "index.html")
     diff_path = os.path.join(abs_outbase, "diff", "index.html")
     ping_path = os.path.join(abs_outbase, "ping-matrix", "index.html")
+    topo_path = os.path.join(abs_outbase, "topology", "index.html")
     
     has_inv = os.path.isfile(inv_path)
     has_diff = os.path.isfile(diff_path)
     has_ping = os.path.isfile(ping_path)
+    has_topo = os.path.isfile(topo_path)
     
     # Setup template variables
     inv_href = 'href="inventory/index.html"' if has_inv else ''
@@ -26,6 +28,12 @@ def generate_root_portal(outbase):
     diff_status_class = 'avail' if has_diff else 'unavail'
     diff_status_text = '🟢 AVAILABLE' if has_diff else '🔴 UNAVAILABLE'
     diff_hint = '' if has_diff else '<span class="cmd-hint">Run with --diff</span>'
+    
+    topo_href = 'href="topology/index.html"' if has_topo else ''
+    topo_class = 'active' if has_topo else 'disabled'
+    topo_status_class = 'avail' if has_topo else 'unavail'
+    topo_status_text = '🟢 AVAILABLE' if has_topo else '🔴 UNAVAILABLE'
+    topo_hint = '' if has_topo else '<span class="cmd-hint">Run with --topology</span>'
     
     ping_heatmaps_href = 'href="ping-matrix/index.html"' if has_ping else ''
     ping_history_href = 'href="ping-matrix/history.html"' if has_ping else ''
@@ -65,6 +73,7 @@ def generate_root_portal(outbase):
         
         .card.active.inventory::before {{ background: #38bdf8; }}
         .card.active.diff::before {{ background: #f59e0b; }}
+        .card.active.topology::before {{ background: #06b6d4; }}
         .card.ping::before {{ background: #10b981; }}
         
         .card.disabled {{ opacity: 0.5; filter: grayscale(1); cursor: not-allowed; }}
@@ -136,6 +145,15 @@ def generate_root_portal(outbase):
                 <div class="desc">Compare two snapshot collections to detect configuration drift, interface status changes, and new or removed connections.</div>
                 <div class="status {diff_status_class}">{diff_status_text}</div>
                 {diff_hint}
+            </a>
+            
+            <!-- TOPOLOGY -->
+            <a {topo_href} class="card {topo_class} topology" aria-label="Network Topology Dashboard">
+                <span class="icon">🕸️</span>
+                <div class="title">Network Topology</div>
+                <div class="desc">Interactive Draw.io topology diagrams. Visualize network elements, connections, and layouts (Circular, Geographic, Organic, Hierarchical) over time.</div>
+                <div class="status {topo_status_class}">{topo_status_text}</div>
+                {topo_hint}
             </a>
             
             <!-- PING MATRIX -->

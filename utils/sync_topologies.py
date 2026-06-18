@@ -4,6 +4,10 @@ import glob
 import argparse
 import subprocess
 
+# Add project root to sys.path to allow imports from core/
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from core.topology_engine import TopologyEngine
+
 # ANSI Colors for terminal output
 C_GREEN = '\033[92m'
 C_YELLOW = '\033[93m'
@@ -119,6 +123,13 @@ def main():
     print(f"    - Generated Now : {C_YELLOW}{generated_count}{C_RESET}")
     print(f"    - Missing Data  : {missing_data_count} (ignored)")
     print(f"{C_CYAN}============================================================{C_RESET}\n")
+
+    # Rebuild Topology Index Dashboard
+    print("[*] Rebuilding Topology Master Index...")
+    try:
+        TopologyEngine(args.outbase).run()
+    except Exception as e:
+        print(f"{C_RED}[!] Failed to update Topology Dashboard: {e}{C_RESET}")
 
 if __name__ == "__main__":
     main()

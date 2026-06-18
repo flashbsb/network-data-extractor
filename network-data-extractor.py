@@ -417,6 +417,13 @@ NEIGHBOR_PREFIXES = topology_cfg.get("neighbor_regex_prefixes", [])
 discovery_cfg = json_config.get("discovery", {})
 IGNORE_NEW_PREFIXES = discovery_cfg.get("ignore_new_prefixes", [])
 
+topo_gen_cfg = json_config.get("topology_generator", {})
+def_topo_generator_path = topo_gen_cfg.get("generator_path", "../network-topology-generator/network-topology-generator.py")
+def_topo_config = topo_gen_cfg.get("config_path", "../network-topology-generator/config/config.json")
+def_topo_elements = topo_gen_cfg.get("elements_path", "../d-network-topology-generator/config/elements.csv")
+def_topo_locations = topo_gen_cfg.get("locations_path", "../d-network-topology-generator/config/locations.csv")
+def_topo_theme = topo_gen_cfg.get("theme", "cog")
+
 # --- MAIN ARGUMENT PARSING ---
 parser = argparse.ArgumentParser(
     description=description,
@@ -459,6 +466,14 @@ group_d.add_argument("--rebuild-index", action="store_true", help="Rebuild all d
 
 group_e = parser.add_argument_group("Mode E: Offline Parsing Mode")
 group_e.add_argument("--offline", type=str, metavar="DIR", help="Process existing data in DIR (Incompatible with --discovery/--diff)")
+
+group_f = parser.add_argument_group("Mode F: Network Topology Generation")
+group_f.add_argument("--topology", action="store_true", help="Generate/Update network topology diagrams using network-topology-generator")
+group_f.add_argument("--topology-generator-path", type=str, default=def_topo_generator_path, help=f"Path to network-topology-generator.py (default: {def_topo_generator_path})")
+group_f.add_argument("--topo-config", type=str, default=def_topo_config, help=f"Path to topology config.json (default: {def_topo_config})")
+group_f.add_argument("--topo-elements", type=str, default=def_topo_elements, help=f"Path to elements.csv (default: {def_topo_elements})")
+group_f.add_argument("--topo-locations", type=str, default=def_topo_locations, help=f"Path to locations.csv (default: {def_topo_locations})")
+group_f.add_argument("--topo-theme", type=str, default=def_topo_theme, help=f"Theme/Layout option for the topology generator (default: {def_topo_theme})")
 
 args = parser.parse_args()
 
@@ -577,6 +592,14 @@ if args.rebuild_index:
         except Exception as e:
             print(f"{C_YELLOW}    └─> Skipped (Requires 2+ snapshots): {e}{C_RESET}")
             
+        # 3.1 Topology
+        print("[*] Rebuilding Topology Dashboard...")
+        try:
+            from core.topology_engine import TopologyEngine
+            TopologyEngine(args.outbase).run()
+        except Exception as e:
+            print(f"{C_YELLOW}    └─> Skipped (No data): {e}{C_RESET}")
+            
         # 4. Root Portal
         print("[*] Rebuilding Root Navigation Portal...")
         try:
@@ -612,6 +635,13 @@ if not args.offline and not args.password and not args.key:
 
 if (args.password or args.key) and not args.user:
     print(f"{C_YELLOW}Warning: Automated authentication works best when --user is also provided.{C_RESET}")
+
+# 7. Topology Generator Validation
+if args.topology:
+    if not os.path.isfile(args.topology_generator_path):
+        print(f"{C_RED}ERROR: Topology generator script not found at: {args.topology_generator_path}{C_RESET}")
+        print(f"{C_YELLOW}Please verify if the topology generator repository is cloned and --topology-generator-path points to the correct script.{C_RESET}")
+        sys.exit(1)
 
 # 4. Clear screen for password security
 if args.password:
@@ -1435,6 +1465,39 @@ while True:
 
     break # Exit the while loop
 
+# Sincronização e Geração de Topologias
+if args.topology:
+    print(f"\n{C_CYAN}--- Syncing Network Topologies ---{C_RESET}")
+    sync_script = os.path.join(cwd, "utils", "sync_topologies.py")
+    if os.path.isfile(sync_script):
+        sync_cmd = [
+            sys.executable, sync_script,
+            "--outbase", args.outbase,
+            "--topology-generator-path", args.topology_generator_path,
+            "--topo-config", args.topo_config,
+            "--topo-elements", args.topo_elements,
+            "--topo-locations", args.topo_locations,
+            "--theme", args.topo_theme
+        ]
+        if args.filter:
+            sync_cmd.extend(["--filter", args.filter])
+        
+        log_orchestrator(f"Executing topology sync command: {' '.join(sync_cmd)}")
+        try:
+            rc_sync = subprocess.run(sync_cmd)
+            if rc_sync.returncode == 0:
+                print(f"{C_GREEN}[SUCCESS] Topologies synced successfully.{C_RESET}")
+                log_orchestrator("Topology sync successful")
+            else:
+                print(f"{C_RED}[FAILED] Topology synchronization returned code {rc_sync.returncode}.{C_RESET}")
+                log_orchestrator(f"Topology sync failed with return code {rc_sync.returncode}")
+        except Exception as e:
+            print(f"{C_RED}[ERROR] Failed to run topology sync: {e}{C_RESET}")
+            log_orchestrator(f"Topology sync error: {e}")
+    else:
+        print(f"{C_RED}[ERROR] sync_topologies.py not found at {sync_script}{C_RESET}")
+        log_orchestrator("Topology sync script not found")
+
 print(f"\n{C_GREEN}============================================================{C_RESET}")
 print(f"Final Execution Finished. Output in: {TIMESTAMP_DIR}")
 print(f"Duration: {(datetime.now()-start_time).total_seconds():.1f}s")
@@ -1525,6 +1588,15 @@ if args.rebuild_index or args.ping_matrix:
         generate_master_dashboard(args.outbase)
     except Exception as e:
         print(f"{C_RED}[!] Failed to rebuild Ping Index: {e}{C_RESET}")
+
+# --- TOPOLOGY INDEX HOOK ---
+if args.rebuild_index or args.topology:
+    print(f"\n{C_CYAN}--- Rebuilding Topology Master Index ---{C_RESET}")
+    try:
+        from core.topology_engine import TopologyEngine
+        TopologyEngine(args.outbase).run()
+    except Exception as e:
+        print(f"{C_RED}[!] Failed to rebuild Topology Master Index: {e}{C_RESET}")
 
 # --- OUTPUT COMPRESSION ---
 comp_cfg = json_config.get("compression", {})
