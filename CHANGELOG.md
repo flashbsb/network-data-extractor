@@ -2,6 +2,15 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.62.0] - 2026-06-19
+### Added
+- **Global English Translation**: Translated all user-facing interface text, buttons, loading screens, and fallbacks inside the Draw.io Topology Viewer (`topology/index.html`) and manifest cataloguer (`core/topology_engine.py`) to English.
+- **Source Code Comments Cleanup**: Replaced Portuguese code-level and HTML comments with English equivalents across the main orchestrator (`network-data-extractor.py`) and templates (`history.html`, `path.html`).
+- **Draw.io Layer & Navigation Controls**: Appended `layers=1` and `nav=1` URL parameters to the embedded diagrams.net iframe inside the topology portal ([core/topology_engine.py](file:///home/flashbsb/projetos/network-data-extractor/core/topology_engine.py)) to allow NOC operators to show/hide specific layers (such as background maps) and use pan/zoom navigation controls directly inside the web browser.
+
+### Verified
+- **Terminal Consistencies**: Conducted an end-to-end audit verifying that all console output, interactive configuration prompts, and command line validation warnings are exclusively printed in English.
+
 ## [1.61.0] - 2026-06-18
 ### Added
 - **Topology Sync Integration (Flowchart Update)**: Added detailed representation of the `--topology` workflow mapping and topological index engine synchronisation to the core README.

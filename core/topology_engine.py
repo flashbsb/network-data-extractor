@@ -49,10 +49,10 @@ class TopologyEngine:
                 # Categorize type (Summary vs Detailed)
                 if ".connections.SUM" in filename:
                     topo_type = "summary"
-                    type_label = "Resumo"
+                    type_label = "Summary"
                 else:
                     topo_type = "detailed"
-                    type_label = "Detalhado"
+                    type_label = "Detailed"
                 
                 # Determine Layout
                 layout = "other"
@@ -62,13 +62,13 @@ class TopologyEngine:
                     layout_label = "Circular"
                 elif "geografico" in filename or "geographic" in filename:
                     layout = "geographic"
-                    layout_label = "Geográfico"
+                    layout_label = "Geographic"
                 elif "organico" in filename or "organic" in filename:
                     layout = "organic"
-                    layout_label = "Orgânico"
+                    layout_label = "Organic"
                 elif "hierarquico" in filename or "hierarchical" in filename:
                     layout = "hierarchical"
-                    layout_label = "Hierárquico"
+                    layout_label = "Hierarchical"
                 
                 files_meta.append({
                     "filename": filename,
@@ -283,30 +283,30 @@ class TopologyEngine:
             <div style="display: flex; align-items: center; gap: 15px;">
                 <button class="sidebar-toggle-btn" onclick="toggleSidebar()">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-                    HISTÓRICO
+                    HISTORY
                 </button>
                 <div class="hud-title">
                     <h1 id="dashTitle">🕸️ Network Topology</h1>
-                    <p id="dashSubTitle">Selecione uma coleta no menu lateral</p>
+                    <p id="dashSubTitle">Select a collection from the sidebar</p>
                 </div>
             </div>
             <div style="display: flex; align-items: center; gap: 10px;">
-                <a id="headerDownloadBtn" class="btn-header-link" style="display:none;" href="#" download>Baixar Arquivo .drawio</a>
-                <a class="back-portal" href="../index.html">← Portal Geral</a>
+                <a id="headerDownloadBtn" class="btn-header-link" style="display:none;" href="#" download>Download .drawio File</a>
+                <a class="back-portal" href="../index.html">← Network Portal</a>
             </div>
         </div>
 
         <div id="welcome">
             <div class="icon">🕸️</div>
-            <h2>Visualizador de Topologia</h2>
-            <p>Selecione uma data de coleta no histórico lateral para carregar os diagramas físicos interativos.</p>
+            <h2>Topology Viewer</h2>
+            <p>Select a collection date from the history sidebar to load the interactive physical diagrams.</p>
         </div>
 
         <div id="dashboardOverlay">
             <div class="topo-controls">
                 <div class="topo-tabs">
-                    <button id="tab-summary" class="tab-btn active" onclick="switchType('summary')">Resumo Backbone (SUM)</button>
-                    <button id="tab-detailed" class="tab-btn" onclick="switchType('detailed')">Completo (Detalhado)</button>
+                    <button id="tab-summary" class="tab-btn active" onclick="switchType('summary')">Backbone Summary (SUM)</button>
+                    <button id="tab-detailed" class="tab-btn" onclick="switchType('detailed')">Complete (Detailed)</button>
                 </div>
                 <div class="layout-options">
                     <span class="layout-label">Layout:</span>
@@ -319,29 +319,29 @@ class TopologyEngine:
             <div class="viewer-container">
                 <div class="loader-overlay" id="loader">
                     <div class="spinner"></div>
-                    <p style="color: var(--accent); font-family: 'Outfit'; font-size: 1.1rem; font-weight: 600;">Carregando Topologia...</p>
+                    <p style="color: var(--accent); font-family: 'Outfit'; font-size: 1.1rem; font-weight: 600;">Loading Topology...</p>
                 </div>
 
                 <!-- Fallback offline panel -->
                 <div class="offline-fallback" id="offlineFallback">
-                    <h3>Restrição de Segurança do Navegador (Protocolo file://)</h3>
+                    <h3>Browser Security Restriction (file:// Protocol)</h3>
                     <p>
-                        Por motivos de segurança (CORS), os navegadores impedem a leitura automática de arquivos XML locais.
-                        Para visualizar este diagrama de forma interativa diretamente no portal, você pode iniciar um servidor web local.
+                        For security reasons (CORS), browsers prevent local XML files from being read automatically.
+                        To view this diagram interactively directly in the portal, you can start a local web server.
                     </p>
                     <p>
-                        Execute o seguinte comando no terminal na raiz da pasta de relatórios:
+                        Run the following command in the terminal at the root of the reports directory:
                         <br><br>
                         <code>python3 -m http.server 8000</code>
                         <br><br>
-                        Depois acesse no navegador: <a href="http://localhost:8000/topology/" style="color:var(--accent); text-decoration: underline;" target="_blank">http://localhost:8000/topology/</a>
+                        Then access in the browser: <a href="http://localhost:8000/topology/" style="color:var(--accent); text-decoration: underline;" target="_blank">http://localhost:8000/topology/</a>
                     </p>
                     <div style="margin: 20px 0; border-top: 1px solid var(--border); width: 100%;"></div>
-                    <p>Caso queira abrir manualmente agora, você pode baixar o diagrama e arrastá-lo para a versão web do Draw.io:</p>
+                    <p>If you want to open it manually now, you can download the diagram and drag it into the web version of Draw.io:</p>
                     
                     <div class="btn-group-download">
-                        <a id="fallbackDownloadBtn" class="btn-action btn-primary" href="#" download>📥 Baixar Diagrama (.drawio)</a>
-                        <a class="btn-action btn-secondary" href="https://app.diagrams.net/" target="_blank">🌐 Ir para Draw.io Web</a>
+                        <a id="fallbackDownloadBtn" class="btn-action btn-primary" href="#" download>📥 Download Diagram (.drawio)</a>
+                        <a class="btn-action btn-secondary" href="https://app.diagrams.net/" target="_blank">🌐 Go to Draw.io Web</a>
                     </div>
                 </div>
 
@@ -396,7 +396,7 @@ class TopologyEngine:
             
             currentRun = manifest.find(m => m.id === id);
             
-            document.getElementById('dashTitle').innerText = '🕸️ Topologias Mapeadas';
+            document.getElementById('dashTitle').innerText = '🕸️ Mapped Topologies';
             document.getElementById('dashSubTitle').innerText = formatDate(id);
             
             // Auto detect available types for this run
@@ -435,7 +435,7 @@ class TopologyEngine:
             const filteredFiles = currentRun.files.filter(f => f.type === activeType);
             
             if(filteredFiles.length === 0) {
-                container.innerHTML = '<span style="color:var(--text-dim); font-size:0.85rem;">Indisponível</span>';
+                container.innerHTML = '<span style="color:var(--text-dim); font-size:0.85rem;">Unavailable</span>';
                 loadDiagram(null);
                 return;
             }
@@ -503,18 +503,18 @@ class TopologyEngine:
             // Fetch XML content via AJAX
             fetch(filePath)
                 .then(response => {
-                    if (!response.ok) throw new Error("Erro ao carregar arquivo de diagrama.");
+                    if (!response.ok) throw new Error("Error loading diagram file.");
                     return response.text();
                 })
                 .then(xml => {
                     xmlContent = xml;
                     // Prepare embedded viewer
-                    viewerFrame.src = 'https://viewer.diagrams.net/?embed=1&proto=json';
+                    viewerFrame.src = 'https://viewer.diagrams.net/?embed=1&proto=json&layers=1&nav=1';
                 })
                 .catch(err => {
                     console.error(err);
                     loader.style.display = 'none';
-                    alert("Erro ao obter o diagrama XML da topologia.");
+                    alert("Error retrieving topology XML diagram.");
                 });
         }
 
