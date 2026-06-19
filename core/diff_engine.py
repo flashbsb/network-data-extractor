@@ -374,7 +374,7 @@ class DiffEngine:
     <div class="sidebar collapsed" id="sidebar">
         <div class="header">
             <div class="header-text">
-                <h2>📡 DRIFT ANALYZER</h2>
+                <h2>📡 HISTORY</h2>
                 <p>Snapshot Intelligence</p>
             </div>
             <button class="sidebar-close-btn" onclick="toggleSidebar()">✕</button>
@@ -390,7 +390,7 @@ class DiffEngine:
             <div style="display: flex; align-items: center; gap: 15px;">
                 <button class="sidebar-toggle-btn" onclick="toggleSidebar()">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-                    DRIFT ANALYZER
+                    HISTORY
                 </button>
                 <div class="hud-title">
                     <h1 id="dashTitle">⚖️ Drift Analyzer</h1>
@@ -446,8 +446,10 @@ class DiffEngine:
                         <label class="checkbox-label"><input type="checkbox" class="filter-cb-state" value="OTHER" checked onchange="applyFilters()"> OTHER</label>
                     </div>
                 </div>
-                <div class="filter-group">
-                    <button onclick="clearFilters()" style="background: rgba(15,23,42,0.8); border: 1px solid var(--border); color: var(--text-dim); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.8rem; font-weight: 600; transition: all 0.2s; height: 34px;" onmouseover="this.style.color='white'; this.style.borderColor='var(--accent)'" onmouseout="this.style.color='var(--text-dim)'; this.style.borderColor='var(--border)'">🧹 Clear</button>
+                <div class="filter-group" style="display: flex; gap: 8px;">
+                    <button onclick="clearAllFilters()" style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: var(--danger); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.8rem; font-weight: 600; transition: all 0.2s; height: 34px;" onmouseover="this.style.background='rgba(239,68,68,0.2)'" onmouseout="this.style.background='rgba(239,68,68,0.1)'">🧹 Clear All</button>
+                    <button onclick="selectAllFilters()" style="background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.3); color: var(--accent); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.8rem; font-weight: 600; transition: all 0.2s; height: 34px;" onmouseover="this.style.background='rgba(56,189,248,0.2)'" onmouseout="this.style.background='rgba(56,189,248,0.1)'">✅ Select All</button>
+                    <button onclick="exportDriftCSV()" style="background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); color: var(--success); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.8rem; font-weight: 600; transition: all 0.2s; height: 34px; display: flex; align-items: center; gap: 5px;" onmouseover="this.style.background='rgba(34,197,94,0.2)'" onmouseout="this.style.background='rgba(34,197,94,0.1)'">📥 Export CSV</button>
                 </div>
                 <div id="statsBox" style="margin-left: auto; display: flex; gap: 20px; font-size: 0.8rem; font-weight: 700; background: rgba(15,23,42,0.8); padding: 10px 20px; border-radius: 8px; border: 1px solid var(--border);">
                     <div id="statMod" style="color: var(--warning)">0 MODIFIED</div>
@@ -489,6 +491,7 @@ class DiffEngine:
     <script>
         let manifest = window.diff_manifest || [];
         let allDiffs = [];
+        let filteredDiffs = [];
 
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('collapsed');
@@ -627,9 +630,14 @@ class DiffEngine:
             applyFilters();
         }
 
-        function clearFilters() {
+        function clearAllFilters() {
             document.getElementById('filterEl').value = '';
             document.getElementById('excludeEl').value = '';
+            document.querySelectorAll('.filter-cb-type, .filter-cb-field, .filter-cb-state').forEach(cb => cb.checked = false);
+            applyFilters();
+        }
+
+        function selectAllFilters() {
             document.querySelectorAll('.filter-cb-type, .filter-cb-field, .filter-cb-state').forEach(cb => cb.checked = true);
             applyFilters();
         }
@@ -668,6 +676,8 @@ class DiffEngine:
                 return true;
             });
             
+            filteredDiffs = filtered;
+
             const modCount = filtered.filter(f => f.type === 'MODIFIED').length;
             const addCount = filtered.filter(f => f.type === 'ADDED').length;
             const remCount = filtered.filter(f => f.type === 'REMOVED').length;
@@ -681,6 +691,49 @@ class DiffEngine:
             document.getElementById('statNodeRem').innerText = `${nodeRemCount} NODE UNREACHABLE`;
 
             renderTable(filtered, checkedFields);
+        }
+
+        function exportDriftCSV() {
+            if (filteredDiffs.length === 0) {
+                alert("No data to export");
+                return;
+            }
+            let csvContent = "\\uFEFF";
+            csvContent += "Drift Type;Network Element;Interface;Field;Old Value;New Value;Description\\n";
+            
+            filteredDiffs.forEach(d => {
+                const type = d.type || "";
+                const element = d.element || "";
+                const iface = d.interface || "";
+                
+                if (type === 'MODIFIED') {
+                    Object.keys(d.changes).forEach(field => {
+                        const oldVal = String(d.changes[field][0] || "NONE").replace(/"/g, '""');
+                        const newVal = String(d.changes[field][1] || "NONE").replace(/"/g, '""');
+                        const desc = String(d.new ? d.new.description : (d.old ? d.old.description : "")).replace(/"/g, '""');
+                        csvContent += `"${type}";"${element}";"${iface}";"${field}";"${oldVal}";"${newVal}";"${desc}"\\n`;
+                    });
+                } else {
+                    const desc = String(d.new ? d.new.description : (d.old ? d.old.description : "")).replace(/"/g, '""');
+                    const admin = String(d.new ? d.new.admin_status : (d.old ? d.old.admin_status : "")).replace(/"/g, '""');
+                    const oper = String(d.new ? d.new.line_protocol : (d.old ? d.old.line_protocol : "")).replace(/"/g, '""');
+                    const bw = String(d.new ? d.new.bandwidth_kbit : (d.old ? d.old.bandwidth_kbit : "")).replace(/"/g, '""');
+                    
+                    csvContent += `"${type}";"${element}";"${iface}";"ALL";"${type === 'ADDED' ? 'NONE' : admin}/${type === 'ADDED' ? 'NONE' : oper}/${type === 'ADDED' ? 'NONE' : bw}";"${type === 'REMOVED' ? 'NONE' : admin}/${type === 'REMOVED' ? 'NONE' : oper}/${type === 'REMOVED' ? 'NONE' : bw}";"${desc}"\\n`;
+                }
+            });
+            
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", "drift_export.csv");
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
         }
 
         function renderTable(data, checkedFields) {
@@ -727,14 +780,13 @@ class DiffEngine:
         window.addEventListener('DOMContentLoaded', () => {
             renderList();
             
-            // Auto-select latest and oldest if we have at least 2
+            // Auto-select two latest snapshots
             const items = document.querySelectorAll('.run-item');
             if(items.length >= 2) {
-                // items are sorted descending in renderList, so [0] is latest, [length-1] is oldest
                 const latestCb = items[0].querySelector('.run-checkbox');
-                const oldestCb = items[items.length - 1].querySelector('.run-checkbox');
+                const secondLatestCb = items[1].querySelector('.run-checkbox');
                 latestCb.checked = true;
-                oldestCb.checked = true;
+                secondLatestCb.checked = true;
                 updateCount();
                 
                 // Automatically start comparison

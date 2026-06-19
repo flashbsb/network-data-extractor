@@ -63,7 +63,7 @@ def generate_root_portal(outbase):
         
         .card {{ 
             background: rgba(30, 41, 59, 0.4); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 30px; 
-            text-decoration: none; color: inherit; display: flex; flex-direction: column; position: relative; overflow: hidden;
+            text-decoration: none; color: inherit; display: flex; flex-direction: column; align-items: center; text-align: center; position: relative; overflow: hidden;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }}
         .card::before {{ content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: transparent; transition: all 0.3s; }}
@@ -88,7 +88,7 @@ def generate_root_portal(outbase):
         
         .cmd-hint {{ font-family: monospace; background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 4px; color: #fbbf24; margin-top: 10px; font-size: 11px; display: block; border: 1px solid rgba(255,255,255,0.05); }}
         
-        .sub-btn-group {{ margin-top: 20px; display: flex; flex-direction: column; gap: 8px; }}
+        .sub-btn-group {{ margin-top: 20px; display: flex; flex-direction: column; gap: 8px; width: 100%; }}
         .sub-btn {{
             background: rgba(0, 0, 0, 0.2);
             border: 1px solid rgba(255, 255, 255, 0.05);
@@ -147,15 +147,6 @@ def generate_root_portal(outbase):
                 {diff_hint}
             </a>
             
-            <!-- TOPOLOGY -->
-            <a {topo_href} class="card {topo_class} topology" aria-label="Network Topology Dashboard">
-                <span class="icon">🕸️</span>
-                <div class="title">Network Topology</div>
-                <div class="desc">Interactive Draw.io topology diagrams. Visualize network elements, connections, and layouts (Circular, Geographic, Organic, Hierarchical) over time.</div>
-                <div class="status {topo_status_class}">{topo_status_text}</div>
-                {topo_hint}
-            </a>
-            
             <!-- PING MATRIX -->
             <div class="card ping" aria-label="Ping Monitoring Portal">
                 <span class="icon">⚡</span>
@@ -170,6 +161,15 @@ def generate_root_portal(outbase):
                     <a {ping_path_href} class="{ping_btn_class}" aria-label="Analyze Network Routing Path" style="--hover-color: #f97316; --hover-color-glow: rgba(249,115,22,0.2);">🕸️ Route Analysis (Dijkstra)</a>
                 </div>
             </div>
+            
+            <!-- TOPOLOGY -->
+            <a {topo_href} class="card {topo_class} topology" aria-label="Network Topology Dashboard">
+                <span class="icon">🕸️</span>
+                <div class="title">Network Topology</div>
+                <div class="desc">Interactive Draw.io topology diagrams. Visualize network elements, connections, and layouts (Circular, Geographic, Organic, Hierarchical) over time.</div>
+                <div class="status {topo_status_class}">{topo_status_text}</div>
+                {topo_hint}
+            </a>
         </div>
         
         <div class="footer">

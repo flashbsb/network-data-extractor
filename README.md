@@ -2,7 +2,7 @@
   <h1>🌐 Network Data Extractor</h1>
   <p><strong>The Ultimate Multivendor NOC Orchestrator & Autonomous Discovery Engine</strong></p>
   
-  ![Version](https://img.shields.io/badge/version-1.60.0-blue.svg)
+  ![Version](https://img.shields.io/badge/version-1.61.0-blue.svg)
   ![Python](https://img.shields.io/badge/python-3.8%2B-green.svg)
 </div>
 
@@ -103,6 +103,14 @@ graph LR
         REBUILD --> ROOT_GEN
         
         ROOT_GEN --> ROOT_HTML{{"🧭 infos/index.html"}}:::web
+    end
+
+    subgraph "F: Topology Sync & Indexing"
+        MODE -->|"--topology"| TOPO_SYNC[Sync Topologies]:::module
+        TOPO_SYNC --> TOPO_ENG[Topology Engine]:::module
+        REBUILD --> TOPO_ENG
+        TOPO_ENG --> TOPO_HTML{{"📊 topology/index.html"}}:::web
+        TOPO_ENG -.->|"Auto-trigger"| ROOT_GEN
     end
 ```
 

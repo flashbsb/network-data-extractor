@@ -5,8 +5,8 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
- Version : 1.60.0
- Date    : 2026-06-03
+ Version : 1.61.0
+ Date    : 2026-06-18
  Author  : flashbsb (and contributors) 
 
 """
@@ -23,8 +23,8 @@ import types
 from datetime import datetime
 from glob import glob
 
-APP_VERSION = "1.60.0"
-APP_DATE = "2026-06-03"
+APP_VERSION = "1.61.0"
+APP_DATE = "2026-06-18"
 
 # ANSI Colors — must be declared before any function that uses them
 C_GREEN  = '\033[92m'
@@ -282,7 +282,7 @@ def generate_master_dashboard(outbase):
     <div class="main-content">
         <div class="hud-header">
             <div style="display: flex; align-items: center; gap: 15px;">
-                <button class="toggle-sidebar" onclick="toggleSidebar()" title="Toggle Sidebar">☰ Menu</button>
+                <button class="toggle-sidebar" onclick="toggleSidebar()" title="Toggle Sidebar">☰ HISTORY</button>
                 <div class="hud-title">
                     <h1>📡 Ping Matrix Portal</h1>
                     <p>Historical Analysis Portal</p>

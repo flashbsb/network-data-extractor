@@ -461,7 +461,8 @@
     <div class="control-panel">
         <div class="input-group">
             <label for="selSnapshot">Snapshot / Date</label>
-            <select class="control-select" id="selSnapshot" onchange="onSnapshotChange()"></select>
+            <input type="text" class="control-select" id="selSnapshot" list="datalistSnapshot" placeholder="Search snapshot..." onchange="onSnapshotChange()" autocomplete="off">
+            <datalist id="datalistSnapshot"></datalist>
         </div>
         <div class="input-group">
             <label for="selOrigin">Source</label>
@@ -518,6 +519,10 @@
                     <p id="sumBw">-</p>
                 </div>
                 <div class="summary-item">
+                    <h5>Total Path Latency</h5>
+                    <p id="sumTotalLat">-</p>
+                </div>
+                <div class="summary-item">
                     <h5>Worst Hop Latency</h5>
                     <p id="sumLat">-</p>
                 </div>
@@ -560,6 +565,20 @@
             </div>
         </div>
 
+    </div>
+
+    <!-- Legenda Explicativa de Rodapé do Dijkstra -->
+    <div class="legend-panel" style="background: rgba(30, 41, 59, 0.4); border: 1px solid var(--border-color); padding: 20px; margin-top: 25px; border-radius: 2px; font-size: 0.8rem; line-height: 1.5; color: var(--text-dim);">
+        <h4 style="color: var(--color-action); font-size: 1rem; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px;">📖 Dijkstra Path Analysis Legend</h4>
+        <div>
+            <strong style="color: var(--text-main);">Path Score:</strong> A quality index from 100/100 evaluating path health:
+            <ul style="margin: 5px 0 0 20px; padding: 0;">
+                <li><b>Link physically DOWN:</b> Deducts 50 points (marked as Link Down).</li>
+                <li><b>Link has 100% loss (FAIL):</b> Deducts 40 points.</li>
+                <li><b>Packet Loss:</b> Deducts 3 points per % of packet loss.</li>
+                <li><b>Latency:</b> Deducts 10 points if average latency exceeds 200ms.</li>
+            </ul>
+        </div>
     </div>
 
     <!-- Priority Queue implementation for Dijkstra -->
@@ -626,8 +645,13 @@
             }
             
             snapshots.sort((a,b) => b.id.localeCompare(a.id));
+            const datalist = document.getElementById('datalistSnapshot');
+            datalist.innerHTML = snapshots.map(s => `<option value="${s.id}">${formatDate(s.id)}</option>`).join('');
+            
             const selSnapshot = document.getElementById('selSnapshot');
-            selSnapshot.innerHTML = snapshots.map(s => `<option value="${s.id}">${formatDate(s.id)}</option>`).join('');
+            if (snapshots.length > 0) {
+                selSnapshot.value = snapshots[0].id;
+            }
             
             onSnapshotChange();
         }
@@ -644,8 +668,16 @@
         }
 
         async function onSnapshotChange() {
-            currentSnapshotId = document.getElementById('selSnapshot').value;
-            if (!currentSnapshotId) return;
+            let val = document.getElementById('selSnapshot').value.trim();
+            if (!val) return;
+            
+            // Resolve value to ID
+            let match = snapshots.find(s => s.id === val || formatDate(s.id) === val);
+            if (match) {
+                currentSnapshotId = match.id;
+            } else {
+                return;
+            }
 
             showBanner("Loading snapshot inventory...");
             currentSnapshotData = await loadSnapshotData(currentSnapshotId);
@@ -1130,6 +1162,7 @@
             let minBw = Infinity;
             let worstLat = 0;
             let worstLoss = 0;
+            let totalLatency = 0;
             let pathScore = 100;
             let hasAnyTelemetry = false;
             
@@ -1157,6 +1190,7 @@
                 }
 
                 if (segmentHasTelemetry) {
+                    totalLatency += lat;
                     if (lat > worstLat) worstLat = lat;
                     if (loss > worstLoss) worstLoss = loss;
 
@@ -1176,6 +1210,7 @@
             if (pathScore < 0) pathScore = 0;
 
             document.getElementById('sumBw').innerText = minBw === Infinity ? 'Unknown' : formatBw(minBw);
+            document.getElementById('sumTotalLat').innerText = hasAnyTelemetry ? `${totalLatency.toFixed(1)}ms` : 'N/A';
             document.getElementById('sumLat').innerText = hasAnyTelemetry ? `${worstLat.toFixed(1)}ms` : 'N/A';
             document.getElementById('sumLoss').innerText = hasAnyTelemetry ? `${worstLoss.toFixed(1)}%` : 'N/A';
             document.getElementById('sumScore').innerText = `${pathScore}/100`;

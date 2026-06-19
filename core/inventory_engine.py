@@ -417,14 +417,14 @@ class InventoryEngine:
                     <button class="tab-btn" onclick="switchTab('connections')">🔌 Topology Links</button>
                 </div>
                 <div class="filter-box">
-                    <div class="status-filter" id="ifaceFilters" style="display: flex; flex-direction: column; gap: 5px;">
+                    <div class="status-filter" id="ifaceFilters" style="display: flex; flex-direction: row; gap: 20px; align-items: center; flex-wrap: wrap;">
                         <div style="font-size: 0.8rem; color: var(--text-dim);"><strong>Admin:</strong> 
-                            <label><input type="checkbox" id="cbAdminUp" checked onchange="handleSearch()"> UP</label>
-                            <label><input type="checkbox" id="cbAdminDown" checked onchange="handleSearch()"> DOWN</label>
+                            <label style="margin-left: 5px;"><input type="checkbox" id="cbAdminUp" checked onchange="handleSearch()"> UP</label>
+                            <label style="margin-left: 5px;"><input type="checkbox" id="cbAdminDown" checked onchange="handleSearch()"> DOWN</label>
                         </div>
                         <div style="font-size: 0.8rem; color: var(--text-dim);"><strong>Oper:</strong> 
-                            <label><input type="checkbox" id="cbOperUp" checked onchange="handleSearch()"> UP</label>
-                            <label><input type="checkbox" id="cbOperDown" checked onchange="handleSearch()"> DOWN</label>
+                            <label style="margin-left: 5px;"><input type="checkbox" id="cbOperUp" checked onchange="handleSearch()"> UP</label>
+                            <label style="margin-left: 5px;"><input type="checkbox" id="cbOperDown" checked onchange="handleSearch()"> DOWN</label>
                         </div>
                     </div>
                     <div class="search-wrapper">

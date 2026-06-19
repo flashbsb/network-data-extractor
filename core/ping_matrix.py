@@ -724,29 +724,35 @@ td:hover { background-color: rgba(255,255,255,0.1) !important; transform: scale(
 </div>
 <div class="dashboard-metrics" id="metricsbox"></div>
 <div class="analytics-panel" id="analyticsPanels" style="display:none;"></div>
-<div class="controls">
-    <div class="filter-group">
-        <span>Path:</span>
-        <label class="toggle-btn"><input type="checkbox" id="chkDirect" checked onchange="renderMatrix()"> Direct 🡲</label>
-        <label class="toggle-btn"><input type="checkbox" id="chkReverse" checked onchange="renderMatrix()"> Reverse 🡰</label>
+<div class="controls" style="display: flex; flex-direction: column; gap: 15px; align-items: center;">
+    <div class="filter-row" style="display: flex; gap: 15px; align-items: center; justify-content: center; width: 100%; flex-wrap: wrap;">
+        <input type="text" id="filterOrigin" placeholder="Filter Origin (eg. bsa;gti)..." onkeyup="renderMatrix()" aria-label="Filter origin elements" style="width: 250px;">
+        <input type="text" id="filterDest" placeholder="Filter Dest (eg. bsa;gti)..." onkeyup="renderMatrix()" aria-label="Filter destination elements" style="width: 250px;">
+        <button class="reset-btn" onclick="clearAllFilters()" style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #f87171; height: 38px;">🧹 Clear All</button>
+        <button class="reset-btn" onclick="selectAllFilters()" style="background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.3); color: #38bdf8; height: 38px;">✅ Select All</button>
+        <button class="reset-btn" onclick="exportMatrixCSV()" style="background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); color: #4ade80; height: 38px;">📥 Export CSV</button>
     </div>
-    <div class="filter-group">
-        <span>Metrics:</span>
-        <label class="toggle-btn"><input type="checkbox" id="chkLat" checked onchange="renderMatrix()"> Latency</label>
-        <label class="toggle-btn"><input type="checkbox" id="chkLoss" checked onchange="renderMatrix()"> Loss</label>
-        <label class="toggle-btn"><input type="checkbox" id="chkWarn" checked onchange="renderMatrix()"> Warns</label>
+    <div class="filter-row" style="display: flex; gap: 15px; align-items: center; justify-content: center; width: 100%; flex-wrap: wrap;">
+        <div class="filter-group">
+            <span>Path:</span>
+            <label class="toggle-btn"><input type="checkbox" id="chkDirect" checked onchange="renderMatrix()"> Direct 🡲</label>
+            <label class="toggle-btn"><input type="checkbox" id="chkReverse" checked onchange="renderMatrix()"> Reverse 🡰</label>
+        </div>
+        <div class="filter-group">
+            <span>Metrics:</span>
+            <label class="toggle-btn"><input type="checkbox" id="chkLat" checked onchange="renderMatrix()"> Latency</label>
+            <label class="toggle-btn"><input type="checkbox" id="chkLoss" checked onchange="renderMatrix()"> Loss</label>
+            <label class="toggle-btn"><input type="checkbox" id="chkWarn" checked onchange="renderMatrix()"> Warns</label>
+        </div>
+        <div class="filter-group" style="border-color: rgba(248, 113, 113, 0.3);">
+            <span style="color: #f87171;">Severity:</span>
+            <label class="toggle-btn" style="border-color: rgba(248, 113, 113, 0.4);"><input type="checkbox" id="sevCrit" checked onchange="renderMatrix()"> ❌ Critical</label>
+            <label class="toggle-btn" style="border-color: rgba(248, 113, 113, 0.4);"><input type="checkbox" id="sevLoss" checked onchange="renderMatrix()"> 📉 Loss</label>
+            <label class="toggle-btn" style="border-color: rgba(248, 113, 113, 0.4);"><input type="checkbox" id="sevJit" checked onchange="renderMatrix()"> 〰️ Jitter</label>
+            <label class="toggle-btn" style="border-color: rgba(248, 113, 113, 0.4);"><input type="checkbox" id="sevAsym" checked onchange="renderMatrix()"> ⚖️ Asym</label>
+            <label class="toggle-btn" style="border-color: rgba(74, 222, 128, 0.4);"><input type="checkbox" id="sevHealthy" checked onchange="renderMatrix()"> ✅ Healthy</label>
+        </div>
     </div>
-    <div class="filter-group" style="border-color: rgba(248, 113, 113, 0.3);">
-        <span style="color: #f87171;">Severity:</span>
-        <label class="toggle-btn" style="border-color: rgba(248, 113, 113, 0.4);"><input type="checkbox" id="sevCrit" checked onchange="renderMatrix()"> ❌ Critical</label>
-        <label class="toggle-btn" style="border-color: rgba(248, 113, 113, 0.4);"><input type="checkbox" id="sevLoss" checked onchange="renderMatrix()"> 📉 Loss</label>
-        <label class="toggle-btn" style="border-color: rgba(248, 113, 113, 0.4);"><input type="checkbox" id="sevJit" checked onchange="renderMatrix()"> 〰️ Jitter</label>
-        <label class="toggle-btn" style="border-color: rgba(248, 113, 113, 0.4);"><input type="checkbox" id="sevAsym" checked onchange="renderMatrix()"> ⚖️ Asym</label>
-        <label class="toggle-btn" style="border-color: rgba(74, 222, 128, 0.4);"><input type="checkbox" id="sevHealthy" checked onchange="renderMatrix()"> ✅ Healthy</label>
-    </div>
-    <input type="text" id="filterOrigin" placeholder="Filter Origin (eg. bsa;gti)..." onkeyup="renderMatrix()" aria-label="Filter origin elements">
-    <input type="text" id="filterDest" placeholder="Filter Dest (eg. bsa;gti)..." onkeyup="renderMatrix()" aria-label="Filter destination elements">
-    <button class="reset-btn" onclick="resetFilters()">🧹 Reset</button>
 </div>
 <div class="matrix-wrapper">
     <table id="matrixTable"></table>
@@ -849,18 +855,109 @@ function toggleLegend() {
     }
 }
 
-function resetFilters() {
+function clearAllFilters() {{
     const ids = ['chkDirect', 'chkReverse', 'chkLat', 'chkLoss', 'chkWarn', 'sevCrit', 'sevLoss', 'sevJit', 'sevAsym', 'sevHealthy'];
-    ids.forEach(id => {
+    ids.forEach(id => {{
         let el = document.getElementById(id);
-        if (el) el.checked = true;
-    });
+        if (el) el.checked = false;
+    }});
     let fOrig = document.getElementById('filterOrigin');
     if (fOrig) fOrig.value = '';
     let fDest = document.getElementById('filterDest');
     if (fDest) fDest.value = '';
     renderMatrix();
-}
+}}
+
+function selectAllFilters() {{
+    const ids = ['chkDirect', 'chkReverse', 'chkLat', 'chkLoss', 'chkWarn', 'sevCrit', 'sevLoss', 'sevJit', 'sevAsym', 'sevHealthy'];
+    ids.forEach(id => {{
+        let el = document.getElementById(id);
+        if (el) el.checked = true;
+    }});
+    renderMatrix();
+}}
+
+function exportMatrixCSV() {{
+    if (!globalData || !dataMap) {{
+        alert("No data available");
+        return;
+    }}
+    
+    let showDirect = document.getElementById('chkDirect').checked;
+    let showReverse = document.getElementById('chkReverse').checked;
+    let perspective = 'none';
+    if (showDirect && showReverse) perspective = 'both';
+    else if (showDirect) perspective = 'ab';
+    else if (showReverse) perspective = 'ba';
+    
+    let isAllSelected = document.getElementById('sevCrit').checked && 
+                        document.getElementById('sevLoss').checked && 
+                        document.getElementById('sevJit').checked && 
+                        document.getElementById('sevAsym').checked && 
+                        document.getElementById('sevHealthy').checked;
+                        
+    let fOrig = document.getElementById('filterOrigin').value.toLowerCase();
+    let fDest = document.getElementById('filterDest').value.toLowerCase();
+    
+    let nodesSet = new Set();
+    let validPairs = new Set();
+    
+    globalData.data.forEach(d => {{
+        let r = d.origin; let c = d.dest;
+        let dOut = d;
+        let dIn = dataMap[`${c}|${r}`];
+        
+        let isMatch = false;
+        if (perspective === 'ab') isMatch = checkCond(dOut);
+        else if (perspective === 'ba') isMatch = checkCond(dIn);
+        else isMatch = checkCond(dOut) || checkCond(dIn);
+
+        if (isMatch) {{
+            nodesSet.add(r);
+            nodesSet.add(c);
+            validPairs.add(`${r}|${c}`);
+            validPairs.add(`${c}|${r}`);
+        }}
+    }});
+
+    let nodes = Array.from(nodesSet).sort((a, b) => a.localeCompare(b));
+    let rowNodes = nodes.filter(n => multiMatch(n, fOrig));
+    let colNodes = nodes.filter(n => multiMatch(n, fDest));
+
+    let csvContent = "\\uFEFF";
+    csvContent += "Origin;Destination;Direction;Min (ms);Avg (ms);Max (ms);Loss (%);Status\\n";
+
+    rowNodes.forEach(r => {{
+        colNodes.forEach(c => {{
+            if (r === c) return;
+            if (!isAllSelected && !validPairs.has(`${r}|${c}`)) return;
+
+            let dOut = dataMap[`${r}|${c}`];
+            let dIn = dataMap[`${c}|${r}`];
+
+            if (showDirect && dOut) {{
+                let status = dOut.is_unreachable ? "DOWN" : "UP";
+                csvContent += `"${r}";"${c}";"Direct";"${dOut.min}";"${dOut.avg}";"${dOut.max}";"${dOut.loss_pct.toFixed(1)}%";"${status}"\\n`;
+            }}
+            if (showReverse && dIn) {{
+                let status = dIn.is_unreachable ? "DOWN" : "UP";
+                csvContent += `"${c}";"${r}";"Reverse";"${dIn.min}";"${dIn.avg}";"${dIn.max}";"${dIn.loss_pct.toFixed(1)}%";"${status}"\\n`;
+            }}
+        }});
+    }});
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    if (link.download !== undefined) {{
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", "ping_matrix_export.csv");
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }}
+}}
 
 function setTipData(e, r, c) {
     const tip = document.getElementById('globalTooltip');

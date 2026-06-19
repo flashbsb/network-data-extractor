@@ -2,6 +2,21 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.61.0] - 2026-06-18
+### Added
+- **Topology Sync Integration (Flowchart Update)**: Added detailed representation of the `--topology` workflow mapping and topological index engine synchronisation to the core README.
+- **Dijkstra Route Analysis Summary**: Added automatic summation of individual hop mean latencies, presenting a dynamic "Total Path Latency" calculation inside the Dijkstra Route analytical card.
+- **Dynamic Snapshot Text Search**: Replaced the static selection dropdown in Route Analysis (`path.html`) with a dynamic autocomplete text input associated with an HTML5 `<datalist>` to support searching snapshots by ID or dates.
+- **CSV Data Export (Drift & Ping Heatmap)**: Added client-side Javascript CSV export functionality in both the Drift Analyzer (`diff/index.html`) and Snapshots & Heatmaps (`ping_matrix.html`) allowing NOC operators to immediately download current filtered results.
+- **Action Filters Split**: Replaced the unified filter cleanup actions with dedicated "Clear All" (reset text inputs and uncheck options) and "Select All" (check all items) buttons.
+- **Circuit SLA History Redesign**: Moved and restructured the global network health metrics (Recent Anomalies, Top 10 Worst, Degradation Trend, and Instability) to a full-width bottom section on the SLA dashboard (`history.html`), isolating the circuit-specific tracking at the top to reduce layout confusion. Added metric legends.
+
+### Changed
+- **Default Drift Selection**: Adjusted initial page load logic of the Drift Analyzer to auto-select the two most recent network snapshots instead of the oldest and newest.
+- **Horizontal Filter Alignment**: Restructured selection filters (Admin and Oper) inside the Global Inventory dashboard to render horizontally side-by-side using CSS flex-wrap layout rules, significantly saving vertical dashboard space.
+- **Card Centralisation**: Enhanced root navigation portal aesthetics by centralising descriptions, statuses, and icons inside the Global Inventory, Drift Analyzer, Network Topology, and Ping Monitoring cards, ordering the Topology card to the bottom.
+- **Lateral Navigation Labels**: Renamed left navigation drawer actions from "Menu" or "Drift Analyzer" to "HISTORY" inside the Ping Matrix and Master Index files.
+
 ## [1.60.0] - 2026-06-03
 ### Added
 - **Dynamic Datalist Autocomplete**: Replaced the static selection dropdowns in both the Ping History (`history.html`) and Dijkstra Route Analysis (`path.html`) dashboards with text inputs connected to HTML5 `<datalist>` elements. This provides instant dynamic filtering, handles large lists without browser lag, supports native keyboard navigation, and runs CORS-free.
