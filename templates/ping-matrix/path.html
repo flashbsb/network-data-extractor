@@ -762,13 +762,34 @@
         // Bandwidth Parsing
         function parseBandwidth(bwText) {
             if (!bwText) return 0;
-            let val = parseFloat(bwText);
-            if (isNaN(val)) return 0;
-            let upper = bwText.toUpperCase();
-            if (upper.includes('G')) return val * 1000000;
-            if (upper.includes('M')) return val * 1000;
-            if (upper.includes('K')) return val;
-            return val;
+            let parts = bwText.split('+');
+            let totalBw = 0;
+            for (let part of parts) {
+                part = part.trim();
+                let match = part.match(/(?:(\d+(?:\.\d+)?)\s*x\s*)?(\d+(?:\.\d+)?)\s*([GgMmKk]bps|[GgMmKk])/);
+                if (match) {
+                    let multiplier = match[1] ? parseFloat(match[1]) : 1;
+                    let val = parseFloat(match[2]);
+                    let unit = match[3].toUpperCase();
+                    
+                    let speed = val;
+                    if (unit.includes('G')) speed = val * 1000000;
+                    else if (unit.includes('M')) speed = val * 1000;
+                    else if (unit.includes('K')) speed = val;
+                    
+                    totalBw += multiplier * speed;
+                } else {
+                    let val = parseFloat(part);
+                    if (!isNaN(val)) {
+                        let upper = part.toUpperCase();
+                        if (upper.includes('G')) totalBw += val * 1000000;
+                        else if (upper.includes('M')) totalBw += val * 1000;
+                        else if (upper.includes('K')) totalBw += val;
+                        else totalBw += val;
+                    }
+                }
+            }
+            return totalBw;
         }
 
         // Dijkstra Calculation
