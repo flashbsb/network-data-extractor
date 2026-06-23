@@ -622,6 +622,13 @@ else:
         args.hops = 0
 
 # 6. Authentication logical dependency
+if not args.user and os.environ.get("NDX_SSH_USER"):
+    args.user = os.environ.get("NDX_SSH_USER")
+if not args.password and os.environ.get("NDX_SSH_PASS"):
+    args.password = os.environ.get("NDX_SSH_PASS")
+if not args.key and os.environ.get("NDX_SSH_KEY"):
+    args.key = os.environ.get("NDX_SSH_KEY")
+
 if not args.offline and not args.password and not args.key:
     # If we are going to run commands.py or ping_matrix.py, ask for password once here
     # so we can reuse it for all discovery hops and prevent multiple interactive prompts.

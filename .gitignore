@@ -31,3 +31,10 @@ scratch/
 # Arquivos de Sistema
 .DS_Store
 Thumbs.db
+
+# Produção / DevOps (Evitar vazamento acidental)
+*.cfg
+*.key
+*.pem
+.env
+*.log
