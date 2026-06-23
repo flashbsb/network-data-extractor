@@ -1004,7 +1004,7 @@ function buildAnalytics() {
     let latencyLinks = validLinks.filter(d => d.avg > 0);
     let topLatency = [...latencyLinks].sort((a,b) => b.avg - a.avg).slice(0, 5);
     
-    let jitterLinks = validLinks.filter(d => (d.max - d.min) > 0);
+    let jitterLinks = validLinks.filter(d => d.max >= 0 && d.min >= 0 && (d.max - d.min) > 0);
     let topJitter = [...jitterLinks].sort((a,b) => (b.max - b.min) - (a.max - a.min)).slice(0, 5);
     
     let degradedLinks = globalData.data.filter(d => d.loss_pct > 0 && d.loss_pct < 100);

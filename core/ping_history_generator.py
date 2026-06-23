@@ -197,7 +197,8 @@ class PingHistoryGenerator:
                     tmax = entry.get("max", -1.0)
                     
                     is_dead = entry.get("is_unreachable", False) or loss == 100.0 or entry.get("consistently_denied", False)
-                    jitter = tmax - tmin if (tmax >= 0 and tmin >= 0) else 0.0
+                    # Use None for jitter when loss is 100.0 or unreachable to avoid plotting 0ms
+                    jitter = (tmax - tmin) if (tmax >= 0 and tmin >= 0 and not is_dead) else None
                     
                     total_links += 1
                     if is_dead:
@@ -211,7 +212,8 @@ class PingHistoryGenerator:
 
                     if avg_lat >= 0:
                         latencies.append(avg_lat)
-                        jitters.append(jitter)
+                        if jitter is not None:
+                            jitters.append(jitter)
                     losses.append(loss)
                     
                     # Update link history cache
@@ -227,6 +229,7 @@ class PingHistoryGenerator:
                         else:
                             link_histories[key] = []
                             
+                    status_jitter = jitter if jitter is not None else 0.0
                     link_histories[key].append({
                         "t": dt_str,
                         "min": tmin,
@@ -234,7 +237,7 @@ class PingHistoryGenerator:
                         "max": tmax,
                         "loss": loss,
                         "jitter": jitter,
-                        "status": "dead" if is_dead else ("critical" if loss > 50.0 else ("warning" if (loss > 0.0 or jitter > self.thr_jitter) else "healthy"))
+                        "status": "dead" if is_dead else ("critical" if loss > 50.0 else ("warning" if (loss > 0.0 or status_jitter > self.thr_jitter) else "healthy"))
                     })
                     
                     # Cap retention size
@@ -326,7 +329,7 @@ class PingHistoryGenerator:
             # Get valid latencies (exclude -1.0) and losses
             latencies = [h["avg"] for h in history if h["avg"] >= 0]
             losses = [h["loss"] for h in history]
-            jitters = [h["jitter"] for h in history if h["avg"] >= 0]
+            jitters = [h["jitter"] for h in history if h["avg"] >= 0 and h.get("jitter") is not None]
             
             if not history:
                 continue
