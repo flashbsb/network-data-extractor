@@ -547,12 +547,10 @@
                         <th style="padding:10px;">Ping A ➔ B</th>
                         <th style="padding:10px;">Ping B ➔ A</th>
                         <th style="padding:10px;">Bandwidth</th>
-                        <th style="padding:10px;">Interface A</th>
-                        <th style="padding:10px;">Interface B</th>
                     </tr>
                 </thead>
                 <tbody id="tblSegments">
-                    <tr><td colspan="7" style="padding:20px; text-align:center; color:var(--text-dim);">No calculated path.</td></tr>
+                    <tr><td colspan="5" style="padding:20px; text-align:center; color:var(--text-dim);">No calculated path.</td></tr>
                 </tbody>
             </table>
         </div>
@@ -792,6 +790,51 @@
             return totalBw;
         }
 
+        // Device Hierarchy Rank Classification
+        function getDeviceRank(nodeName) {
+            if (!nodeName) return 0;
+            
+            // 1. Try to read from pre-computed device_ranks dictionary in snapshot payload
+            if (window.currentSnapshotData && window.currentSnapshotData.device_ranks) {
+                let rank = window.currentSnapshotData.device_ranks[nodeName];
+                if (rank !== undefined) {
+                    return rank;
+                }
+            }
+            
+            // 2. Fallback to parsing from routing_hierarchy config in snapshot payload or local defaults
+            let hierarchy = (window.currentSnapshotData && window.currentSnapshotData.routing_hierarchy) ? 
+                            window.currentSnapshotData.routing_hierarchy : {
+                                "metro": ["SWAC", "SWAG"],
+                                "edge": ["RTAC", "RTED"],
+                                "core_agg": ["RTOC"],
+                                "core": ["RTIC"],
+                                "peering": ["RTPR"],
+                                "router_reflector": ["RTRR"]
+                            };
+            
+            let nameUpper = nodeName.trim().toUpperCase();
+            
+            const categories = [
+                { key: "metro", rank: 1 },
+                { key: "edge", rank: 2 },
+                { key: "core_agg", rank: 3 },
+                { key: "core", rank: 4 },
+                { key: "peering", rank: 5 },
+                { key: "router_reflector", rank: 6 }
+            ];
+            
+            for (let cat of categories) {
+                let prefixes = hierarchy[cat.key] || [];
+                for (let prefix of prefixes) {
+                    if (nameUpper.startsWith(prefix.toUpperCase())) {
+                        return cat.rank;
+                    }
+                }
+            }
+            return 0; // Neutral / Unclassified
+        }
+
         // Dijkstra Calculation
         function calculateDijkstra(graph, startNode, endNode, pingData = null, disabledEdges = new Set()) {
             let distances = {};
@@ -850,6 +893,41 @@
                         }
                     }
 
+                    // Hierarchy-based Routing Constraints
+                    let rankU = getDeviceRank(u);
+                    let rankV = getDeviceRank(v);
+                    
+                    // 1. Metro-to-Metro Transit Penalty
+                    if (u !== startNode && v !== endNode && rankU === 1 && rankV === 1) {
+                        weight += 50000;
+                    }
+                    
+                    // 2. Valley-Free Constraint (No going down then up)
+                    if (prev[u]) {
+                        let rankP = getDeviceRank(prev[u]);
+                        if (rankU < rankP && rankV > rankU) {
+                            weight += 100000;
+                        }
+                    }
+                    
+                    // 3. Level-Skipping Penalty (Cross-hierarchy shortcut penalty)
+                    if (rankU > 0 && rankV > 0) {
+                        let diff = Math.abs(rankU - rankV);
+                        if (diff > 1) {
+                            weight += 5000 * (diff - 1);
+                        }
+                    }
+
+                    // 4. Peering & Router Reflector Transit Penalty
+                    // Prevent traffic from transiting through PEERING (Rank 5) or ROUTER_REFLECTOR (Rank 6)
+                    // unless they are the source or destination.
+                    if (u !== startNode && (rankU === 5 || rankU === 6)) {
+                        weight += 1000000;
+                    }
+                    if (v !== endNode && (rankV === 5 || rankV === 6)) {
+                        weight += 1000000;
+                    }
+
                     let alt = distances[u] + weight;
                     if (alt < distances[v]) {
                         distances[v] = alt;
@@ -901,6 +979,8 @@
                     break;
                 }
             }
+            // Sort paths by hop count (number of hops) from lowest to highest
+            paths.sort((a, b) => a.path.length - b.path.length);
             return paths;
         }
 
@@ -1157,9 +1237,6 @@
                 const latAB = hasAB ? (s.pingDirect.avg >= 0 ? `${s.pingDirect.avg}ms (${s.pingDirect.loss_pct || s.pingDirect.loss || 0}%)` : 'FAIL') : 'N/A';
                 const latBA = hasBA ? (s.pingReverse.avg >= 0 ? `${s.pingReverse.avg}ms (${s.pingReverse.loss_pct || s.pingReverse.loss || 0}%)` : 'FAIL') : 'N/A';
                 
-                const ifNameA = s.ifaceA ? s.ifaceA.interface : '-';
-                const ifNameB = s.ifaceB ? s.ifaceB.interface : '-';
-                
                 let status = '🟢 UP';
                 if (s.dashed) status = '🔴 LINK DOWN';
                 else if (latAB === 'FAIL' || latBA === 'FAIL') status = '🔴 LOSS 100%';
@@ -1172,8 +1249,6 @@
                         <td style="padding:12px;">${latAB}</td>
                         <td style="padding:12px;">${latBA}</td>
                         <td style="padding:12px; font-family:'JetBrains Mono', monospace;">${s.connText}</td>
-                        <td style="padding:12px; font-family:'JetBrains Mono', monospace;">${ifNameA}</td>
-                        <td style="padding:12px; font-family:'JetBrains Mono', monospace;">${ifNameB}</td>
                     </tr>
                 `;
             }).join('');
@@ -1308,11 +1383,73 @@
             const conn = (currentSnapshotData.connections || []).find(c => 
                 (c.endpoint_a === u && c.endpoint_b === v) || (c.endpoint_a === v && c.endpoint_b === u)
             );
-            const ifA = (currentSnapshotData.interfaces || []).find(f => f.element === u && f.description.includes(v));
-            const ifB = (currentSnapshotData.interfaces || []).find(f => f.element === v && f.description.includes(u));
+            const ifsA = (currentSnapshotData.interfaces || []).filter(f => f.element === u && f.description.includes(v));
+            const ifsB = (currentSnapshotData.interfaces || []).filter(f => f.element === v && f.description.includes(u));
 
             const pingAB = await getPingDataForHop(u, v, currentRunId);
             const pingBA = await getPingDataForHop(v, u, currentRunId);
+
+            let ifaceAHtml = '';
+            if (ifsA.length > 0) {
+                ifsA.sort((a, b) => a.interface.localeCompare(b.interface));
+                ifaceAHtml = `
+                    <table style="width:100%; border-collapse:collapse; font-size:0.7rem; margin-top:5px; margin-bottom:15px;">
+                        <thead>
+                            <tr style="border-bottom:1px solid rgba(255,255,255,0.1); color:var(--text-dim); text-align:left;">
+                                <th style="padding:4px 0;">Porta</th>
+                                <th style="padding:4px 0; text-align:center;">Status</th>
+                                <th style="padding:4px 0; padding-left:10px;">Descrição</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${ifsA.map(i => {
+                                const isUp = String(i.line_protocol).toLowerCase().includes('up');
+                                const statusColor = isUp ? 'var(--color-healthy, #10b981)' : 'var(--color-crit, #ef4444)';
+                                return `
+                                    <tr style="border-bottom:1px solid rgba(255,255,255,0.02);">
+                                        <td style="padding:6px 0; font-weight:700; font-family:monospace; white-space:nowrap;">${i.interface}</td>
+                                        <td style="padding:6px 0; text-align:center; color:${statusColor}; font-weight:bold;">${i.line_protocol}</td>
+                                        <td style="padding:6px 0; padding-left:10px; font-size:0.6rem; word-break:break-all; max-width:180px;" title="${i.description}">${i.description || '-'}</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } else {
+                ifaceAHtml = `<div style="font-size:0.75rem; color:var(--text-dim); padding:5px 0;">No matching interfaces found.</div>`;
+            }
+
+            let ifaceBHtml = '';
+            if (ifsB.length > 0) {
+                ifsB.sort((a, b) => a.interface.localeCompare(b.interface));
+                ifaceBHtml = `
+                    <table style="width:100%; border-collapse:collapse; font-size:0.7rem; margin-top:5px; margin-bottom:15px;">
+                        <thead>
+                            <tr style="border-bottom:1px solid rgba(255,255,255,0.1); color:var(--text-dim); text-align:left;">
+                                <th style="padding:4px 0;">Porta</th>
+                                <th style="padding:4px 0; text-align:center;">Status</th>
+                                <th style="padding:4px 0; padding-left:10px;">Descrição</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${ifsB.map(i => {
+                                const isUp = String(i.line_protocol).toLowerCase().includes('up');
+                                const statusColor = isUp ? 'var(--color-healthy, #10b981)' : 'var(--color-crit, #ef4444)';
+                                return `
+                                    <tr style="border-bottom:1px solid rgba(255,255,255,0.02);">
+                                        <td style="padding:6px 0; font-weight:700; font-family:monospace; white-space:nowrap;">${i.interface}</td>
+                                        <td style="padding:6px 0; text-align:center; color:${statusColor}; font-weight:bold;">${i.line_protocol}</td>
+                                        <td style="padding:6px 0; padding-left:10px; font-size:0.6rem; word-break:break-all; max-width:180px;" title="${i.description}">${i.description || '-'}</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } else {
+                ifaceBHtml = `<div style="font-size:0.75rem; color:var(--text-dim); padding:5px 0;">No matching interfaces found.</div>`;
+            }
 
             let html = `
                 <div class="detail-row"><span class="lbl">Topological Capacity</span><span class="val">${conn ? conn.connection_text : 'Unknown'}</span></div>
@@ -1322,15 +1459,11 @@
                 <div class="detail-row"><span class="lbl">Outbound Ping: ${u} ➔ ${v}</span><span class="val">${pingAB && pingAB.avg >= 0 ? pingAB.avg + 'ms (' + (pingAB.loss_pct || 0) + '% loss)' : 'FAIL'}</span></div>
                 <div class="detail-row"><span class="lbl">Inbound Ping: ${v} ➔ ${u}</span><span class="val">${pingBA && pingBA.avg >= 0 ? pingBA.avg + 'ms (' + (pingBA.loss_pct || 0) + '% loss)' : 'FAIL'}</span></div>
                 
-                <h4 style="font-size:0.75rem; text-transform:uppercase; margin-top:15px; border-bottom:1px dashed var(--border-color); padding-bottom:5px; color:var(--text-dim);">Interface on Device A (${u})</h4>
-                <div class="detail-row"><span class="lbl">Interface</span><span class="val">${ifA ? ifA.interface : 'N/A'}</span></div>
-                <div class="detail-row"><span class="lbl">Operational Status</span><span class="val" style="color:${ifA && ifA.line_protocol.includes('up') ? 'var(--color-healthy)' : 'var(--color-crit)'}">${ifA ? ifA.line_protocol : 'Unknown'}</span></div>
-                <div class="detail-row"><span class="lbl">Description</span><span class="val" style="font-size:0.65rem; word-break:break-all;">${ifA ? ifA.description : '-'}</span></div>
+                <h4 style="font-size:0.75rem; text-transform:uppercase; margin-top:15px; border-bottom:1px dashed var(--border-color); padding-bottom:5px; color:var(--text-dim);">Interfaces on Device A (${u})</h4>
+                ${ifaceAHtml}
 
-                <h4 style="font-size:0.75rem; text-transform:uppercase; margin-top:15px; border-bottom:1px dashed var(--border-color); padding-bottom:5px; color:var(--text-dim);">Interface on Device B (${v})</h4>
-                <div class="detail-row"><span class="lbl">Interface</span><span class="val">${ifB ? ifB.interface : 'N/A'}</span></div>
-                <div class="detail-row"><span class="lbl">Operational Status</span><span class="val" style="color:${ifB && ifB.line_protocol.includes('up') ? 'var(--color-healthy)' : 'var(--color-crit)'}">${ifB ? ifB.line_protocol : 'Unknown'}</span></div>
-                <div class="detail-row"><span class="lbl">Description</span><span class="val" style="font-size:0.65rem; word-break:break-all;">${ifB ? ifB.description : '-'}</span></div>
+                <h4 style="font-size:0.75rem; text-transform:uppercase; margin-top:15px; border-bottom:1px dashed var(--border-color); padding-bottom:5px; color:var(--text-dim);">Interfaces on Device B (${v})</h4>
+                ${ifaceBHtml}
             `;
             document.getElementById('drawerContent').innerHTML = html;
         }
@@ -1348,8 +1481,8 @@
                 const u = path[i];
                 const v = path[i + 1];
                 const conn = (currentSnapshotData.connections || []).find(c => (c.endpoint_a === u && c.endpoint_b === v) || (c.endpoint_a === v && c.endpoint_b === u));
-                const ifA = (currentSnapshotData.interfaces || []).find(f => f.element === u && f.description.includes(v));
-                const ifB = (currentSnapshotData.interfaces || []).find(f => f.element === v && f.description.includes(u));
+                const ifacesA = (currentSnapshotData.interfaces || []).filter(f => f.element === u && f.description.includes(v));
+                const ifacesB = (currentSnapshotData.interfaces || []).filter(f => f.element === v && f.description.includes(u));
                 const pingAB = await getPingDataForHop(u, v, currentRunId);
                 const pingBA = await getPingDataForHop(v, u, currentRunId);
 
@@ -1357,8 +1490,8 @@
                     from: u, to: v,
                     connText: conn ? conn.connection_text : "Unknown",
                     dashed: conn ? (conn.dashed === "1" || conn.dashed === 1) : false,
-                    ifaceA: ifA ? ifA.interface : "N/A",
-                    ifaceB: ifB ? ifB.interface : "N/A",
+                    ifaceA: ifacesA.length > 0 ? ifacesA.map(f => f.interface).join(', ') : "N/A",
+                    ifaceB: ifacesB.length > 0 ? ifacesB.map(f => f.interface).join(', ') : "N/A",
                     pingAB: pingAB ? `${pingAB.avg}ms (${pingAB.loss_pct || 0}% loss)` : "FAIL",
                     pingBA: pingBA ? `${pingBA.avg}ms (${pingBA.loss_pct || 0}% loss)` : "FAIL"
                 });

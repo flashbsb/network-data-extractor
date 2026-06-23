@@ -19,6 +19,25 @@ class InventoryEngine:
         self.C_RED = '\033[91m'
         self.C_RESET = '\033[0m'
 
+        # Load routing hierarchy settings
+        _dir = os.path.dirname(os.path.abspath(__file__))
+        config_path = os.path.normpath(os.path.join(_dir, "..", "config", "settings.json"))
+        self.routing_hierarchy = {
+            "metro": ["SWAC", "SWAG"],
+            "edge": ["RTAC", "RTED"],
+            "core_agg": ["RTOC"],
+            "core": ["RTIC"],
+            "peering": ["RTPR"],
+            "router_reflector": ["RTRR"]
+        }
+        if os.path.exists(config_path):
+            try:
+                with open(config_path, "r", encoding="utf-8") as f:
+                    json_config = json.load(f)
+                    self.routing_hierarchy = json_config.get("routing_hierarchy", self.routing_hierarchy)
+            except Exception as e:
+                print(f"Warning: Failed to load settings.json in InventoryEngine: {e}")
+
     def run(self):
         print(f"[*] Base path: {self.base_path}")
         self._ensure_dirs()
@@ -36,10 +55,28 @@ class InventoryEngine:
             connections = self._extract_connections(col)
             
             if interfaces:
+                # Gather unique device hostnames and precompute ranks
+                unique_devices = set()
+                for interface in interfaces:
+                    el = interface.get("element")
+                    if el:
+                        unique_devices.add(el)
+                for conn in (connections or []):
+                    ea = conn.get("endpoint_a")
+                    eb = conn.get("endpoint_b")
+                    if ea:
+                        unique_devices.add(ea)
+                    if eb:
+                        unique_devices.add(eb)
+                
+                device_ranks = {dev: self._get_device_rank(dev) for dev in unique_devices if dev}
+
                 # Combine payload
                 payload = {
                     "interfaces": interfaces,
-                    "connections": connections if connections else []
+                    "connections": connections if connections else [],
+                    "routing_hierarchy": self.routing_hierarchy,
+                    "device_ranks": device_ranks
                 }
                 
                 # Save as JS for CORS bypass
@@ -70,6 +107,25 @@ class InventoryEngine:
         for d in [self.inventory_dir, self.data_dir]:
             if not os.path.exists(d):
                 os.makedirs(d)
+
+    def _get_device_rank(self, hostname):
+        if not hostname:
+            return 0
+        hostname_upper = hostname.strip().upper()
+        categories = [
+            ("metro", 1),
+            ("edge", 2),
+            ("core_agg", 3),
+            ("core", 4),
+            ("peering", 5),
+            ("router_reflector", 6)
+        ]
+        for key, rank in categories:
+            prefixes = self.routing_hierarchy.get(key, [])
+            for prefix in prefixes:
+                if hostname_upper.startswith(prefix.upper()):
+                    return rank
+        return 0
 
     def _prune_workspace(self, active_collections):
         active_ids = {c['id'] for c in active_collections}

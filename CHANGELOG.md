@@ -2,6 +2,17 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.63.0] - 2026-06-23
+### Added
+- **Configuration-Driven Dijkstra Routing Hierarchy**: Added a `"routing_hierarchy"` block inside `config/settings.json` to define naming prefixes and ranks representing `METRO` (1), `EDGE` (2), `CORE_AGG` (3), `CORE` (4), `PEERING` (5), and `ROUTER_REFLECTOR` (6).
+- **Pre-computed Device Ranks**: Modified `core/inventory_engine.py` to parse hierarchy settings and calculate unique device ranks on the Python backend, embedding them inside the JS snapshot payloads to bypass browser CORS constraints.
+- **Backbone Routing Constraints**: Implemented 4 key routing constraints in `templates/ping-matrix/path.html` Dijkstra path analysis:
+  - **Valley-Free Constraint**: Heavily penalizes paths descending in rank and then ascending (e.g. Core ➔ Edge ➔ Core).
+  - **Metro-to-Metro Transit Penalty**: Restricts transit traffic between multiple METRO switches, forcing paths up to the EDGE level.
+  - **Peering & Route Reflector Transit Penalty**: Bypasses `PEERING` (`RTPR` / Rank 5) and `ROUTER_REFLECTOR` (`RTRR` / Rank 6) nodes as intermediate transit hops unless they are the designated source or destination.
+  - **Level-Skipping Penalty**: Penalizes direct hops that skip intermediate hierarchy levels to favor standard progressive routes.
+- **Shortest Hop Sorting**: Ordered calculated Dijkstra paths by hop count (ascending) to guarantee that the path with the fewest hops is selected and visualized by default in the UI.
+
 ## [1.62.0] - 2026-06-19
 ### Added
 - **Global English Translation**: Translated all user-facing interface text, buttons, loading screens, and fallbacks inside the Draw.io Topology Viewer (`topology/index.html`) and manifest cataloguer (`core/topology_engine.py`) to English.

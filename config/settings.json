@@ -113,6 +113,15 @@
         "delay_between_commands": 1.0,
         "asymmetric_threshold_pct": 25.0
     },
+    "routing_hierarchy": {
+        "_help": "Defines hostname prefixes and their rank for hierarchical path routing.",
+        "metro": ["SWAC", "SWAG"],
+        "edge": ["RTAC", "RTED"],
+        "core_agg": ["RTOC"],
+        "core": ["RTIC"],
+        "peering": ["RTPR"],
+        "router_reflector": ["RTRR"]
+    },
     "topology_generator": {
         "_help_topology_generator": "Default paths and options for the external network-topology-generator integration.",
         "generator_path": "../network-topology-generator/network-topology-generator.py",
