@@ -1,26 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import os
+import sys
+
+# Add project root to sys.path to allow imports from core/
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import csv
 import glob
 import re
 import argparse
 import json
 
-def load_settings(custom_path=None):
-    if custom_path:
-        config_path = custom_path
-    else:
-        base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        config_path = os.path.join(base_path, "config", "settings.json")
-    
-    if os.path.exists(config_path):
-        try:
-            with open(config_path, "r") as f:
-                return json.load(f)
-        except Exception as e:
-            print(f"Warning: Failed to load {config_path}: {e}")
-    return {}
+from core.utils_shared import load_settings
 
 def is_ignored(name, ignore_prefixes):
     if not name: return True

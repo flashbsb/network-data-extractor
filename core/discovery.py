@@ -2,26 +2,16 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
+
+# Add project root to sys.path to allow imports from core/
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import csv
 import json
 import ipaddress
 import argparse
 
-def load_settings(custom_path=None):
-    if custom_path:
-        settings_path = custom_path
-    else:
-        # Derive path from __file__ so it works regardless of cwd
-        _dir = os.path.dirname(os.path.abspath(__file__))
-        settings_path = os.path.normpath(os.path.join(_dir, "..", "config", "settings.json"))
-
-    if os.path.exists(settings_path):
-        try:
-            with open(settings_path, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception as e:
-            print(f"Warning: Failed to load {settings_path}: {e}")
-    return {}
+from core.utils_shared import load_settings, normalize_hostname
 
 def is_ip_in_subnets(ip, subnets):
     try:
@@ -33,13 +23,7 @@ def is_ip_in_subnets(ip, subnets):
         pass
     return False
 
-def normalize_hostname(name, fmt='simple'):
-    """Returns the name according to fmt: 'simple' (pre-dot) or 'fqdn' (full)."""
-    if not name:
-        return ""
-    if fmt == 'fqdn':
-        return name.strip().upper()
-    return name.split('.')[0].strip().upper()
+
 
 def read_existing_elements(paths_str, hostname_fmt='simple'):
     existing_ips = set()

@@ -10,9 +10,10 @@
         "log_level": "INFO"
     },
     "ssh": {
-        "_help_ssh": "Tuning parameters for the paramiko SSH connection backend. Increase timeout if devices are slow.",
+        "_help_ssh": "Tuning parameters for the paramiko SSH connection backend. Increase timeout if devices are slow. Enable strict_host_key_checking to reject unknown host keys.",
         "timeout": 10,
-        "delay_between_commands": 5
+        "delay_between_commands": 5,
+        "strict_host_key_checking": false
     },
     "topology": {
         "_help_topology": "Core variables that instruct the Regex engine on how to generate the topology map (interface2connection.py).",

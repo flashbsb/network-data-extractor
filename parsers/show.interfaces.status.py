@@ -54,6 +54,7 @@ if __name__ == '__main__':
         for fn in files_to_parse:
             for row in parse_show_int_status(fn):
                 writer.writerow(row)
+            processed += 1
     if 'processed' in locals():
 
         print(f'-> Total parsed and successfully saved nodes: {processed}')

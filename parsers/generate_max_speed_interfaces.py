@@ -60,6 +60,8 @@ def infer_speed(name):
 def load_interfaces(files):
     interfaces = []
     for csv_file in files:
+        if not os.path.exists(csv_file):
+            continue
         with open(csv_file, newline='') as f:
             reader = csv.DictReader(f, delimiter=';')
             for row in reader:
@@ -78,6 +80,8 @@ def load_interfaces(files):
 def load_transceivers_datacom(files):
     transceivers = {}
     for file in files:
+        if not os.path.exists(file):
+            continue
         with open(file, newline='') as f:
             reader = csv.DictReader(f, delimiter=';')
             for row in reader:
@@ -93,6 +97,8 @@ def load_transceivers_datacom(files):
 def load_transceivers_cisco(files):
     transceivers = {}
     for file in files:
+        if not os.path.exists(file):
+            continue
         with open(file, newline='') as f:
             reader = csv.DictReader(f, delimiter=';')
             for row in reader:

@@ -255,7 +255,7 @@ def main():
                             buff += chunk
                             last_recv = time.time()
                     else:
-                        # Se ficou 1.5s seguidos sem recarregar e já tem o proprio prompt no buffer, assume finalizado
+                        # If idle for 1.5s and prompt is in buffer, assume completed
                         if time.time() - last_recv > 1.5 and len(buff) > 10:
                             break
                         time.sleep(0.1)
@@ -312,7 +312,7 @@ def main():
         print("="*60)
         print(f" • Reading cached ping results from: {args.collect_dir}")
         
-        # Encontra os arquivos brutos do ping matrix salvos em execuções anteriores
+        # Find raw ping matrix files saved in previous runs
         files = glob.glob(os.path.join(args.collect_dir, "*.ping_to_*.txt"))
         print(f" • Found {len(files)} cached result files.")
         print("="*60)
@@ -385,15 +385,15 @@ def main():
 
     # Setup parameters
     ping_format = args.ping_format.lower()
-    # A opção HTML embuti o JSON nativamente agora. Não forçar a criação do arquivo .json
-    # se o usuário pediu especificamente apenas --ping-format html
+    # The HTML option embeds the JSON natively. Do not force creation of the .json file
+    # if the user specifically requested only HTML
         
     ex_csv  = 'csv' in ping_format or ping_format == ''
     ex_json = 'json' in ping_format
     ex_html = 'html' in ping_format
     
     final_csv_dados = []
-    final_output_data = [] # Para armazenar toda a lista estendida no JSON
+    final_output_data = [] # To store the entire extended list in JSON
     
     for r in all_results:
         o = r['origin']
@@ -409,7 +409,7 @@ def main():
                 if ((tmax - tmin) / tavg) > 0.4:
                     jitter_warning = True
         
-        # Assimétrico
+        # Asymmetric
         asymmetric_warning = False
         inverse = lookup.get((d, o))
         if inverse and tavg > 0 and inverse['avg'] > 0:
@@ -441,7 +441,7 @@ def main():
         ])
         final_output_data.append(r)
 
-    # Agregações Analíticas de Saúde
+    # Analytical Health Aggregations
     matrix_health = {
         "total_links": len(final_output_data),
         "healthy": 0,

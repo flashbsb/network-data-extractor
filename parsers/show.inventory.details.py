@@ -13,14 +13,14 @@ def parse_inventory_details(file_path):
 
     with open(file_path, encoding='utf-8') as f:
         for line in f:
-            # Início de novo bloco
+            # Start of a new block
             if line.startswith('NAME:'):
                 if current:
                     current['element'] = hostname
                     current['id'] = ident
                     results.append(current)
                     current = {}
-                # Extrai nome e descrição
+                # Extract name and description
                 m = re.search(r'NAME:\s+"([^"]+)",\s+DESCR:\s+"([^"]+)"', line)
                 if m:
                     current['name'], current['descr'] = m.groups()

@@ -14,7 +14,7 @@ def parse_show_firmware(filename):
     host, _, rest = base.partition('.')
     identifier = rest.split('.')[0]
     text = open(filename).read()
-    # extrai flashes (pode não existir nenhum)
+    # extract flashes (might not exist)
     flashes = re.findall(
         r'^\s*(\d+)\s+([\d\.]+)\s+(\d{2}/\d{2}/\d{4} [\d:]+)\s+(\S*)\s+(\d+)',
         text, re.MULTILINE
@@ -53,6 +53,7 @@ if __name__ == '__main__':
 
         for fn in files_to_parse:
             writer.writerow(parse_show_firmware(fn))
+            processed += 1
     if 'processed' in locals():
 
         print(f'-> Total parsed and successfully saved nodes: {processed}')

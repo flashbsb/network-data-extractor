@@ -29,6 +29,7 @@ if os.path.exists(_SETTINGS_PATH):
 ssh_cfg = json_config.get("ssh", {})
 SSH_TIMEOUT = ssh_cfg.get("timeout", 10)
 CMD_DELAY = ssh_cfg.get("delay_between_commands", 5)
+STRICT_HOST_KEY_CHECKING = ssh_cfg.get("strict_host_key_checking", False)
 extractor_cfg = json_config.get("extractor", {})
 LOG_LEVEL = extractor_cfg.get("log_level", "INFO").upper()
 
@@ -214,7 +215,11 @@ def main():
         host = elem['hostname']
         ip = elem['ip']
         client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        if STRICT_HOST_KEY_CHECKING:
+            client.load_system_host_keys()
+            client.set_missing_host_key_policy(paramiko.RejectPolicy())
+        else:
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         
         # Support multiple IPs and cmd_keys joined by '|'
         ip_list = elem['ip'].split('|')

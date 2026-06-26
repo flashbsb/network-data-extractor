@@ -13,7 +13,7 @@ def parse_inventory(file_path):
 
     with open(file_path, encoding='utf-8') as f:
         for line in f:
-            # Início de novo bloco
+            # Start of a new block
             if line.startswith("NAME:"):
                 if 'name' in current:
                     results.append(current)

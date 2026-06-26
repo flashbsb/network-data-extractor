@@ -2,6 +2,21 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.64.1] - 2026-06-26
+### Fixed
+- **Python Import Paths (sys.path)**: Appended project root directory to `sys.path` dynamically inside `core/discovery.py`, `core/element_status.py`, and `core/interface2connection.py` to fix `ModuleNotFoundError: No module named 'core'` when execution is triggered inside subprocesses.
+
+## [1.64.0] - 2026-06-26
+### Added
+- **SSH Strict Host Key Checking option**: Added `"strict_host_key_checking"` setting inside the `"ssh"` configuration block in `settings.json` and implemented key policy validation in `commands.py` to reject unknown hosts when enabled.
+- **Shared Utility Module**: Introduced `core/utils_shared.py` to consolidate configurations loading (`load_settings`) and hostname normalization (`normalize_hostname`), reducing code duplication across `discovery.py`, `interface2connection.py`, and `element_status.py`.
+
+### Fixed
+- **Parser Processed Counter Bug**: Fixed a logic bug across 5 parsers (`show.firmware.py`, `show.system.py`, `show.platform.py`, `show.version.py`, `show.interfaces.status.py`) where the `"processed"` count was initialized but never incremented inside the file loop, which previously always reported "0" parsed nodes.
+- **Exception Variable NameError**: Fixed a `NameError` bug in `core/root_portal_engine.py` by catching the exception as `e` and formatting it correctly in an f-string.
+- **Robust File Ingestion**: Guarded `open()` calls in `parsers/generate_max_speed_interfaces.py` using `os.path.exists()` checks to prevent orchestrator crashes when files are missing.
+- **Source Comments English Translation**: Translated all legacy Portuguese comments to English in `show.inventory.py`, `show.inventory.details.py`, `show.firmware.py`, and `core/ping_matrix.py`, conforming to strict English coding guidelines.
+
 ## [1.63.0] - 2026-06-23
 ### Added
 - **Configuration-Driven Dijkstra Routing Hierarchy**: Added a `"routing_hierarchy"` block inside `config/settings.json` to define naming prefixes and ranks representing `METRO` (1), `EDGE` (2), `CORE_AGG` (3), `CORE` (4), `PEERING` (5), and `ROUTER_REFLECTOR` (6).

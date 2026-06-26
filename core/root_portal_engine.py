@@ -185,5 +185,5 @@ def generate_root_portal(outbase):
         with open(index_path, 'w', encoding='utf-8') as f:
             f.write(html_content)
         print(f"[*] Portal available at: {index_path}")
-    except Exception:
-        print("[!] Failed to write Root Navigation Portal: {e}")
+    except Exception as e:
+        print(f"[!] Failed to write Root Navigation Portal: {e}")
