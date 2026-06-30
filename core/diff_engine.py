@@ -366,6 +366,50 @@ class DiffEngine:
         .spinner { width: 60px; height: 60px; border: 5px solid rgba(56, 189, 248, 0.1); border-top: 5px solid var(--accent); border-radius: 50%; animation: spin 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite; margin: 0 auto 20px auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
+        /* Tab Styles */
+        .hud-tabs { display: flex; gap: 8px; margin-left: 20px; }
+        .tab-btn { background: rgba(30, 41, 59, 0.6); border: 1px solid var(--border); color: var(--text-dim); padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.85rem; transition: all 0.2s; display: flex; align-items: center; gap: 6px; text-transform: uppercase; }
+        .tab-btn:hover { border-color: var(--accent); color: white; }
+        .tab-btn.active { background: var(--accent); color: #0f172a; border-color: var(--accent); box-shadow: 0 0 10px rgba(56, 189, 248, 0.2); }
+
+        /* Timeline Tracker Styles */
+        #timelineOverlay { display: none; flex-direction: column; width: 100%; animation: slideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        .timeline-form-card { background: var(--sidebar-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin: 30px 40px 10px 40px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); display: flex; flex-direction: column; gap: 15px; }
+        .form-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-end; }
+        .form-col { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 200px; }
+        .form-col label { font-size: 0.75rem; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+        .timeline-btn { padding: 12px 24px; background: var(--accent); color: #0f172a; border: none; border-radius: 8px; font-weight: 800; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 10px rgba(56, 189, 248, 0.15); text-transform: uppercase; display: flex; align-items: center; gap: 8px; height: 38px; justify-content: center; }
+        .timeline-btn:hover:not(:disabled) { background: var(--accent-hover); transform: translateY(-1px); box-shadow: 0 6px 15px rgba(56, 189, 248, 0.25); }
+        .timeline-btn:disabled { background: #334155; color: #64748b; cursor: not-allowed; opacity: 0.5; box-shadow: none; }
+
+        .timeline-results-container { padding: 10px 40px 30px 40px; flex: 1; display: flex; flex-direction: column; }
+        .timeline-placeholder { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; max-width: 600px; margin: 40px auto; padding: 40px; }
+        
+        .timeline-wrapper { position: relative; padding: 20px 0; max-width: 900px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; gap: 25px; }
+        .timeline-wrapper::before { content: ''; position: absolute; left: 19px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+        
+        .timeline-node { position: relative; padding-left: 50px; display: flex; flex-direction: column; transition: all 0.3s; }
+        .timeline-dot { position: absolute; left: 11px; top: 4px; width: 18px; height: 18px; border-radius: 50%; background: var(--border); border: 4px solid var(--bg-dark); z-index: 5; transition: all 0.3s; }
+        .timeline-node.active .timeline-dot { background: var(--accent); border-color: var(--bg-dark); box-shadow: 0 0 10px var(--accent); }
+        .timeline-node.added .timeline-dot { background: var(--success); }
+        .timeline-node.removed .timeline-dot { background: var(--danger); }
+        .timeline-node.modified .timeline-dot { background: var(--warning); }
+        .timeline-node.baseline .timeline-dot { background: var(--text-dim); }
+
+        .timeline-box { background: var(--sidebar-bg); border: 1px solid var(--border); border-radius: 12px; padding: 18px 24px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); transition: border-color 0.2s; }
+        .timeline-node:hover .timeline-box { border-color: rgba(56, 189, 248, 0.3); }
+        .timeline-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 10px; }
+        .timeline-ts { font-weight: 700; color: var(--accent); font-size: 0.95rem; }
+        .timeline-run-id { font-family: monospace; font-size: 0.75rem; color: var(--text-dim); }
+        
+        .timeline-changes { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px; }
+        .timeline-change-item { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; }
+        .timeline-field { font-weight: 700; color: var(--text-dim); text-transform: uppercase; font-size: 0.7rem; }
+        
+        /* Progress tracker */
+        .progress-bar-container { width: 100%; background: #0f172a; border: 1px solid var(--border); height: 8px; border-radius: 4px; overflow: hidden; margin-top: 15px; display: none; }
+        .progress-bar-fill { background: var(--accent); height: 100%; width: 0%; transition: width 0.1s ease-out; }
+
     </style>
     <script>window.run_data = {};</script>
     <script src="manifest.js"></script>
@@ -395,6 +439,10 @@ class DiffEngine:
                 <div class="hud-title">
                     <h1 id="dashTitle">⚖️ Drift Analyzer</h1>
                     <p id="dashSubTitle">Select two snapshots from the sidebar</p>
+                </div>
+                <div class="hud-tabs">
+                    <button class="tab-btn active" id="tabCompare" onclick="switchTab('drift')">📊 Compare Snapshots</button>
+                    <button class="tab-btn" id="tabTimeline" onclick="switchTab('timeline')">⏱️ Interface Timeline Tracker</button>
                 </div>
             </div>
             <a class="back-portal" href="../index.html">← Network Portal</a>
@@ -476,6 +524,66 @@ class DiffEngine:
                             </thead>
                             <tbody id="diffBody"></tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="timelineOverlay">
+            <div class="timeline-form-card">
+                <div class="form-row">
+                    <div class="form-col">
+                        <label for="timelineElement">Network Element</label>
+                        <input type="text" id="timelineElement" class="input-styled" placeholder="Select or type router..." list="elementsList" onchange="onElementChanged()" aria-label="Select network element">
+                        <datalist id="elementsList"></datalist>
+                    </div>
+                    <div class="form-col">
+                        <label for="timelineInterface">Interface</label>
+                        <input type="text" id="timelineInterface" class="input-styled" placeholder="Select or type interface..." list="interfacesList" aria-label="Select interface">
+                        <datalist id="interfacesList"></datalist>
+                    </div>
+                    <div class="form-col" style="flex: 0.6; min-width: 150px;">
+                        <label for="timelineStart">Start Date</label>
+                        <input type="date" id="timelineStart" class="input-styled" style="width: 100%;" aria-label="Start date">
+                    </div>
+                    <div class="form-col" style="flex: 0.6; min-width: 150px;">
+                        <label for="timelineEnd">End Date</label>
+                        <input type="date" id="timelineEnd" class="input-styled" style="width: 100%;" aria-label="End date">
+                    </div>
+                    <button id="trackBtn" class="timeline-btn" onclick="trackTimeline()">📊 Track Changes</button>
+                </div>
+                <div class="progress-bar-container" id="timelineProgressContainer">
+                    <div class="progress-bar-fill" id="timelineProgressFill"></div>
+                </div>
+            </div>
+            
+            <div class="timeline-results-container">
+                <div id="timelinePlaceholder" class="timeline-placeholder">
+                    <div style="font-size: 4rem; margin-bottom: 15px;">⏱️</div>
+                    <h2 style="font-family:'Outfit'; color:var(--accent); font-size:2.2rem; font-weight:800; margin-bottom:10px;">Timeline Tracker</h2>
+                    <p style="color:var(--text-dim); font-size: 1rem; font-weight: 500;">Select an element, interface, and date range to view its historical change logs.</p>
+                </div>
+                
+                <div id="timelineCard" class="diff-card" style="display: none; padding: 25px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+                        <div>
+                            <h3 id="timelineTitle" style="font-family: 'Outfit'; font-size: 1.4rem; color: var(--text);">Timeline: -</h3>
+                            <p id="timelineSub" style="color: var(--text-dim); font-size: 0.8rem; text-transform: uppercase; margin-top: 4px;"></p>
+                        </div>
+                        <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                            <div class="checkbox-group">
+                                <label class="checkbox-label"><input type="checkbox" class="timeline-cb-field" value="description" checked onchange="applyTimelineFilter()"> Desc</label>
+                                <label class="checkbox-label"><input type="checkbox" class="timeline-cb-field" value="admin_status" checked onchange="applyTimelineFilter()"> Admin</label>
+                                <label class="checkbox-label"><input type="checkbox" class="timeline-cb-field" value="line_protocol" checked onchange="applyTimelineFilter()"> Oper</label>
+                                <label class="checkbox-label"><input type="checkbox" class="timeline-cb-field" value="bandwidth_kbit" checked onchange="applyTimelineFilter()"> Bw</label>
+                            </div>
+                            <input type="text" id="timelineFilterText" class="input-styled" placeholder="Filter timeline details..." oninput="applyTimelineFilter()" style="min-width: 200px; padding: 8px 12px;" aria-label="Filter timeline details">
+                            <button onclick="clearTimelineFilter()" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text-dim); padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 0.8rem; transition: all 0.2s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='var(--text-dim)'">🧹 Clear</button>
+                        </div>
+                    </div>
+                    
+                    <div class="table-responsive" style="max-height: 600px;">
+                        <div id="timelineList" class="timeline-wrapper"></div>
                     </div>
                 </div>
             </div>
@@ -767,7 +875,7 @@ class DiffEngine:
                 return `<tr>
                     <td><span class="tag tag-${d.type.toLowerCase()}">${d.type}</span></td>
                     <td style="font-weight:700; color:var(--text)">${d.element}</td>
-                    <td style="font-weight:700; color:var(--accent); font-family: monospace;">${d.interface}</td>
+                    <td style="font-weight:700; color:var(--accent); font-family: monospace; cursor: pointer; text-decoration: underline;" onclick="jumpToTimeline('${d.element}', '${d.interface}')" title="Click to view chronological timeline of this interface">${d.interface}</td>
                     <td class="wrap-col">${renderVal('description')}</td>
                     <td>${renderVal('admin_status')}</td>
                     <td>${renderVal('line_protocol')}</td>
@@ -776,9 +884,359 @@ class DiffEngine:
             }).join('');
         }
 
+        // Timeline tab navigation logic
+        let currentTab = 'drift';
+        function switchTab(tabName) {
+            currentTab = tabName;
+            document.getElementById('tabCompare').classList.toggle('active', tabName === 'drift');
+            document.getElementById('tabTimeline').classList.toggle('active', tabName === 'timeline');
+            
+            if (tabName === 'drift') {
+                document.getElementById('dashTitle').innerText = '⚖️ Drift Analyzer';
+                document.getElementById('dashSubTitle').innerText = 'Select two snapshots from the sidebar';
+                document.getElementById('sidebar').style.marginLeft = '';
+                
+                const checked = document.querySelectorAll('.run-checkbox:checked');
+                if (checked.length === 2 && allDiffs.length > 0) {
+                    document.getElementById('compareOverlay').style.display = 'flex';
+                    document.getElementById('welcome').style.display = 'none';
+                } else {
+                    document.getElementById('compareOverlay').style.display = 'none';
+                    document.getElementById('welcome').style.display = 'flex';
+                }
+                document.getElementById('timelineOverlay').style.display = 'none';
+            } else {
+                document.getElementById('dashTitle').innerText = '⏱️ Timeline Tracker';
+                document.getElementById('dashSubTitle').innerText = 'Analyze interface changes over time';
+                document.getElementById('sidebar').classList.add('collapsed');
+                
+                document.getElementById('compareOverlay').style.display = 'none';
+                document.getElementById('welcome').style.display = 'none';
+                document.getElementById('timelineOverlay').style.display = 'flex';
+            }
+        }
+
+        // Jump from comparison to timeline shortcut (last 7 days)
+        function jumpToTimeline(element, iface) {
+            switchTab('timeline');
+            document.getElementById('timelineElement').value = element;
+            onElementChanged();
+            document.getElementById('timelineInterface').value = iface;
+            
+            if (manifest.length > 0) {
+                const latestId = manifest[0].id;
+                const y = parseInt(latestId.substring(0,4));
+                const m = parseInt(latestId.substring(4,6)) - 1;
+                const d = parseInt(latestId.substring(6,8));
+                
+                const dateEnd = new Date(y, m, d);
+                const dateStart = new Date(y, m, d);
+                dateStart.setDate(dateStart.getDate() - 7);
+                
+                const formatDateInput = (date) => {
+                    const yy = date.getFullYear();
+                    const mm = String(date.getMonth() + 1).padStart(2, '0');
+                    const dd = String(date.getDate()).padStart(2, '0');
+                    return `${yy}-${mm}-${dd}`;
+                };
+                
+                document.getElementById('timelineEnd').value = formatDateInput(dateEnd);
+                document.getElementById('timelineStart').value = formatDateInput(dateStart);
+            }
+            trackTimeline();
+        }
+
+        // Timeline autocomplete
+        let elementInterfaceMap = {};
+        async function initTimelineAutocomplete() {
+            if (manifest.length === 0) return;
+            const latest = manifest[0];
+            try {
+                const data = await loadRunData(latest.id, latest.file);
+                if (!data) return;
+                
+                elementInterfaceMap = {};
+                data.forEach(item => {
+                    const el = item.element;
+                    const iface = item.interface;
+                    if (el && iface) {
+                        if (!elementInterfaceMap[el]) {
+                            elementInterfaceMap[el] = [];
+                        }
+                        elementInterfaceMap[el].push(iface);
+                    }
+                });
+                
+                const elementsList = document.getElementById('elementsList');
+                const elements = Object.keys(elementInterfaceMap).sort();
+                elementsList.innerHTML = elements.map(el => `<option value="${el}">`).join('');
+                
+                if (manifest.length > 0) {
+                    const earliestId = manifest[manifest.length - 1].id;
+                    const latestId = manifest[0].id;
+                    const formatDateInput = (id) => `${id.substring(0,4)}-${id.substring(4,6)}-${id.substring(6,8)}`;
+                    
+                    document.getElementById('timelineStart').value = formatDateInput(earliestId);
+                    document.getElementById('timelineEnd').value = formatDateInput(latestId);
+                }
+            } catch (err) {
+                console.error("Failed to initialize timeline autocomplete", err);
+            }
+        }
+
+        function onElementChanged() {
+            const elInput = document.getElementById('timelineElement').value.trim();
+            const interfacesList = document.getElementById('interfacesList');
+            interfacesList.innerHTML = '';
+            
+            if (elementInterfaceMap[elInput]) {
+                const sortedIfaces = elementInterfaceMap[elInput].sort();
+                interfacesList.innerHTML = sortedIfaces.map(iface => `<option value="${iface}">`).join('');
+            }
+        }
+
+        // Timeline tracking logic
+        let timelineEvents = [];
+        async function trackTimeline() {
+            const element = document.getElementById('timelineElement').value.trim();
+            const iface = document.getElementById('timelineInterface').value.trim();
+            const startDate = document.getElementById('timelineStart').value;
+            const endDate = document.getElementById('timelineEnd').value;
+            
+            if (!element || !iface) {
+                alert("Please select a valid Element and Interface to track.");
+                return;
+            }
+            
+            const matchedRuns = manifest.filter(m => {
+                const runDate = `${m.id.substring(0,4)}-${m.id.substring(4,6)}-${m.id.substring(6,8)}`;
+                return (!startDate || runDate >= startDate) && (!endDate || runDate <= endDate);
+            }).sort((a,b) => a.id.localeCompare(b.id));
+            
+            if (matchedRuns.length === 0) {
+                alert("No snapshots found in the selected date range.");
+                return;
+            }
+            
+            const trackBtn = document.getElementById('trackBtn');
+            const progressContainer = document.getElementById('timelineProgressContainer');
+            const progressFill = document.getElementById('timelineProgressFill');
+            
+            trackBtn.disabled = true;
+            progressContainer.style.display = 'block';
+            progressFill.style.width = '0%';
+            
+            document.getElementById('timelinePlaceholder').style.display = 'none';
+            document.getElementById('timelineCard').style.display = 'none';
+            
+            const runDataMap = {};
+            let loadedCount = 0;
+            
+            for (let i = 0; i < matchedRuns.length; i++) {
+                const run = matchedRuns[i];
+                const data = await loadRunData(run.id, run.file);
+                runDataMap[run.id] = data;
+                loadedCount++;
+                progressFill.style.width = `${(loadedCount / matchedRuns.length) * 100}%`;
+            }
+            
+            timelineEvents = [];
+            let previousState = null;
+            
+            matchedRuns.forEach((run, idx) => {
+                const data = runDataMap[run.id];
+                const currentItem = data ? data.find(d => d.element === element && d.interface === iface) : null;
+                
+                if (idx === 0) {
+                    previousState = currentItem ? { ...currentItem } : null;
+                    timelineEvents.push({
+                        type: 'BASELINE',
+                        id: run.id,
+                        date: formatDate(run.id),
+                        state: previousState,
+                        changes: {}
+                    });
+                } else {
+                    if (!previousState && currentItem) {
+                        timelineEvents.push({
+                            type: 'ADDED',
+                            id: run.id,
+                            date: formatDate(run.id),
+                            state: { ...currentItem },
+                            changes: {}
+                        });
+                        previousState = { ...currentItem };
+                    } else if (previousState && !currentItem) {
+                        timelineEvents.push({
+                            type: 'REMOVED',
+                            id: run.id,
+                            date: formatDate(run.id),
+                            state: null,
+                            changes: {}
+                        });
+                        previousState = null;
+                    } else if (previousState && currentItem) {
+                        const changes = {};
+                        ['admin_status', 'line_protocol', 'bandwidth_kbit', 'description'].forEach(f => {
+                            if (String(previousState[f]) !== String(currentItem[f])) {
+                                changes[f] = [previousState[f], currentItem[f]];
+                            }
+                        });
+                        
+                        if (Object.keys(changes).length > 0) {
+                            timelineEvents.push({
+                                type: 'MODIFIED',
+                                id: run.id,
+                                date: formatDate(run.id),
+                                state: { ...currentItem },
+                                changes: changes
+                            });
+                            previousState = { ...currentItem };
+                        }
+                    }
+                }
+            });
+            
+            setTimeout(() => {
+                progressContainer.style.display = 'none';
+                trackBtn.disabled = false;
+                
+                document.getElementById('timelineTitle').innerText = `Timeline: ${element} ➔ ${iface}`;
+                document.getElementById('timelineSub').innerText = `Tracked across ${matchedRuns.length} snapshots`;
+                document.getElementById('timelineCard').style.display = 'block';
+                
+                renderTimeline(timelineEvents);
+                applyTimelineFilter();
+            }, 300);
+        }
+
+        function renderTimeline(events) {
+            const container = document.getElementById('timelineList');
+            if (events.length === 0) {
+                container.innerHTML = `<div style="text-align:center; padding:50px; color:var(--text-dim); font-style:italic;">No changes detected for this interface in the selected range.</div>`;
+                return;
+            }
+            
+            const displayEvents = [...events].reverse();
+            
+            container.innerHTML = displayEvents.map(ev => {
+                let typeTagClass = 'tag-modified';
+                let detailsHtml = '';
+                
+                if (ev.type === 'BASELINE') {
+                    typeTagClass = 'tag-added';
+                    detailsHtml = `
+                        <div style="font-size:0.85rem; color:var(--text-dim);">
+                            <strong>Initial Baseline State:</strong><br/>
+                            ${ev.state ? `
+                                • Description: <span style="color:var(--text)">${ev.state.description || '-'}</span><br/>
+                                • Admin: <span style="color:var(--text)">${ev.state.admin_status || '-'}</span> | Protocol: <span style="color:var(--text)">${ev.state.line_protocol || '-'}</span><br/>
+                                • Speed: <span style="color:var(--text)">${ev.state.bandwidth_kbit || '-'} Kbit</span>
+                            ` : '<span style="color:var(--danger)">Interface not present at this snapshot.</span>'}
+                        </div>
+                    `;
+                } else if (ev.type === 'ADDED') {
+                    typeTagClass = 'tag-added';
+                    detailsHtml = `
+                        <div style="font-size:0.85rem; color:var(--text-dim);">
+                            <strong>Interface Added:</strong><br/>
+                            • Description: <span style="color:var(--text)">${ev.state.description || '-'}</span><br/>
+                            • Admin: <span style="color:var(--text)">${ev.state.admin_status || '-'}</span> | Protocol: <span style="color:var(--text)">${ev.state.line_protocol || '-'}</span>
+                        </div>
+                    `;
+                } else if (ev.type === 'REMOVED') {
+                    typeTagClass = 'tag-removed';
+                    detailsHtml = `
+                        <div style="font-size:0.85rem; color:var(--danger);">
+                            <strong>Interface Removed / Node Offline</strong> (Missing from collection)
+                        </div>
+                    `;
+                } else if (ev.type === 'MODIFIED') {
+                    typeTagClass = 'tag-modified';
+                    
+                    const changesList = Object.keys(ev.changes).map(field => {
+                        const oldVal = ev.changes[field][0] || 'NONE';
+                        const newVal = ev.changes[field][1] || 'NONE';
+                        return `
+                            <div class="timeline-change-item" data-field="${field}">
+                                <span class="timeline-field">${field.replace('_', ' ')}</span>
+                                <div class="drift-step">
+                                    <span class="drift-from">${oldVal}</span>
+                                    <span class="drift-arrow">➔</span>
+                                    <span class="drift-to">${newVal}</span>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                    
+                    detailsHtml = `
+                        <div class="timeline-changes">
+                            ${changesList}
+                        </div>
+                    `;
+                }
+                
+                return `
+                    <div class="timeline-node ${ev.type.toLowerCase()}" data-search="${ev.type} ${ev.id} ${ev.state ? ev.state.description : ''}">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-box">
+                            <div class="timeline-meta">
+                                <span class="timeline-ts">${ev.date}</span>
+                                <span class="tag ${typeTagClass}">${ev.type}</span>
+                                <span class="timeline-run-id">${ev.id}</span>
+                            </div>
+                            ${detailsHtml}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function applyTimelineFilter() {
+            const q = document.getElementById('timelineFilterText').value.toLowerCase();
+            const checkedFields = Array.from(document.querySelectorAll('.timeline-cb-field:checked')).map(cb => cb.value);
+            
+            const nodes = document.querySelectorAll('.timeline-node');
+            nodes.forEach(node => {
+                const searchStr = node.dataset.search.toLowerCase();
+                const matchesText = !q || searchStr.includes(q);
+                
+                if (!matchesText) {
+                    node.style.display = 'none';
+                    return;
+                }
+                
+                if (node.classList.contains('modified')) {
+                    const changeItems = node.querySelectorAll('.timeline-change-item');
+                    let visibleChangesCount = 0;
+                    
+                    changeItems.forEach(item => {
+                        const field = item.dataset.field;
+                        if (checkedFields.includes(field)) {
+                            item.style.display = 'flex';
+                            visibleChangesCount++;
+                        } else {
+                            item.style.display = 'none';
+                        }
+                    });
+                    
+                    node.style.display = (visibleChangesCount === 0) ? 'none' : '';
+                } else {
+                    node.style.display = '';
+                }
+            });
+        }
+
+        function clearTimelineFilter() {
+            document.getElementById('timelineFilterText').value = '';
+            document.querySelectorAll('.timeline-cb-field').forEach(cb => cb.checked = true);
+            applyTimelineFilter();
+        }
+
         // Initialize
         window.addEventListener('DOMContentLoaded', () => {
             renderList();
+            initTimelineAutocomplete();
             
             // Auto-select two latest snapshots
             const items = document.querySelectorAll('.run-item');

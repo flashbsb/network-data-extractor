@@ -2,6 +2,14 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.65.0] - 2026-06-26
+### Added
+- **Interface Timeline Tracker**: Introduced a new analysis tab inside the Drift Analyzer dashboard (`diff/index.html`) that allows tracking the historical state changes of a single physical/logical interface. It features:
+  - Autocomplete lists for network elements and their corresponding interfaces, loaded dynamically from the latest snapshot.
+  - Custom date range selection.
+  - Interactive vertical timeline showing baseline states and chronological events (`ADDED`, `REMOVED`, `MODIFIED`).
+  - Search/filter capability to narrow down timeline details in real-time.
+
 ## [1.64.1] - 2026-06-26
 ### Fixed
 - **Python Import Paths (sys.path)**: Appended project root directory to `sys.path` dynamically inside `core/discovery.py`, `core/element_status.py`, and `core/interface2connection.py` to fix `ModuleNotFoundError: No module named 'core'` when execution is triggered inside subprocesses.
