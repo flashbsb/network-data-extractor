@@ -5,8 +5,8 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
- Version : 1.65.0
- Date    : 2026-06-26
+ Version : 1.66.0
+ Date    : 2026-06-30
  Author  : flashbsb (and contributors) 
  
 """
@@ -23,8 +23,8 @@ import types
 from datetime import datetime
 from glob import glob
 
-APP_VERSION = "1.65.0"
-APP_DATE = "2026-06-26"
+APP_VERSION = "1.66.0"
+APP_DATE = "2026-06-30"
 
 # ANSI Colors — must be declared before any function that uses them
 C_GREEN  = '\033[92m'
@@ -303,7 +303,19 @@ def generate_master_dashboard(outbase):
         }
 
         function loadRun(path, el) {
-            document.getElementById('viewer').src = path;
+            // Forward query parameters to the iframe
+            const indexParams = new URLSearchParams(window.location.search);
+            const origin = indexParams.get('origin');
+            const dest = indexParams.get('dest');
+            let iframeUrl = path;
+            if (origin || dest) {
+                const iframeParams = new URLSearchParams();
+                if (origin) iframeParams.set('origin', origin);
+                if (dest) iframeParams.set('dest', dest);
+                iframeUrl += '?' + iframeParams.toString();
+            }
+
+            document.getElementById('viewer').src = iframeUrl;
             document.getElementById('placeholder').style.display = 'none';
             document.querySelectorAll('.run-item').forEach(item => item.classList.remove('active'));
             if(el) el.classList.add('active');
@@ -314,12 +326,25 @@ def generate_master_dashboard(outbase):
             }
         }
         
-        // Auto-load first run
+        // Auto-load first or matched run
         window.onload = () => {
-            const first = document.querySelector('.run-item');
-            if (first) {
-                // Small delay to ensure styles are ready
-                setTimeout(() => first.click(), 100);
+            const indexParams = new URLSearchParams(window.location.search);
+            const runId = indexParams.get('run');
+            let matchedRun = null;
+            if (runId && runId !== 'undefined' && runId !== 'null') {
+                const items = document.querySelectorAll('.run-item');
+                for (let item of items) {
+                    const onclickAttr = item.getAttribute('onclick');
+                    if (onclickAttr && onclickAttr.includes(runId)) {
+                        matchedRun = item;
+                        break;
+                    }
+                }
+            }
+            
+            const runToSelect = matchedRun || document.querySelector('.run-item');
+            if (runToSelect) {
+                setTimeout(() => runToSelect.click(), 100);
             }
         };
     </script>

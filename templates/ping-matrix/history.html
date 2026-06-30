@@ -1482,6 +1482,20 @@
             manifest = window.ping_history_manifest || [];
             rankings = window.ping_history_rankings || {};
             initSelectors();
+
+            // URL parameter handling
+            const urlParams = new URLSearchParams(window.location.search);
+            const origin = urlParams.get('origin');
+            const dest = urlParams.get('dest');
+            if (origin) {
+                document.getElementById('selOrigin').value = origin;
+            }
+            if (dest) {
+                document.getElementById('selDest').value = dest;
+            }
+            if (origin && dest) {
+                selectLink(origin, dest);
+            }
         };
     </script>
 </body>

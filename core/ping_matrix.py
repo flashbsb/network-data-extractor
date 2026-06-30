@@ -711,6 +711,48 @@ td:hover { background-color: rgba(255,255,255,0.1) !important; transform: scale(
 
 /* Drag Overlay */
 #dropOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(2, 6, 23, 0.9); backdrop-filter: blur(10px); z-index: 9999; justify-content: center; align-items: center; color: #38bdf8; font-size: 48px; border: 4px dashed rgba(56,189,248,0.5); box-sizing: border-box; font-family:'Outfit'; font-weight:800; text-shadow: 0 0 30px rgba(56,189,248,0.6);}
+
+/* Context Menu */
+.context-menu {
+    position: absolute;
+    background: #0f172a;
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    border-radius: 8px;
+    z-index: 10000;
+    display: none;
+    flex-direction: column;
+    padding: 8px 0;
+    min-width: 200px;
+    font-family: 'Inter', sans-serif;
+}
+.context-menu a {
+    padding: 10px 16px;
+    text-decoration: none;
+    color: #e2e8f0;
+    font-size: 0.85rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: background 0.2s, color 0.2s;
+    text-align: left;
+}
+.context-menu a:hover {
+    background: rgba(56, 189, 248, 0.1);
+    color: #38bdf8;
+}
+.context-menu .menu-header {
+    padding: 6px 16px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    margin-bottom: 4px;
+    text-align: left;
+}
 </style>
 </head>
 <body>
@@ -796,7 +838,26 @@ if (window.self !== window.top) {
 let globalData = __JSON_PAYLOAD_HERE__;
 let dataMap = {};
 
+function getQueryParam(name) {
+    let params = new URLSearchParams(window.location.search);
+    if (params.has(name)) return params.get(name);
+    try {
+        if (window.parent && window.parent !== window) {
+            let parentParams = new URLSearchParams(window.parent.location.search);
+            if (parentParams.has(name)) return parentParams.get(name);
+        }
+    } catch (e) {
+        // Ignore cross-origin issues if any
+    }
+    return null;
+}
+
 function loadData() {
+    const origin = getQueryParam('origin');
+    const dest = getQueryParam('dest');
+    if (origin) document.getElementById('filterOrigin').value = origin;
+    if (dest) document.getElementById('filterDest').value = dest;
+
     buildHeader(); renderMatrix(); buildAnalytics();
 }
 function buildHeader() {
@@ -1310,12 +1371,75 @@ function renderMatrix() {
                   html += '<td style="background:transparent; border:none; opacity:0"></td>';
                   return;
               }
-              html += `<td class="${cssClass}${extClass}" style="${styleStr}" onmouseenter="setTipData(event, '${r}', '${c}')" onmousemove="moveTip(event)" onmouseleave="hideTip()">${display}</td>`;
+               html += `<td class="${cssClass}${extClass}" style="${styleStr} cursor: pointer;" onmouseenter="setTipData(event, '${r}', '${c}')" onmousemove="moveTip(event)" onmouseleave="hideTip()" onclick="showCellContextMenu(event, '${r}', '${c}')">${display}</td>`;
         });
         html += '</tr>';
     });
     document.getElementById('matrixTable').innerHTML = html;
 }
+
+let hasDiff = false;
+async function checkDiffAvailability() {
+    try {
+        const response = await fetch('../../../diff/index.html', { method: 'HEAD' });
+        hasDiff = response.ok || response.status === 0;
+    } catch (e) {
+        hasDiff = false;
+    }
+}
+checkDiffAvailability();
+
+function showCellContextMenu(e, origin, dest) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    let menu = document.getElementById('cellContextMenu');
+    if (!menu) {
+        menu = document.createElement('div');
+        menu.id = 'cellContextMenu';
+        menu.className = 'context-menu';
+        document.body.appendChild(menu);
+    }
+    
+    const runIdMatch = window.location.pathname.match(/(20\d{6}_\d{6})/);
+    const runId = runIdMatch ? runIdMatch[1] : '';
+    
+    menu.innerHTML = `
+        <div class="menu-header">${origin} ⇄ ${dest}</div>
+        <a href="../../history.html?origin=${origin}&dest=${dest}" target="_blank">📈 P2P History & SLA</a>
+        <a href="../../path.html?run=${runId}&origin=${origin}&dest=${dest}" target="_blank">🕸️ Route Analysis (Dijkstra)</a>
+        <a href="../../inventory/index.html?run=${runId}&device=${origin}" target="_blank">📦 Global Inventory (${origin})</a>
+        <a href="../../inventory/index.html?run=${runId}&device=${dest}" target="_blank">📦 Global Inventory (${dest})</a>
+        ${hasDiff ? `
+            <a href="../../../diff/index.html?device=${origin}" target="_blank">⚖️ Drift Analysis (${origin})</a>
+            <a href="../../../diff/index.html?device=${dest}" target="_blank">⚖️ Drift Analysis (${dest})</a>
+        ` : `
+            <a href="#" class="disabled" style="opacity:0.5; cursor:not-allowed; pointer-events:none;" onclick="return false;">⚖️ Drift Analysis (Unavailable)</a>
+        `}
+    `;
+    
+    menu.style.display = 'flex';
+    
+    const menuWidth = menu.offsetWidth || 200;
+    const menuHeight = menu.offsetHeight || 220;
+    
+    let x = e.pageX;
+    let y = e.pageY;
+    
+    if (x + menuWidth > window.innerWidth) {
+        x = window.innerWidth - menuWidth - 10;
+    }
+    if (y + menuHeight > window.innerHeight + window.scrollY) {
+        y = window.innerHeight + window.scrollY - menuHeight - 10;
+    }
+    
+    menu.style.left = x + 'px';
+    menu.style.top = y + 'px';
+}
+document.addEventListener('click', () => {
+    const menu = document.getElementById('cellContextMenu');
+    if (menu) menu.style.display = 'none';
+});
 loadData();
 </script>
 <div id="globalTooltip"></div>

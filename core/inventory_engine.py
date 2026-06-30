@@ -387,6 +387,53 @@ class InventoryEngine:
         .conn-arrow { color: var(--text-dim); font-size: 1.2rem; }
         .conn-dashed { text-decoration: line-through; opacity: 0.5; color: var(--danger); }
 
+        /* Context Menu Styles */
+        .context-menu {
+            position: absolute;
+            background: #0f172a;
+            border: 1px solid var(--border);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border-radius: 8px;
+            z-index: 10000;
+            display: none;
+            flex-direction: column;
+            padding: 8px 0;
+            min-width: 200px;
+            font-family: 'Inter', sans-serif;
+        }
+        .context-menu a {
+            padding: 10px 16px;
+            text-decoration: none;
+            color: #cbd5e1;
+            font-size: 0.85rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: background 0.2s, color 0.2s;
+            text-align: left;
+        }
+        .context-menu a.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        .context-menu a:hover:not(.disabled) {
+            background: rgba(56, 189, 248, 0.1);
+            color: var(--accent);
+        }
+        .context-menu .menu-header {
+            padding: 6px 16px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            margin-bottom: 4px;
+            text-align: left;
+        }
+
         .loader { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
         .spinner { width: 50px; height: 50px; border: 4px solid rgba(56, 189, 248, 0.1); border-top: 4px solid var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -583,6 +630,7 @@ class InventoryEngine:
             document.getElementById('loader').style.display = 'block';
 
             currentData = await loadRunData(id, file);
+            if (currentData) currentData.id = id;
             
             document.getElementById('dashTitle').innerText = '📡 Inventory Dashboard';
             document.getElementById('dashSubTitle').innerText = formatDate(id);
@@ -803,7 +851,7 @@ class InventoryEngine:
                 let adminTag = adminProto;
                 if(adminProto.includes('DOWN')) adminTag = `<span style="color:var(--danger)">${i.admin_status}</span>`;
                 
-                return `<tr>
+                return `<tr style="cursor: pointer;" onclick="showInterfaceContextMenu(event, '${i.element}', '${i.interface}')">
                     <td style="font-weight:700; color:var(--accent)">${i.element}</td>
                     <td style="font-family:monospace; font-size:0.9rem;">${i.interface}</td>
                     <td>${adminTag}</td>
@@ -822,7 +870,7 @@ class InventoryEngine:
                 const isDown = c.dashed == "1";
                 const rowClass = isDown ? "conn-dashed" : "";
                 
-                return `<tr class="conn-row ${rowClass}">
+                return `<tr class="conn-row ${rowClass}" style="cursor: pointer;" onclick="showContextMenu(event, '${c.endpoint_a}', '${c.endpoint_b}')">
                     <td style="text-align:right;"><span class="conn-node">${c.endpoint_a}</span></td>
                     <td style="text-align:center;"><span class="conn-arrow">⟷</span></td>
                     <td><span class="conn-node">${c.endpoint_b}</span></td>
@@ -833,8 +881,126 @@ class InventoryEngine:
             document.getElementById('connBody').innerHTML = html || `<tr><td colspan="4" style="text-align:center; padding:40px;">No connections match the search.</td></tr>`;
         }
 
+        let hasDiff = false;
+        async function checkDiffAvailability() {
+            try {
+                const response = await fetch('../diff/index.html', { method: 'HEAD' });
+                hasDiff = response.ok || response.status === 0;
+            } catch (e) {
+                hasDiff = false;
+            }
+        }
+
+        function showContextMenu(e, nodeA, nodeB) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            let menu = document.getElementById('connContextMenu');
+            if (!menu) {
+                menu = document.createElement('div');
+                menu.id = 'connContextMenu';
+                menu.className = 'context-menu';
+                document.body.appendChild(menu);
+            }
+            
+            const runId = currentData ? currentData.id : '';
+            
+            menu.innerHTML = `
+                <div class="menu-header">${nodeA} ⟷ ${nodeB}</div>
+                <a href="../ping-matrix/index.html?run=${runId}&origin=${nodeA}&dest=${nodeB}" target="_blank">⚡ Snapshots & Heatmaps</a>
+                <a href="../ping-matrix/history.html?origin=${nodeA}&dest=${nodeB}" target="_blank">📈 P2P History & SLA</a>
+                <a href="../ping-matrix/path.html?run=${runId}&origin=${nodeA}&dest=${nodeB}" target="_blank">🕸️ Route Analysis (Dijkstra)</a>
+                <a href="../topology/index.html?run=${runId}&focus=${nodeA}" target="_blank">🕸️ Network Topology</a>
+                ${hasDiff ? `
+                    <a href="../diff/index.html?device=${nodeA}" target="_blank">⚖️ Drift Analysis (${nodeA})</a>
+                    <a href="../diff/index.html?device=${nodeB}" target="_blank">⚖️ Drift Analysis (${nodeB})</a>
+                ` : `
+                    <a href="#" class="disabled" style="opacity:0.5; cursor:not-allowed; pointer-events:none;" onclick="return false;">⚖️ Drift Analysis (Unavailable)</a>
+                `}
+            `;
+            
+            menu.style.display = 'flex';
+            
+            const menuWidth = menu.offsetWidth || 200;
+            const menuHeight = menu.offsetHeight || 250;
+            
+            let x = e.pageX;
+            let y = e.pageY;
+            
+            if (x + menuWidth > window.innerWidth) {
+                x = window.innerWidth - menuWidth - 10;
+            }
+            if (y + menuHeight > window.innerHeight + window.scrollY) {
+                y = window.innerHeight + window.scrollY - menuHeight - 10;
+            }
+            
+            menu.style.left = x + 'px';
+            menu.style.top = y + 'px';
+        }
+
+        function showInterfaceContextMenu(e, device, iface) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            let menu = document.getElementById('connContextMenu');
+            if (!menu) {
+                menu = document.createElement('div');
+                menu.id = 'connContextMenu';
+                menu.className = 'context-menu';
+                document.body.appendChild(menu);
+            }
+            
+            const runId = currentData ? currentData.id : '';
+            
+            menu.innerHTML = `
+                <div class="menu-header">${device} ➔ ${iface}</div>
+                <a href="../ping-matrix/index.html?run=${runId}&origin=${device}" target="_blank">⚡ Snapshots & Heatmaps</a>
+                <a href="../ping-matrix/history.html?origin=${device}" target="_blank">📈 P2P History & SLA</a>
+                <a href="../ping-matrix/path.html?run=${runId}&origin=${device}" target="_blank">🕸️ Route Analysis (Dijkstra)</a>
+                <a href="../topology/index.html?run=${runId}&focus=${device}" target="_blank">🕸️ Network Topology</a>
+                ${hasDiff ? `
+                    <a href="../diff/index.html?device=${device}&interface=${iface}" target="_blank">⏱️ Drift Timeline Tracker</a>
+                    <a href="../diff/index.html?device=${device}" target="_blank">⚖️ Drift Analysis (${device})</a>
+                ` : `
+                    <a href="#" class="disabled" style="opacity:0.5; cursor:not-allowed; pointer-events:none;" onclick="return false;">⚖️ Drift Analysis (Unavailable)</a>
+                `}
+            `;
+            
+            menu.style.display = 'flex';
+            
+            const menuWidth = menu.offsetWidth || 200;
+            const menuHeight = menu.offsetHeight || 250;
+            
+            let x = e.pageX;
+            let y = e.pageY;
+            
+            if (x + menuWidth > window.innerWidth) {
+                x = window.innerWidth - menuWidth - 10;
+            }
+            if (y + menuHeight > window.innerHeight + window.scrollY) {
+                y = window.innerHeight + window.scrollY - menuHeight - 10;
+            }
+            
+            menu.style.left = x + 'px';
+            menu.style.top = y + 'px';
+        }
+
+        document.addEventListener('click', () => {
+            const menu = document.getElementById('connContextMenu');
+            if (menu) menu.style.display = 'none';
+        });
+
         window.addEventListener('DOMContentLoaded', () => {
             renderList();
+            checkDiffAvailability();
+            
+            // Check for device parameter in URL search query
+            const urlParams = new URLSearchParams(window.location.search);
+            const device = urlParams.get('device') || urlParams.get('element');
+            if (device) {
+                document.getElementById('searchInput').value = device;
+            }
+            
             if(manifest.length > 0 && window.innerWidth >= 768) {
                 // Auto select newest
                 document.querySelector('.run-item').click();

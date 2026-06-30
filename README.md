@@ -2,7 +2,7 @@
   <h1>🌐 Network Data Extractor</h1>
   <p><strong>The Ultimate Multivendor NOC Orchestrator & Autonomous Discovery Engine</strong></p>
   
-  ![Version](https://img.shields.io/badge/version-1.65.0-blue.svg)
+  ![Version](https://img.shields.io/badge/version-1.66.0-blue.svg)
   ![Python](https://img.shields.io/badge/python-3.8%2B-green.svg)
 </div>
 
@@ -187,6 +187,32 @@ python3 network-data-extractor.py --rebuild-index        # Rebuild all dashboard
 If you have already collected raw data and simply want to rerun the parsing stack against an existing folder.
 ```bash
 python3 network-data-extractor.py --offline infos/20261231_235959
+```
+
+---
+
+## 🔗 Interactive Inter-Dashboard Navigation
+
+The workspace features a high-performance **contextual navigation network**. When analyzing topology links, interfaces, heatmaps, or drifts, clicking on a node or link triggers a context menu that lets you instantly jump to other dashboards with elements already pre-filtered.
+
+The dashboard routing supports:
+- **`run`**: Timestamped snapshot selection (e.g. `20260630_090001`).
+- **`origin` / `dest`**: Pre-populates source and target fields in P2P latency history, heatmaps, and triggers automated Dijkstra shortest-path calculations.
+- **`device` / `focus`**: Pre-filters interface listings, highlights nodes inside Draw.io topology maps, and jumps directly to interface timelines.
+
+This contextual linkage creates an integrated diagnostic flow:
+```mermaid
+graph TD
+    A[Global Inventory] -->|Click link| B(Context Menu)
+    B -->|SLA History| C[P2P History & SLA]
+    B -->|Dijkstra Route| D[Route Analysis]
+    B -->|Drift/Timeline| E[Drift Workspace]
+    B -->|Highlight Map| F[Network Topology]
+    
+    C -->|Click cell| G(Matrix Menu)
+    G --> A
+    G --> D
+    G --> E
 ```
 
 ---

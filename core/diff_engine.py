@@ -338,6 +338,48 @@ class DiffEngine:
         .input-styled { background: #0f172a; border: 1px solid var(--border); color: white; padding: 10px 16px; border-radius: 8px; font-size: 0.85rem; outline: none; transition: border-color 0.2s; min-width: 250px; }
         .input-styled:focus { border-color: var(--accent); }
 
+        /* Context Menu Styles */
+        .context-menu {
+            position: absolute;
+            background: #0f172a;
+            border: 1px solid var(--border);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border-radius: 8px;
+            z-index: 10000;
+            display: none;
+            flex-direction: column;
+            padding: 8px 0;
+            min-width: 200px;
+            font-family: 'Inter', sans-serif;
+        }
+        .context-menu a {
+            padding: 10px 16px;
+            text-decoration: none;
+            color: #cbd5e1;
+            font-size: 0.85rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: background 0.2s, color 0.2s;
+            text-align: left;
+        }
+        .context-menu a:hover {
+            background: rgba(6, 182, 212, 0.1);
+            color: var(--accent);
+        }
+        .context-menu .menu-header {
+            padding: 6px 16px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            margin-bottom: 4px;
+            text-align: left;
+        }
+
         .compare-body { flex: 1; overflow-y: auto; padding: 30px 40px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; display: flex; flex-direction: column; }
         
         .diff-card { background: var(--sidebar-bg); border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 20px 50px rgba(0,0,0,0.4); display: flex; flex-direction: column; flex: 1; overflow: hidden; }
@@ -874,7 +916,7 @@ class DiffEngine:
 
                 return `<tr>
                     <td><span class="tag tag-${d.type.toLowerCase()}">${d.type}</span></td>
-                    <td style="font-weight:700; color:var(--text)">${d.element}</td>
+                    <td style="font-weight:700; color:var(--text); cursor: pointer; text-decoration: underline;" onclick="showDeviceContextMenu(event, '${d.element}')" title="Click for external links to other dashboards">${d.element}</td>
                     <td style="font-weight:700; color:var(--accent); font-family: monospace; cursor: pointer; text-decoration: underline;" onclick="jumpToTimeline('${d.element}', '${d.interface}')" title="Click to view chronological timeline of this interface">${d.interface}</td>
                     <td class="wrap-col">${renderVal('description')}</td>
                     <td>${renderVal('admin_status')}</td>
@@ -1236,7 +1278,6 @@ class DiffEngine:
         // Initialize
         window.addEventListener('DOMContentLoaded', () => {
             renderList();
-            initTimelineAutocomplete();
             
             // Auto-select two latest snapshots
             const items = document.querySelectorAll('.run-item');
@@ -1250,6 +1291,77 @@ class DiffEngine:
                 // Automatically start comparison
                 startComparison();
             }
+            
+            // URL parameter handling
+            const urlParams = new URLSearchParams(window.location.search);
+            const device = urlParams.get('device') || urlParams.get('element');
+            const iface = urlParams.get('interface');
+            
+            if (device) {
+                if (iface) {
+                    // Jump to timeline tracker for device and interface
+                    setTimeout(async () => {
+                        await initTimelineAutocomplete();
+                        switchTab('timeline');
+                        document.getElementById('timelineElement').value = device;
+                        onElementChanged();
+                        document.getElementById('timelineInterface').value = iface;
+                        trackTimeline();
+                    }, 500);
+                } else {
+                    // Filter comparison by device
+                    document.getElementById('filterEl').value = device;
+                    setTimeout(() => applyFilters(), 100);
+                    initTimelineAutocomplete();
+                }
+            } else {
+                initTimelineAutocomplete();
+            }
+        });
+
+        function showDeviceContextMenu(e, device) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            let menu = document.getElementById('deviceContextMenu');
+            if (!menu) {
+                menu = document.createElement('div');
+                menu.id = 'deviceContextMenu';
+                menu.className = 'context-menu';
+                document.body.appendChild(menu);
+            }
+            
+            menu.innerHTML = `
+                <div class="menu-header">${device} Options</div>
+                <a href="../inventory/index.html?device=${device}" target="_blank">📦 Global Inventory</a>
+                <a href="../ping-matrix/index.html?origin=${device}" target="_blank">⚡ Snapshots & Heatmaps</a>
+                <a href="../ping-matrix/history.html?origin=${device}" target="_blank">📈 P2P History & SLA</a>
+                <a href="../ping-matrix/path.html?origin=${device}" target="_blank">🕸️ Route Analysis (Dijkstra)</a>
+                <a href="../topology/index.html" target="_blank">🕸️ Network Topology</a>
+            `;
+            
+            menu.style.display = 'flex';
+            
+            const menuWidth = menu.offsetWidth || 200;
+            const menuHeight = menu.offsetHeight || 220;
+            
+            let x = e.pageX;
+            let y = e.pageY;
+            
+            if (x + menuWidth > window.innerWidth) {
+                x = window.innerWidth - menuWidth - 10;
+            }
+            if (y + menuHeight > window.innerHeight + window.scrollY) {
+                y = window.innerHeight + window.scrollY - menuHeight - 10;
+            }
+            
+            menu.style.left = x + 'px';
+            menu.style.top = y + 'px';
+        }
+
+        document.addEventListener('click', () => {
+            const menu = document.getElementById('deviceContextMenu');
+            if (menu) menu.style.display = 'none';
         });
     </script>
 </body>

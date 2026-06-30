@@ -2,6 +2,14 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.66.0] - 2026-06-30
+### Added
+- **Inter-Dashboard Context Menus**: Introduced context menus triggered on connection/interface cell clicks across Global Inventory connection lists, interface lists, and heatmap cells. They list contextual links to P2P latency history, route analysis (Dijkstra), inventory details, and drift comparisons.
+- **Unified Parameter Routing**: Implemented dynamic parameter parsing and pre-filling using URL parameters (`run`, `origin`, `dest`, `device`, `interface`, `focus`) across all dashboards, enabling operators to seamlessly jump between telemetry details.
+- **Decoupled Input Pre-filling**: Pre-filled search and autocomplete fields in Dijkstra Path Analysis and SLA P2P History independently when single parameters are found.
+- **Draw.io Node Highlighting**: Enabled automated search and highlight triggers inside Draw.io topology frame using Native Draw.io search integration.
+- **Self-Disabling Optional Integrations**: Implemented live file checking using HEAD request validation, disabling links to Drift Analysis dynamically inside the Global Inventory context menu if comparison files do not exist.
+
 ## [1.65.0] - 2026-06-26
 ### Added
 - **Interface Timeline Tracker**: Introduced a new analysis tab inside the Drift Analyzer dashboard (`diff/index.html`) that allows tracking the historical state changes of a single physical/logical interface. It features:

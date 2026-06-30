@@ -647,7 +647,11 @@
             datalist.innerHTML = snapshots.map(s => `<option value="${s.id}">${formatDate(s.id)}</option>`).join('');
             
             const selSnapshot = document.getElementById('selSnapshot');
-            if (snapshots.length > 0) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const runId = urlParams.get('run');
+            if (runId && snapshots.some(s => s.id === runId)) {
+                selSnapshot.value = runId;
+            } else if (snapshots.length > 0) {
                 selSnapshot.value = snapshots[0].id;
             }
             
@@ -700,6 +704,20 @@
             }
 
             populateNodes();
+
+            // Auto calculate route if query params are present
+            const urlParams = new URLSearchParams(window.location.search);
+            const origin = urlParams.get('origin');
+            const dest = urlParams.get('dest');
+            if (origin && validNodes.has(origin)) {
+                document.getElementById('selOrigin').value = origin;
+            }
+            if (dest && validNodes.has(dest)) {
+                document.getElementById('selDest').value = dest;
+            }
+            if (origin && dest && validNodes.has(origin) && validNodes.has(dest)) {
+                calculateRoute();
+            }
         }
 
         async function loadSnapshotData(id) {
