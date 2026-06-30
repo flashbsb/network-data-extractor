@@ -65,17 +65,21 @@ def generate_master_dashboard(outbase):
     except Exception as e:
         print(f"    {C_RED}[!] Failed to copy dashboard templates to outbase: {e}{C_RESET}")
     
-    # Search for all timestamped run subfolders inside ping-matrix/
-    run_dirs = sorted(glob(os.path.join(portal_dir, "20*_*")), reverse=True)
+    # Search for all timestamped run subfolders inside runs/
+    run_dirs = sorted(glob(os.path.join(abs_outbase, "runs", "20*_*")), reverse=True)
     
     for run_dir in run_dirs:
         if not os.path.isdir(run_dir):
             continue
         ts_id = os.path.basename(run_dir)
         
-        # Legacy structure: TIMESTAMP/resume/ping_matrix_*.json
-        json_file = os.path.join(run_dir, "resume", "ping_matrix_list.json")
-        html_file = os.path.join(run_dir, "resume", "ping_matrix_dashboard.html")
+        # Check both old location (for compatibility after migration) and new location
+        json_file = os.path.join(run_dir, "ping-matrix", "resume", "ping_matrix_list.json")
+        html_file = os.path.join(run_dir, "ping-matrix", "resume", "ping_matrix_dashboard.html")
+        
+        if not os.path.isfile(json_file):
+            json_file = os.path.join(run_dir, "resume", "ping_matrix_list.json")
+            html_file = os.path.join(run_dir, "resume", "ping_matrix_dashboard.html")
         
         if os.path.isfile(html_file) and os.path.isfile(json_file):
             try:
@@ -96,6 +100,11 @@ def generate_master_dashboard(outbase):
                 except (IndexError, ValueError):
                     dt_label = ts_id
                 
+                if "ping-matrix" in html_file:
+                    rel_path = f"../runs/{ts_id}/ping-matrix/resume/ping_matrix_dashboard.html"
+                else:
+                    rel_path = f"../runs/{ts_id}/resume/ping_matrix_dashboard.html"
+                
                 runs.append({
                     "id": ts_id,
                     "label": dt_label,
@@ -104,8 +113,7 @@ def generate_master_dashboard(outbase):
                     "warn": health.get("warning", 0),
                     "crit": health.get("critical", 0),
                     "dead": health.get("dead", 0),
-                    # Path relative from ping-matrix/index.html -> ping-matrix/TIMESTAMP/resume/
-                    "path": f"{ts_id}/resume/ping_matrix_dashboard.html"
+                    "path": rel_path
                 })
             except Exception:
                 continue
@@ -751,7 +759,7 @@ if args.offline:
 
 else:
     DIR_SUFFIX = datetime.now().strftime("%Y%m%d_%H%M%S")
-    TIMESTAMP_DIR = os.path.abspath(os.path.join(args.outbase, DIR_SUFFIX))
+    TIMESTAMP_DIR = os.path.abspath(os.path.join(args.outbase, "runs", DIR_SUFFIX))
     _dirs = _init_run_dirs(
         TIMESTAMP_DIR,
         create_connections=not (args.discovery or args.ping_matrix),
@@ -1186,10 +1194,8 @@ while True:
             if rc != 0:
                  print(f"    └─> {C_RED}Check log/{safe_name}.log for details.{C_RESET}")
         elif script_name == "ping_matrix.py":
-            # Build the exact legacy structure: ping-matrix/TIMESTAMP/{collect/,resume/,log.zip,filtered_elements.cfg}
-            PING_BASE = os.path.join(os.path.abspath(args.outbase), "ping-matrix")
-            run_ts = os.path.basename(TIMESTAMP_DIR)
-            PING_RUN_DIR    = os.path.join(PING_BASE, run_ts)
+            # Build the exact structure: runs/TIMESTAMP/ping-matrix/{collect/,resume/,log.zip,filtered_elements.cfg}
+            PING_RUN_DIR    = os.path.join(TIMESTAMP_DIR, "ping-matrix")
             PING_COLLECT    = os.path.join(PING_RUN_DIR, "collect")
             PING_RESUME     = os.path.join(PING_RUN_DIR, "resume")
             PING_LOG_DIR    = os.path.join(PING_RUN_DIR, "log")

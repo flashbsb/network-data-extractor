@@ -50,7 +50,7 @@ def main():
     if args.dry_run:
         print(f"[*] {C_YELLOW}Mode: DRY-RUN (Simulation only){C_RESET}")
         
-    run_dirs = sorted(glob.glob(os.path.join(outbase, "20*_*")), reverse=True)
+    run_dirs = sorted(glob.glob(os.path.join(outbase, "runs", "20*_*")), reverse=True)
     
     if not run_dirs:
         print(f"{C_YELLOW}[!] No timestamped run directories found in outbase.{C_RESET}")
@@ -76,7 +76,7 @@ def main():
             continue
             
         # Check destination topology
-        dest_topo_dir = os.path.join(outbase, "topology", ts_id)
+        dest_topo_dir = os.path.join(run_dir, "topology")
         
         # We consider it generated if the directory exists and has files (e.g. index.html or diagrams)
         has_topology = False

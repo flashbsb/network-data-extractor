@@ -87,11 +87,13 @@ class DiffEngine:
             print(f"{self.C_YELLOW}[*] Pruned {pruned_count} orphaned data files.{self.C_RESET}")
 
     def _scan_collections(self):
-        dirs = sorted(glob(os.path.join(self.base_path, "20*_*")), reverse=True)
+        dirs = sorted(glob(os.path.join(self.base_path, "runs", "20*_*")), reverse=True)
         results = []
         for d in dirs:
             basename = os.path.basename(d)
-            json_file = os.path.join(d, "resume", "ping_matrix_list.json")
+            json_file = os.path.join(d, "ping-matrix", "resume", "ping_matrix_list.json")
+            if not os.path.exists(json_file):
+                json_file = os.path.join(d, "resume", "ping_matrix_list.json")
             date_str = basename
             if os.path.exists(json_file):
                 try:

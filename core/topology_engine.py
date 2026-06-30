@@ -16,6 +16,7 @@ class TopologyEngine:
     def __init__(self, base_path):
         self.base_path = os.path.abspath(base_path)
         self.topology_dir = os.path.join(self.base_path, "topology")
+        self.runs_dir = os.path.join(self.base_path, "runs")
         
         # ANSI Colors
         self.C_CYAN = '\033[96m'
@@ -39,7 +40,10 @@ class TopologyEngine:
         # Build manifest
         manifest = []
         for run_id in runs:
-            run_path = os.path.join(self.topology_dir, run_id)
+            run_path = os.path.join(self.runs_dir, run_id, "topology")
+            if not os.path.exists(run_path):
+                run_path = os.path.join(self.topology_dir, run_id)
+                
             drawio_files = sorted(glob(os.path.join(run_path, "*.drawio")))
             
             files_meta = []
@@ -70,13 +74,18 @@ class TopologyEngine:
                     layout = "hierarchical"
                     layout_label = "Hierarchical"
                 
+                if "runs" in run_path:
+                    rel_path = f"../runs/{run_id}/topology/{filename}"
+                else:
+                    rel_path = f"{run_id}/{filename}"
+                    
                 files_meta.append({
                     "filename": filename,
                     "type": topo_type,
                     "type_label": type_label,
                     "layout": layout,
                     "layout_label": layout_label,
-                    "path": f"{run_id}/{filename}"
+                    "path": rel_path
                 })
                 
             if files_meta:
@@ -107,12 +116,17 @@ class TopologyEngine:
             os.makedirs(self.topology_dir, exist_ok=True)
 
     def _scan_runs(self):
-        dirs = sorted(glob(os.path.join(self.topology_dir, "20*_*")), reverse=True)
-        run_ids = []
-        for d in dirs:
-            if os.path.isdir(d):
-                run_ids.append(os.path.basename(d))
-        return run_ids
+        # Scan in self.runs_dir first, then self.topology_dir for backward compatibility
+        run_ids = set()
+        if os.path.exists(self.runs_dir):
+            for d in glob(os.path.join(self.runs_dir, "20*_*")):
+                if os.path.isdir(d):
+                    run_ids.add(os.path.basename(d))
+        if os.path.exists(self.topology_dir):
+            for d in glob(os.path.join(self.topology_dir, "20*_*")):
+                if os.path.isdir(d):
+                    run_ids.add(os.path.basename(d))
+        return sorted(list(run_ids), reverse=True)
 
     def _write_manifest(self, manifest):
         manifest_js = f"window.topo_manifest = {json.dumps(manifest, indent=4)};"

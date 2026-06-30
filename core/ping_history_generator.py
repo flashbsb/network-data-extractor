@@ -118,16 +118,18 @@ class PingHistoryGenerator:
             processed_runs = set()
             print(f"{C_CYAN}[*] Running FULL historical rebuild.{C_RESET}")
 
-        # 2. Scan all snapshot directories
-        run_dirs = sorted(glob.glob(os.path.join(self.ping_matrix_dir, "20*_*")))
+        # 2. Scan all snapshot directories under runs/
+        run_dirs = sorted(glob.glob(os.path.join(self.outbase, "runs", "20*_*")))
         new_runs = []
         for run_dir in run_dirs:
             if not os.path.isdir(run_dir):
                 continue
             run_id = os.path.basename(run_dir)
             if run_id not in processed_runs:
-                # Validate the snapshot has the JSON file
-                json_file = os.path.join(run_dir, "resume", "ping_matrix_list.json")
+                # Validate the snapshot has the JSON file (check new and old locations)
+                json_file = os.path.join(run_dir, "ping-matrix", "resume", "ping_matrix_list.json")
+                if not os.path.isfile(json_file):
+                    json_file = os.path.join(run_dir, "resume", "ping_matrix_list.json")
                 if os.path.isfile(json_file):
                     new_runs.append((run_id, json_file))
 

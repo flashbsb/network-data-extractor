@@ -686,7 +686,14 @@
             
             // Try to fetch corresponding ping data JSON (fails gracefully on file:// due to CORS)
             try {
-                const response = await fetch(`${currentSnapshotId}/resume/ping_matrix_list.json`);
+                let response = await fetch(`../runs/${currentSnapshotId}/ping-matrix/resume/ping_matrix_list.json`);
+                if (!response.ok) {
+                    response = await fetch(`../runs/${currentSnapshotId}/resume/ping_matrix_list.json`);
+                }
+                if (!response.ok) {
+                    response = await fetch(`${currentSnapshotId}/resume/ping_matrix_list.json`);
+                }
+                
                 if (response.ok) {
                     const payload = await response.json();
                     currentPingData = {};

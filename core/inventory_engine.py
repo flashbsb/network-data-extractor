@@ -144,7 +144,7 @@ class InventoryEngine:
             print(f"{self.C_YELLOW}[*] Pruned {pruned_count} orphaned inventory data files.{self.C_RESET}")
 
     def _scan_collections(self):
-        dirs = sorted(glob(os.path.join(self.base_path, "20*_*")), reverse=True)
+        dirs = sorted(glob(os.path.join(self.base_path, "runs", "20*_*")), reverse=True)
         results = []
         for d in dirs:
             basename = os.path.basename(d)
