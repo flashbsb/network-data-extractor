@@ -765,7 +765,6 @@ td:hover { background-color: rgba(255,255,255,0.1) !important; transform: scale(
     <a class="back-portal" href="../../index.html">← Network Portal</a>
 </div>
 <div class="dashboard-metrics" id="metricsbox"></div>
-<div class="analytics-panel" id="analyticsPanels" style="display:none;"></div>
 <div class="controls" style="display: flex; flex-direction: column; gap: 15px; align-items: center;">
     <div class="filter-row" style="display: flex; gap: 15px; align-items: center; justify-content: center; width: 100%; flex-wrap: wrap;">
         <input type="text" id="filterOrigin" placeholder="Filter Origin (eg. bsa;gti)..." onkeyup="renderMatrix()" aria-label="Filter origin elements" style="width: 250px;">
@@ -799,6 +798,7 @@ td:hover { background-color: rgba(255,255,255,0.1) !important; transform: scale(
 <div class="matrix-wrapper">
     <table id="matrixTable"></table>
 </div>
+<div class="analytics-panel" id="analyticsPanels" style="display:none;"></div>
 <div class="legend-panel">
     <div class="analytics-header" onclick="toggleLegend()">
         <h3>📖 Documentation & Legend</h3>
@@ -1102,9 +1102,9 @@ function buildAnalytics() {
     let h = `
     <div class="analytics-header" onclick="toggleAnalytics()">
         <h3>📊 Advanced Analytics</h3>
-        <span id="analyticsToggleIcon" style="color:#38bdf8; font-size:16px;">▼</span>
+        <span id="analyticsToggleIcon" style="color:#38bdf8; font-size:16px;">▲</span>
     </div>
-    <div id="analyticsContent" class="analytics-content" style="display:none;">
+    <div id="analyticsContent" class="analytics-content" style="display:flex;">
         <div class="analytics-card"><h4>⏱️ High Latency Links</h4><ul>`;
         
     if (topLatency.length > 0) {
