@@ -5,8 +5,8 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
- Version : 1.66.0
- Date    : 2026-06-30
+ Version : 1.70.0
+ Date    : 2026-07-01
  Author  : flashbsb (and contributors) 
  
 """
@@ -23,8 +23,8 @@ import types
 from datetime import datetime
 from glob import glob
 
-APP_VERSION = "1.66.0"
-APP_DATE = "2026-06-30"
+APP_VERSION = "1.70.0"
+APP_DATE = "2026-07-01"
 
 # ANSI Colors — must be declared before any function that uses them
 C_GREEN  = '\033[92m'
@@ -32,6 +32,164 @@ C_RED    = '\033[91m'
 C_CYAN   = '\033[96m'
 C_YELLOW = '\033[93m'
 C_RESET  = '\033[0m'
+
+# --- UNIFIED RETENTION ENGINE ---
+def prune_old_runs(outbase, json_config):
+    retention = json_config.get("retention", {})
+    if not retention:
+        return
+        
+    global_cfg = retention.get("global", {})
+    comp_cfg = retention.get("components", {})
+    
+    # Check if anything is set
+    has_global = global_cfg.get("max_collections") is not None or global_cfg.get("max_days") is not None
+    has_comps = any(
+        cfg.get("max_collections") is not None or cfg.get("max_days") is not None
+        for cfg in comp_cfg.values()
+    ) if comp_cfg else False
+    
+    if not has_global and not has_comps:
+        return
+
+    runs_dir = os.path.join(outbase, "runs")
+    if not os.path.isdir(runs_dir):
+        return
+
+    import shutil
+    from datetime import datetime
+    
+    # 1. Scan for run directories
+    run_dirs = []
+    for d in os.listdir(runs_dir):
+        # Format is YYYYMMDD_HHMMSS
+        d_path = os.path.join(runs_dir, d)
+        if os.path.isdir(d_path) and len(d) == 15 and d[8] == '_':
+            try:
+                datetime.strptime(d, "%Y%m%d_%H%M%S")
+                run_dirs.append((d, d_path))
+            except ValueError:
+                pass
+                
+    if not run_dirs:
+        return
+        
+    # Sort chronological: oldest first
+    run_dirs = sorted(run_dirs, key=lambda x: x[0])
+    
+    total_runs = len(run_dirs)
+    now = datetime.now()
+    globally_deleted = set()
+    
+    # 2. Process Global Retention rules
+    if has_global:
+        g_max_days = global_cfg.get("max_days")
+        g_max_cols = global_cfg.get("max_collections")
+        
+        for idx, (run_id, path) in enumerate(run_dirs):
+            rank_from_newest = total_runs - idx
+            run_date = datetime.strptime(run_id, "%Y%m%d_%H%M%S")
+            age_days = (now - run_date).days
+            
+            should_delete = False
+            if g_max_days is not None and age_days > int(g_max_days):
+                should_delete = True
+            if g_max_cols is not None and rank_from_newest > int(g_max_cols):
+                should_delete = True
+                
+            if should_delete:
+                print(f"{C_YELLOW}[*] Pruning run globally (Retention expired): {run_id}{C_RESET}")
+                try:
+                    shutil.rmtree(path)
+                except Exception as e:
+                    print(f"  {C_RED}[!] Error removing {path}: {e}{C_RESET}")
+                
+                # Delete presentation caches
+                inv_js = os.path.join(outbase, "inventory", "data", f"{run_id}.js")
+                if os.path.isfile(inv_js):
+                    try:
+                        os.remove(inv_js)
+                    except Exception: pass
+                diff_js = os.path.join(outbase, "diff", "data", f"{run_id}.js")
+                if os.path.isfile(diff_js):
+                    try:
+                        os.remove(diff_js)
+                    except Exception: pass
+                reports_dir = os.path.join(outbase, "diff", "reports")
+                if os.path.isdir(reports_dir):
+                    for rf in os.listdir(reports_dir):
+                        if run_id in rf:
+                            try:
+                                os.remove(os.path.join(reports_dir, rf))
+                            except Exception: pass
+                            
+                globally_deleted.add(run_id)
+                
+    # 3. Process Granular Component Retention rules
+    if has_comps:
+        for comp_name, comp_rule in comp_cfg.items():
+            c_max_days = comp_rule.get("max_days")
+            c_max_cols = comp_rule.get("max_collections")
+            
+            if c_max_days is None and c_max_cols is None:
+                continue
+                
+            for idx, (run_id, path) in enumerate(run_dirs):
+                if run_id in globally_deleted:
+                    continue
+                    
+                rank_from_newest = total_runs - idx
+                run_date = datetime.strptime(run_id, "%Y%m%d_%H%M%S")
+                age_days = (now - run_date).days
+                
+                should_delete = False
+                if c_max_days is not None and age_days > int(c_max_days):
+                    should_delete = True
+                if c_max_cols is not None and rank_from_newest > int(c_max_cols):
+                    should_delete = True
+                    
+                if should_delete:
+                    # Execute granular deletion
+                    if comp_name in ["collect", "log", "resume", "connections", "ping-matrix", "topology"]:
+                        comp_path = os.path.join(path, comp_name)
+                        if os.path.isdir(comp_path):
+                            print(f"{C_YELLOW}[*] Pruning granular folder '{comp_name}' for run: {run_id}{C_RESET}")
+                            try:
+                                shutil.rmtree(comp_path)
+                            except Exception as e:
+                                print(f"  {C_RED}[!] Error: {e}{C_RESET}")
+                        import glob as glob_module
+                        for zip_file in glob_module.glob(os.path.join(path, f"{comp_name}.*")):
+                            print(f"{C_YELLOW}[*] Pruning granular archive '{os.path.basename(zip_file)}' for run: {run_id}{C_RESET}")
+                            try:
+                                os.remove(zip_file)
+                            except Exception as e:
+                                print(f"  {C_RED}[!] Error: {e}{C_RESET}")
+                                
+                    elif comp_name == "inventory":
+                        inv_js = os.path.join(outbase, "inventory", "data", f"{run_id}.js")
+                        if os.path.isfile(inv_js):
+                            print(f"{C_YELLOW}[*] Pruning inventory presentation cache for run: {run_id}{C_RESET}")
+                            try:
+                                os.remove(inv_js)
+                            except Exception as e:
+                                print(f"  {C_RED}[!] Error: {e}{C_RESET}")
+                                
+                    elif comp_name == "drift":
+                        diff_js = os.path.join(outbase, "diff", "data", f"{run_id}.js")
+                        if os.path.isfile(diff_js):
+                            print(f"{C_YELLOW}[*] Pruning drift presentation cache for run: {run_id}{C_RESET}")
+                            try:
+                                os.remove(diff_js)
+                            except Exception as e:
+                                print(f"  {C_RED}[!] Error: {e}{C_RESET}")
+                        reports_dir = os.path.join(outbase, "diff", "reports")
+                        if os.path.isdir(reports_dir):
+                            for rf in os.listdir(reports_dir):
+                                if run_id in rf:
+                                    try:
+                                        os.remove(os.path.join(reports_dir, rf))
+                                    except Exception: pass
 
 # --- MASTER INDEX DASHBOARD ---
 def generate_master_dashboard(outbase):
@@ -599,6 +757,7 @@ if args.rebuild_index:
     
     if is_standalone:
         print(f"\n{C_CYAN}--- Rebuilding All Master Dashboards ---{C_RESET}")
+        prune_old_runs(args.outbase, json_config)
         
         # 1. Ping Matrix & History
         print("[*] Rebuilding Ping Matrix Index and History...")
@@ -613,7 +772,7 @@ if args.rebuild_index:
         print("[*] Rebuilding Inventory Dashboard...")
         try:
             from core.inventory_engine import InventoryEngine
-            InventoryEngine(args.outbase).run()
+            InventoryEngine(args.outbase).run(force_rebuild=True)
         except Exception as e:
             print(f"{C_YELLOW}    └─> Skipped (No data): {e}{C_RESET}")
             
@@ -621,7 +780,7 @@ if args.rebuild_index:
         print("[*] Rebuilding Drift Analysis Dashboard...")
         try:
             from core.diff_engine import DiffEngine
-            DiffEngine(args.outbase).run()
+            DiffEngine(args.outbase).run(force_rebuild=True)
         except Exception as e:
             print(f"{C_YELLOW}    └─> Skipped (Requires 2+ snapshots): {e}{C_RESET}")
             
@@ -1586,6 +1745,9 @@ hours = total_seconds // 3600
 minutes = (total_seconds % 3600) // 60
 seconds = total_seconds % 60
 
+
+# --- RUNS PRUNING HOOK ---
+prune_old_runs(args.outbase, json_config)
 
 # --- INVENTORY ENGINE HOOK ---
 if (args.inventory or (not args.offline and not args.ping_matrix and not args.discovery)):

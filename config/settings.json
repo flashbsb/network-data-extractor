@@ -116,12 +116,67 @@
     },
     "routing_hierarchy": {
         "_help": "Defines hostname prefixes and their rank for hierarchical path routing.",
-        "metro": ["SWAC", "SWAG"],
-        "edge": ["RTAC", "RTED"],
-        "core_agg": ["RTOC"],
-        "core": ["RTIC"],
-        "peering": ["RTPR"],
-        "router_reflector": ["RTRR"]
+        "metro": [
+            "SWAC",
+            "SWAG"
+        ],
+        "edge": [
+            "RTAC",
+            "RTED"
+        ],
+        "core_agg": [
+            "RTOC"
+        ],
+        "core": [
+            "RTIC"
+        ],
+        "peering": [
+            "RTPR"
+        ],
+        "router_reflector": [
+            "RTRR"
+        ]
+    },
+    "retention": {
+        "_help_retention": "Hierarchical retention policy. If global rules trigger, the entire run folder and its HTML portal files are deleted. Component rules prune specific subfolders/archives and dashboard data.",
+        "global": {
+            "max_collections": null,
+            "max_days": null
+        },
+        "components": {
+            "collect": {
+                "max_collections": null,
+                "max_days": 7
+            },
+            "log": {
+                "max_collections": null,
+                "max_days": 7
+            },
+            "resume": {
+                "max_collections": null,
+                "max_days": 7
+            },
+            "connections": {
+                "max_collections": 120,
+                "max_days": 90
+            },
+            "inventory": {
+                "max_collections": 120,
+                "max_days": 90
+            },
+            "drift": {
+                "max_collections": 120,
+                "max_days": 90
+            },
+            "ping-matrix": {
+                "max_collections": 120,
+                "max_days": 90
+            },
+            "topology": {
+                "max_collections": 120,
+                "max_days": 90
+            }
+        }
     },
     "topology_generator": {
         "_help_topology_generator": "Default paths and options for the external network-topology-generator integration.",

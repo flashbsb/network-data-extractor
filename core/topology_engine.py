@@ -305,7 +305,7 @@ class TopologyEngine:
                 </div>
             </div>
             <div style="display: flex; align-items: center; gap: 10px;">
-                <a id="headerDownloadBtn" class="btn-header-link" style="display:none;" href="#" download>Download .drawio File</a>
+                <a id="headerDownloadBtn" class="btn-header-link" style="display:none;" href="#" onclick="downloadCurrentDiagram(event)">Download .drawio File</a>
                 <a class="back-portal" href="../index.html">← Network Portal</a>
             </div>
         </div>
@@ -354,7 +354,7 @@ class TopologyEngine:
                     <p>If you want to open it manually now, you can download the diagram and drag it into the web version of Draw.io:</p>
                     
                     <div class="btn-group-download">
-                        <a id="fallbackDownloadBtn" class="btn-action btn-primary" href="#" download>📥 Download Diagram (.drawio)</a>
+                        <a id="fallbackDownloadBtn" class="btn-action btn-primary" href="#" onclick="downloadCurrentDiagram(event)">📥 Download Diagram (.drawio)</a>
                         <a class="btn-action btn-secondary" href="https://app.diagrams.net/" target="_blank">🌐 Go to Draw.io Web</a>
                     </div>
                 </div>
@@ -371,8 +371,29 @@ class TopologyEngine:
         let activeType = 'summary'; // 'summary' or 'detailed'
         let activeLayout = null;
         let xmlContent = '';
+        let currentFilename = '';
         let viewerLoaded = false;
         let isLocalProtocol = window.location.protocol === 'file:';
+
+        function downloadCurrentDiagram(event) {
+            if (isLocalProtocol) {
+                return;
+            }
+            if (!xmlContent || !currentFilename) {
+                event.preventDefault();
+                return;
+            }
+            event.preventDefault();
+            const blob = new Blob([xmlContent], { type: 'application/octet-stream' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = currentFilename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
 
         function toggleSidebar() { document.getElementById('sidebar').classList.toggle('collapsed'); }
 
@@ -490,10 +511,12 @@ class TopologyEngine:
                 viewerFrame.src = 'about:blank';
                 offlinePanel.style.display = 'none';
                 downloadBtn.style.display = 'none';
+                currentFilename = '';
                 return;
             }
             
             const filePath = file.path;
+            currentFilename = file.filename;
             
             // Setup download links
             downloadBtn.href = filePath;
@@ -534,7 +557,14 @@ class TopologyEngine:
 
         // Listen to Draw.io embed API protocol
         window.addEventListener('message', function(event) {
-            if (event.origin !== 'https://viewer.diagrams.net') return;
+            const allowedOrigins = [
+                'https://viewer.diagrams.net',
+                'https://embed.diagrams.net',
+                'https://app.diagrams.net',
+                'https://www.draw.io',
+                'https://draw.io'
+            ];
+            if (!allowedOrigins.includes(event.origin)) return;
             
             try {
                 const data = JSON.parse(event.data);
@@ -544,7 +574,7 @@ class TopologyEngine:
                     iframe.contentWindow.postMessage(JSON.stringify({
                         action: 'load',
                         xml: xmlContent
-                    }), 'https://viewer.diagrams.net');
+                    }), event.origin);
                     
                     // Hide loader
                     document.getElementById('loader').style.display = 'none';

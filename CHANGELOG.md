@@ -2,6 +2,15 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.70.0] - 2026-07-01
+### Added
+- **Hierarchical Retention Policy**: Implemented global and granular retention rules (max days and max collections) in `settings.json` to automatically manage the disk lifecycle of runs.
+- **Incremental Compilation & Caching**: Refactored the Inventory and Drift dashboards compiler (`core/inventory_engine.py` and `core/diff_engine.py`) to bypass raw data parsing by reusing existing compiled JS dashboard cache files, drastically reducing rebuild times and guaranteeing that historical runs remain visible in the browser even when raw logs are pruned.
+- **Unified Run Migration Script**: Introduced `utils/migrate_history.py` to seamlessly consolidate legacy execution directories into the new unified `runs/` layout.
+- **Backwards-Compatible Telemetry Fetch**: Updated Dijkstra Path Analysis fetch logic in `templates/ping-matrix/path.html` to support resolving dynamic telemetry files under the new unified structure while gracefully falling back to legacy paths.
+- **Draw.io Redirection Origin Support**: Updated the postMessage message listener in `core/topology_engine.py` to support alternative Draw.io iframe origins (`embed.diagrams.net`, `app.diagrams.net`, `draw.io`) and dynamically echo back the target origin, fixing rendering locks caused by region-based iframe redirects.
+- **Client-Side Blob-Based Downloads**: Replaced direct relative path download links with a client-side JavaScript download handler that creates memory-resident Blobs from pre-fetched XML content, bypassing browser security blocks on relative path traversals and cache discrepancies.
+
 ## [1.66.0] - 2026-06-30
 ### Added
 - **Inter-Dashboard Context Menus**: Introduced context menus triggered on connection/interface cell clicks across Global Inventory connection lists, interface lists, and heatmap cells. They list contextual links to P2P latency history, route analysis (Dijkstra), inventory details, and drift comparisons.

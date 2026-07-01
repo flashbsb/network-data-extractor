@@ -18,7 +18,7 @@ class DiffEngine:
         self.C_RED = '\033[91m'
         self.C_RESET = '\033[0m'
 
-    def run(self):
+    def run(self, force_rebuild=False):
         print(f"[*] Base path: {self.base_path}")
         self._ensure_dirs()
         
@@ -34,10 +34,21 @@ class DiffEngine:
         # 3. Process/Normalize data
         manifest = []
         for col in collections:
+            target_js = os.path.join(self.data_dir, f"{col['id']}.js")
+            has_raw = os.path.exists(os.path.join(col['path'], "resume"))
+            
+            if os.path.exists(target_js) and (not force_rebuild or not has_raw):
+                manifest.append({
+                    "id": col['id'],
+                    "date": col['date'],
+                    "file": f"data/{col['id']}.js",
+                    "path": col['path']
+                })
+                continue
+
             data = self._extract_data(col)
             if data:
                 # Save as JS for CORS bypass
-                target_js = os.path.join(self.data_dir, f"{col['id']}.js")
                 js_content = f"if(!window.run_data) window.run_data = {{}}; window.run_data['{col['id']}'] = {json.dumps(data, indent=4)};"
                 with open(target_js, 'w', encoding='utf-8') as f:
                     f.write(js_content)

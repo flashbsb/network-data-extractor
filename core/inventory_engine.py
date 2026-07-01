@@ -38,7 +38,7 @@ class InventoryEngine:
             except Exception as e:
                 print(f"Warning: Failed to load settings.json in InventoryEngine: {e}")
 
-    def run(self):
+    def run(self, force_rebuild=False):
         print(f"[*] Base path: {self.base_path}")
         self._ensure_dirs()
         
@@ -51,6 +51,17 @@ class InventoryEngine:
 
         manifest = []
         for col in collections:
+            target_js = os.path.join(self.data_dir, f"{col['id']}.js")
+            has_raw = os.path.exists(os.path.join(col['path'], "resume"))
+            
+            if os.path.exists(target_js) and (not force_rebuild or not has_raw):
+                manifest.append({
+                    "id": col['id'],
+                    "date": col['date'],
+                    "file": f"data/{col['id']}.js"
+                })
+                continue
+
             interfaces = self._extract_interfaces(col)
             connections = self._extract_connections(col)
             

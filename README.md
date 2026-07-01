@@ -2,7 +2,7 @@
   <h1>🌐 Network Data Extractor</h1>
   <p><strong>The Ultimate Multivendor NOC Orchestrator & Autonomous Discovery Engine</strong></p>
   
-  ![Version](https://img.shields.io/badge/version-1.66.0-blue.svg)
+  ![Version](https://img.shields.io/badge/version-1.70.0-blue.svg)
   ![Python](https://img.shields.io/badge/python-3.8%2B-green.svg)
 </div>
 
@@ -49,46 +49,49 @@ graph LR
 
     START["🚀 CLI / WIZARD"]:::engine --> MODE{EXECUTION<br/>MODE}:::branch
 
-    subgraph "A & C: Extraction"
+    subgraph "A & C: Extraction & Pruning"
         MODE -->|"--discovery"| DISCO[Discovery Loop]:::module
         DISCO --> SSH
         MODE -->|Standard| SSH[SSH Engine]:::engine
-        SSH --> RAW[("📁 collect/RAW_LOGS")]:::storage
+        SSH --> RUN_DIR[("📁 runs/TIMESTAMP/")]:::storage
+        RUN_DIR -->|Prune Expired| PRUNE[Unified Retention Engine]:::module
+        PRUNE --> ACTIVE_RUN_DIR[("📁 Keep Active runs")]:::storage
     end
 
     subgraph "E: Offline Parsing"
-        MODE -->|"--offline"| RAW
-        RAW --> PARSE{Data Parsers}:::module
-        PARSE --> CSV_INT["📄 interfaces.csv"]:::csv
-        PARSE --> CSV_LLDP["📄 lldp.csv"]:::csv
+        MODE -->|"--offline"| ACTIVE_RUN_DIR
+        ACTIVE_RUN_DIR --> PARSE{Data Parsers}:::module
+        PARSE --> CSV_INT["📄 resume/interfaces_all.json"]:::csv
+        PARSE --> CSV_LLDP["📄 resume/status.elements.csv"]:::csv
         
         CSV_INT --> TOPO[Topology Checker]:::module
         CSV_LLDP --> TOPO
-        TOPO --> CSV_WARN["📄 warnings.csv"]:::csv
+        TOPO --> CSV_WARN["📄 resume/warnings.csv"]:::csv
     end
 
     subgraph "B: Ping Matrix & History"
         MODE -->|"--ping-matrix"| ICMP[ICMP Motor]:::engine
-        ICMP --> PING_RES[("📁 PING_DATA")]:::storage
-        PING_RES --> PING_HTML{{"📲 ping_matrix.html"}}:::web
+        ICMP --> PING_RES[("📁 runs/TIMESTAMP/ping-matrix")]:::storage
+        PING_RES --> PING_HTML{{"📲 ping_matrix_dashboard.html"}}:::web
         PING_RES --> HIST_HTML{{"📲 history.html"}}:::web
         PING_RES --> PATH_HTML{{"📲 path.html"}}:::web
     end
 
-    subgraph "D: Visual Workspaces"
+    subgraph "D: Visual Workspaces (Incremental Cache)"
         MODE -->|"--inventory"| INV_GEN[Inventory Builder]:::module
         CSV_WARN -.->|"Auto-trigger"| INV_GEN
-        INV_GEN --> INV_HTML{{"📲 inventory/index.html"}}:::web
+        INV_GEN -->|Incremental Cache| INV_HTML{{"📲 inventory/index.html"}}:::web
 
         MODE -->|"--diff"| DIFF_GEN[Drift Engine]:::module
-        DIFF_GEN --> DIFF_HTML{{"📲 diff/index.html"}}:::web
+        DIFF_GEN -->|Incremental Cache| DIFF_HTML{{"📲 diff/index.html"}}:::web
 
-        MODE -->|"--rebuild-index"| REBUILD[Master Rebuild]:::engine
+        MODE -->|"--rebuild-index"| REBUILD[Master Rebuild & Prune]:::engine
         
         PING_HTML -.->|"Auto-trigger"| PM_GEN[Ping Matrix Index]:::module
         HIST_HTML -.->|"Auto-trigger"| PM_GEN
         PATH_HTML -.->|"Auto-trigger"| PM_GEN
         
+        REBUILD --> PRUNE
         REBUILD --> INV_GEN
         REBUILD --> DIFF_GEN
         REBUILD --> PM_GEN
@@ -219,14 +222,46 @@ graph TD
 
 ## 📂 Output Directory Structure
 
-Every run is securely encapsulated in an isolated, timestamped folder (`infos/YYYYMMDD_HHMMSS/`). If configured, the engine performs automatic post-execution zip compression to save disk space.
+Every execution run is unified and encapsulated inside a timestamped subfolder under `runs/`:
+* **`runs/YYYYMMDD_HHMMSS/`** → Root execution directory.
+  * `collect/` (or `collect.zip`) → Raw `.txt` command logs directly from the equipment (Audit Proof).
+  * `resume/` → Clean, parsed `.csv` & `.json` datasets (Interfaces, Licensing, Asset Matrix, Modules).
+  * `connections/` → Mathematically deduplicated L2/L3 physical topology links.
+  * `log/` (or `log.zip`) → Full audit trails of the execution and parsing errors.
+  * `ping-matrix/` → Asynchronous ICMP sweep telemetry and local dashboards.
+  * `topology/` → Draw.io geographical and logical network diagram definitions.
 
-* `collect/` → Raw `.txt` logs directly from the equipment (Audit Proof).
-* `resume/` → Clean, actionable `.csv` datasets (Interfaces, Licensing, Asset Matrix, Modules).
-* `connections/` → Mathematically deduplicated L2/L3 physical topology links (`topology.connections.csv`).
-* `log/` → Full audit trails of the execution and parsing errors.
+At the root of the output directory (e.g., `infos/`), you will find the static compiled index portals:
+* `infos/index.html` → The main Root Navigation Portal.
+* `infos/inventory/index.html` → Cumulative Global Inventory Dashboard (powered by cache).
+* `infos/diff/index.html` → Snapshot Drift Comparison Panel (powered by cache).
+* `infos/ping-matrix/index.html` → SLA Latency History & Dijkstra Routing (powered by cache).
+* `infos/topology/index.html` → Network Topology Draw.io Workspace.
 
-At the root of the output base, you will find special portals like `infos/ping-matrix/index.html` acting as chronological side-bars to navigate past Dashboard reports.
+---
+
+## 🛡️ Unified Retention & Storage Policies
+
+You can easily configure automatic data and dashboard pruning inside `config/settings.json` under the `"retention"` block. Setting any parameter to `null` disables that specific limit.
+
+```json
+    "retention": {
+        "global": {
+            "max_collections": null, // Deletes the entire run folder if exceeded
+            "max_days": null
+        },
+        "components": {
+            "collect": { "max_collections": 40, "max_days": 30 }, // Deletes raw commands
+            "log": { "max_collections": 40, "max_days": 30 },     // Deletes raw logs
+            "resume": { "max_collections": 40, "max_days": 30 },  // Deletes parsed spreadsheets
+            "connections": { "max_collections": 40, "max_days": 30 },
+            "inventory": { "max_collections": 40, "max_days": 30 }, // Deletes HTML inventory cache
+            "drift": { "max_collections": 40, "max_days": 30 },     // Deletes HTML drift cache
+            "ping-matrix": { "max_collections": 40, "max_days": 30 },
+            "topology": { "max_collections": 40, "max_days": 30 }
+        }
+    }
+```
 
 ---
 
