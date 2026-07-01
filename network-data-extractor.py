@@ -293,6 +293,7 @@ def generate_master_dashboard(outbase):
     <title>Ping Matrix Master Index</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
+        * { box-sizing: border-box; }
         body { margin: 0; padding: 0; font-family: 'Inter', sans-serif; display: flex; height: 100vh; background: #020617; color: #e2e8f0; overflow: hidden; }
         
         /* Sidebar */
@@ -474,12 +475,14 @@ def generate_master_dashboard(outbase):
             const origin = indexParams.get('origin');
             const dest = indexParams.get('dest');
             let iframeUrl = path;
-            if (origin || dest) {
-                const iframeParams = new URLSearchParams();
-                if (origin) iframeParams.set('origin', origin);
-                if (dest) iframeParams.set('dest', dest);
-                iframeUrl += '?' + iframeParams.toString();
-            }
+            const iframeParams = new URLSearchParams();
+            if (origin) iframeParams.set('origin', origin);
+            if (dest) iframeParams.set('dest', dest);
+            
+            // Force reload by adding a cache-busting timestamp
+            iframeParams.set('t', Date.now());
+            
+            iframeUrl += '?' + iframeParams.toString();
 
             document.getElementById('viewer').src = iframeUrl;
             document.getElementById('placeholder').style.display = 'none';

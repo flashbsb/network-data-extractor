@@ -561,23 +561,28 @@ h1, h2, h3, h4, .outfit { font-family: 'Outfit', sans-serif; }
 .header h1 { font-size: 38px; font-weight: 800; margin: 0; background: linear-gradient(90deg, #38bdf8, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 10px rgba(56,189,248,0.3)); }
 #sub-header { color: #94a3b8; font-size: 14px; margin-top: 5px; line-height: 1.4; }
 .back-portal {
-    background: #020408;
-    border: 1px solid rgba(255,255,255,0.1);
-    color: #06b6d4;
-    padding: 8px 15px;
-    font-size: 0.75rem;
-    font-weight: 700;
+    background: rgba(30, 41, 59, 0.4);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: #38bdf8;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-weight: 600;
     text-decoration: none;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    font-size: 0.85rem;
     transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
     cursor: pointer;
-    border-radius: 1px;
 }
 .back-portal:hover {
-    border-color: #06b6d4;
-    background: rgba(6, 182, 212, 0.1);
-    text-shadow: 0 0 5px #06b6d4;
+    border-color: #38bdf8;
+    color: #fff;
+    background: rgba(56, 189, 248, 0.15);
+    box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
 }
 
 /* Dashboard UI Panels */
