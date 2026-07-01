@@ -2,6 +2,10 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.71.0] - 2026-07-01
+### Fixed
+- **Valley-Free Routing Implementation**: Upgraded the Dijkstra path analysis algorithm in `templates/ping-matrix/path.html` to a **State-Expanded Dijkstra Search** tracking `(node, hasDecreased, lastRank)`. This correctly enforces the valley-free hierarchical routing model (preventing invalid traffic flows from Core/Core Agg down to Edge and back up to Core/Core Agg) even across flat/equal rank steps.
+
 ## [1.70.0] - 2026-07-01
 ### Added
 - **Hierarchical Retention Policy**: Implemented global and granular retention rules (max days and max collections) in `settings.json` to automatically manage the disk lifecycle of runs.

@@ -2,7 +2,7 @@
   <h1>🌐 Network Data Extractor</h1>
   <p><strong>The Ultimate Multivendor NOC Orchestrator & Autonomous Discovery Engine</strong></p>
   
-  ![Version](https://img.shields.io/badge/version-1.70.0-blue.svg)
+  ![Version](https://img.shields.io/badge/version-1.71.0-blue.svg)
   ![Python](https://img.shields.io/badge/python-3.8%2B-green.svg)
 </div>
 
@@ -25,7 +25,7 @@ Beyond simple command execution, it acts as an **intelligence layer**—parsing 
 - **🔍 Network Drift Analysis**: Instantly compares historical snapshots to detect port status changes, bandwidth variations, and missing links.
 - **🛡️ Intelligent ICMP Diagnostics**: The *Ping Matrix* engine calculates latency, jitter, asymmetric routing, and highlights isolated nodes in a visual heatmap.
 - **📈 Historical Telemetry (Ping History)**: Tracks latency, packet loss, jitter, and node availability over time to identify chronic degradation trends and trigger anomaly warnings.
-- **🗺️ Dijkstra Route Analysis**: Simulator that computes the shortest path between network nodes based on active latency and loss telemetry.
+- **🗺️ Dijkstra Route Analysis**: State-expanded simulator that computes the shortest, hierarchically compliant (valley-free) path between network nodes based on active latency and loss telemetry.
 - **⚠️ Topology Fault Isolation**: Actively maps connection failures, proactively warning the operator when a router loses its logical LLDP adjacencies.
 
 ---

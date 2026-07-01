@@ -860,25 +860,48 @@
             return 0; // Neutral / Unclassified
         }
 
+        function serializeState(node, hasDecreased, lastRank) {
+            return `${node}|${hasDecreased ? 1 : 0}|${lastRank}`;
+        }
+
+        function deserializeState(stateKey) {
+            let lastPipe = stateKey.lastIndexOf('|');
+            let secondLastPipe = stateKey.lastIndexOf('|', lastPipe - 1);
+            let node = stateKey.substring(0, secondLastPipe);
+            let hasDecreased = stateKey.substring(secondLastPipe + 1, lastPipe) === '1';
+            let lastRank = parseInt(stateKey.substring(lastPipe + 1));
+            return { node, hasDecreased, lastRank };
+        }
+
         // Dijkstra Calculation
         function calculateDijkstra(graph, startNode, endNode, pingData = null, disabledEdges = new Set()) {
             let distances = {};
             let prev = {};
             let pq = new PriorityQueue();
 
-            for (let node in graph) {
-                distances[node] = Infinity;
-                prev[node] = null;
-            }
-            distances[startNode] = 0;
-            pq.enqueue(startNode, 0);
+            let rankStart = getDeviceRank(startNode);
+            let startStateKey = serializeState(startNode, false, rankStart > 0 ? rankStart : -1);
+
+            distances[startStateKey] = 0;
+            pq.enqueue(startStateKey, 0);
+
+            let minEndCost = Infinity;
+            let bestEndStateKey = null;
 
             while (!pq.isEmpty()) {
-                let { element: u, priority: dist } = pq.dequeue();
+                let { element: uStateKey, priority: dist } = pq.dequeue();
 
-                if (u === endNode) break;
+                let { node: u, hasDecreased, lastRank } = deserializeState(uStateKey);
 
-                if (dist > distances[u]) continue;
+                if (u === endNode) {
+                    if (dist < minEndCost) {
+                        minEndCost = dist;
+                        bestEndStateKey = uStateKey;
+                    }
+                    break; // Since edge costs are non-negative and we use a priority queue, the first pop of endNode is optimal.
+                }
+
+                if (dist > (distances[uStateKey] !== undefined ? distances[uStateKey] : Infinity)) continue;
 
                 let neighbors = graph[u] || [];
                 for (let edge of neighbors) {
@@ -928,11 +951,20 @@
                     }
                     
                     // 2. Valley-Free Constraint (No going down then up)
-                    if (prev[u]) {
-                        let rankP = getDeviceRank(prev[u]);
-                        if (rankU < rankP && rankV > rankU) {
-                            weight += 100000;
+                    let nextHasDecreased = hasDecreased;
+                    let nextLastRank = lastRank;
+
+                    if (rankV > 0) {
+                        if (lastRank !== -1) {
+                            if (rankV < lastRank) {
+                                nextHasDecreased = true;
+                            } else if (rankV > lastRank) {
+                                if (hasDecreased) {
+                                    weight += 1000000; // Valley violation penalty
+                                }
+                            }
                         }
+                        nextLastRank = rankV;
                     }
                     
                     // 3. Level-Skipping Penalty (Cross-hierarchy shortcut penalty)
@@ -953,24 +985,27 @@
                         weight += 1000000;
                     }
 
-                    let alt = distances[u] + weight;
-                    if (alt < distances[v]) {
-                        distances[v] = alt;
-                        prev[v] = u;
-                        pq.enqueue(v, alt);
+                    let vStateKey = serializeState(v, nextHasDecreased, nextLastRank);
+                    let alt = dist + weight;
+                    let existingDist = distances[vStateKey] !== undefined ? distances[vStateKey] : Infinity;
+                    if (alt < existingDist) {
+                        distances[vStateKey] = alt;
+                        prev[vStateKey] = uStateKey;
+                        pq.enqueue(vStateKey, alt);
                     }
                 }
             }
 
             let path = [];
-            let curr = endNode;
+            let curr = bestEndStateKey;
             while (curr) {
-                path.unshift(curr);
+                let { node } = deserializeState(curr);
+                path.unshift(node);
                 curr = prev[curr];
             }
 
             if (path.length > 1 && path[0] === startNode) {
-                return { path, cost: distances[endNode] };
+                return { path, cost: minEndCost };
             }
             return null;
         }
