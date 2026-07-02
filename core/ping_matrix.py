@@ -767,7 +767,7 @@ td:hover { background-color: rgba(255,255,255,0.1) !important; transform: scale(
         <h1>📡 Network Ping Matrix</h1>
         <p id="sub-header">Loading local data...</p>
     </div>
-    <a class="back-portal" href="../../index.html">← Network Portal</a>
+    <a class="back-portal" href="../../../../index.html">← Network Portal</a>
 </div>
 <div class="dashboard-metrics" id="metricsbox"></div>
 <div class="controls" style="display: flex; flex-direction: column; gap: 15px; align-items: center;">
@@ -1386,7 +1386,7 @@ function renderMatrix() {
 let hasDiff = false;
 async function checkDiffAvailability() {
     try {
-        const response = await fetch('../../../diff/index.html', { method: 'HEAD' });
+        const response = await fetch('../../../../diff/index.html', { method: 'HEAD' });
         hasDiff = response.ok || response.status === 0;
     } catch (e) {
         hasDiff = false;
@@ -1411,13 +1411,13 @@ function showCellContextMenu(e, origin, dest) {
     
     menu.innerHTML = `
         <div class="menu-header">${origin} ⇄ ${dest}</div>
-        <a href="../../history.html?origin=${origin}&dest=${dest}" target="_blank">📈 P2P History & SLA</a>
-        <a href="../../path.html?run=${runId}&origin=${origin}&dest=${dest}" target="_blank">🕸️ Route Analysis (Dijkstra)</a>
-        <a href="../../inventory/index.html?run=${runId}&device=${origin}" target="_blank">📦 Global Inventory (${origin})</a>
-        <a href="../../inventory/index.html?run=${runId}&device=${dest}" target="_blank">📦 Global Inventory (${dest})</a>
+        <a href="../../../../ping-matrix/history.html?origin=${origin}&dest=${dest}" target="_blank">📈 P2P History & SLA</a>
+        <a href="../../../../ping-matrix/path.html?run=${runId}&origin=${origin}&dest=${dest}" target="_blank">🕸️ Route Analysis (Dijkstra)</a>
+        <a href="../../../../inventory/index.html?run=${runId}&device=${origin}" target="_blank">📦 Global Inventory (${origin})</a>
+        <a href="../../../../inventory/index.html?run=${runId}&device=${dest}" target="_blank">📦 Global Inventory (${dest})</a>
         ${hasDiff ? `
-            <a href="../../../diff/index.html?device=${origin}" target="_blank">⚖️ Drift Analysis (${origin})</a>
-            <a href="../../../diff/index.html?device=${dest}" target="_blank">⚖️ Drift Analysis (${dest})</a>
+            <a href="../../../../diff/index.html?device=${origin}" target="_blank">⚖️ Drift Analysis (${origin})</a>
+            <a href="../../../../diff/index.html?device=${dest}" target="_blank">⚖️ Drift Analysis (${dest})</a>
         ` : `
             <a href="#" class="disabled" style="opacity:0.5; cursor:not-allowed; pointer-events:none;" onclick="return false;">⚖️ Drift Analysis (Unavailable)</a>
         `}

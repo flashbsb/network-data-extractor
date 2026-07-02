@@ -2,6 +2,10 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.72.0] - 2026-07-02
+### Fixed
+- **Dashboard Context Link Relative Depth**: Fixed 404 Errors inside the individual execution run dashboards by adjusting context link paths in `core/ping_matrix.py` to step up 4 directories (`../../../../`) to locate the root compiled dashboards (Global Inventory, Drift Analysis, and Portal Index).
+
 ## [1.71.0] - 2026-07-01
 ### Fixed
 - **Valley-Free Routing Implementation**: Upgraded the Dijkstra path analysis algorithm in `templates/ping-matrix/path.html` to a **State-Expanded Dijkstra Search** tracking `(node, hasDecreased, lastRank)`. This correctly enforces the valley-free hierarchical routing model (preventing invalid traffic flows from Core/Core Agg down to Edge and back up to Core/Core Agg) even across flat/equal rank steps.
