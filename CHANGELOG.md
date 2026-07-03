@@ -2,6 +2,10 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.73.0] - 2026-07-02
+### Fixed
+- **Drift Analyzer Timeline Tab Pre-filtering**: Solved a race condition in the Drift Analyzer (`core/diff_engine.py`) where loading the page with timeline parameters (device and interface) would trigger snapshot comparison asynchronously and override the view back to the Compare Snapshots tab. The page now skips comparing Snapshots on load when the user requests the timeline view, and only toggles the Compare Snapshots tab if the current tab is `'drift'`.
+
 ## [1.72.0] - 2026-07-02
 ### Fixed
 - **Dashboard Context Link Relative Depth**: Fixed 404 Errors inside the individual execution run dashboards by adjusting context link paths in `core/ping_matrix.py` to step up 4 directories (`../../../../`) to locate the root compiled dashboards (Global Inventory, Drift Analysis, and Portal Index).

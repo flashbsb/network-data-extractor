@@ -739,7 +739,9 @@ class DiffEngine:
             
             setTimeout(() => {
                 document.getElementById('loader').style.display = 'none';
-                document.getElementById('compareOverlay').style.display = 'flex';
+                if (currentTab === 'drift') {
+                    document.getElementById('compareOverlay').style.display = 'flex';
+                }
             }, 300);
         }
 
@@ -1301,8 +1303,14 @@ class DiffEngine:
                 secondLatestCb.checked = true;
                 updateCount();
                 
-                // Automatically start comparison
-                startComparison();
+                // Only start comparison if we are NOT jumping directly to the timeline tracker
+                const urlParams = new URLSearchParams(window.location.search);
+                const device = urlParams.get('device') || urlParams.get('element');
+                const iface = urlParams.get('interface');
+                if (!device || !iface) {
+                    // Automatically start comparison
+                    startComparison();
+                }
             }
             
             // URL parameter handling
