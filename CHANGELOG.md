@@ -2,6 +2,26 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.80.0] - 2026-07-03
+### Added
+- **HUD Directionality Pill Tabs**:
+  - Replaced the select dropdown menu in the SLA History dashboard (`history.html`) with a modern horizontal pill tab group.
+  - Toggling direction (Outbound, Inbound, Bidirectional, Worst Case) is now a clean single-click action.
+  - Added support for loading the directionality parameters (`direction`, `mode`, or `selMode`) dynamically from URL query parameters.
+
+## [1.79.0] - 2026-07-03
+### Added
+- **Local Matrix Filtering Shortcut**:
+  - Added **🔍 Filter Matrix by this Element(s)** option inside the cell context menu.
+  - Clicking this shortcut automatically populates the dashboard's `filterOrigin` and `filterDest` search inputs with the clicked element names and triggers `renderMatrix()`, instantly updating the heatmap layout.
+
+## [1.78.0] - 2026-07-03
+### Added
+- **Advanced Analytics Interactive Context Menus**:
+  - Wired all list entries (High Latency, Jitter Variance, Packet Loss, Asymmetry, and Isolated Nodes) in the Advanced Analytics panel to trigger the context popover menu when clicked.
+  - Added support for single-node context popovers (hiding P2P history/dijkstra options while displaying Inventory and Drift analysis) when clicking on Isolated Nodes.
+  - Added visual hover styling to indicate interactivity.
+
 ## [1.77.0] - 2026-07-03
 ### Added
 - **Bidirectional P2P Diagnostic Navigation**:

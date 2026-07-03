@@ -710,7 +710,8 @@ td:hover { background-color: rgba(255,255,255,0.1) !important; transform: scale(
 .analytics-card, .legend-col { flex: 1; min-width: 250px; }
 .analytics-card h4, .legend-col h4 { border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-top: 0; color: #38bdf8; letter-spacing: 0.5px;}
 .analytics-card ul { margin: 0; padding-left: 20px; font-size: 13px; color: #cbd5e1;}
-.analytics-card li { margin-bottom: 8px; line-height: 1.5; }
+.analytics-card li { margin-bottom: 8px; line-height: 1.5; cursor: pointer; transition: all 0.2s; border-radius: 4px; padding: 2px 4px; }
+.analytics-card li:hover { background: rgba(56, 189, 248, 0.1); color: #38bdf8; }
 .analytics-card li b { color: #f8fafc; }
 
 /* Legend details */
@@ -1127,7 +1128,7 @@ function buildAnalytics() {
         <div class="analytics-card"><h4>⏱️ High Latency Links</h4><ul>`;
         
     if (topLatency.length > 0) {
-        topLatency.forEach(t => h += `<li><b>${t.origin} &rarr; ${t.dest}</b>: <span class="st-crit">${t.avg}ms</span></li>`);
+        topLatency.forEach(t => h += `<li style="cursor:pointer" onclick="showCellContextMenu(event, '${t.origin}', '${t.dest}')"><b>${t.origin} &rarr; ${t.dest}</b>: <span class="st-crit">${t.avg}ms</span></li>`);
     } else {
         h += `<li><span class="st-good">No latency data available</span></li>`;
     }
@@ -1137,7 +1138,7 @@ function buildAnalytics() {
         topJitter.forEach(t => {
             let v = (t.max - t.min).toFixed(1);
             let c = t.jitter_warning ? 'st-crit' : 'st-warn';
-            h += `<li><b>${t.origin} &rarr; ${t.dest}</b>: <span class="${c}">+${v}ms span</span> (Min ${t.min} / Max ${t.max})</li>`;
+            h += `<li style="cursor:pointer" onclick="showCellContextMenu(event, '${t.origin}', '${t.dest}')"><b>${t.origin} &rarr; ${t.dest}</b>: <span class="${c}">+${v}ms span</span> (Min ${t.min} / Max ${t.max})</li>`;
         });
     } else {
         h += `<li><span class="st-good">No variance detected</span></li>`;
@@ -1147,7 +1148,7 @@ function buildAnalytics() {
     if (topLoss.length > 0) {
         topLoss.forEach(t => {
             let c = t.loss_pct > 50 ? 'st-crit' : 'st-warn';
-            h += `<li><b>${t.origin} &rarr; ${t.dest}</b>: <span class="${c}">${t.loss_pct.toFixed(1)}% Loss</span></li>`;
+            h += `<li style="cursor:pointer" onclick="showCellContextMenu(event, '${t.origin}', '${t.dest}')"><b>${t.origin} &rarr; ${t.dest}</b>: <span class="${c}">${t.loss_pct.toFixed(1)}% Loss</span></li>`;
         });
     } else {
         h += `<li><span class="st-good">All reachable links have 0% loss!</span></li>`;
@@ -1156,7 +1157,7 @@ function buildAnalytics() {
     h += `</ul></div><div class="analytics-card"><h4>⚖️ Most Asymmetric Routes</h4><ul>`;
     if (topAsym.length > 0) {
         topAsym.forEach(t => {
-            h += `<li><b>${t.o} ⇄ ${t.d}</b>: <span class="st-warn">&Delta; ${t.delta.toFixed(1)}ms</span> (Ida: ${t.oAvg} | Volta: ${t.iAvg})</li>`;
+            h += `<li style="cursor:pointer" onclick="showCellContextMenu(event, '${t.o}', '${t.d}')"><b>${t.o} ⇄ ${t.d}</b>: <span class="st-warn">&Delta; ${t.delta.toFixed(1)}ms</span> (Ida: ${t.oAvg} | Volta: ${t.iAvg})</li>`;
         });
     } else {
         h += `<li><span class="st-good">No severe asymmetry detected!</span></li>`;
@@ -1166,7 +1167,7 @@ function buildAnalytics() {
     if (isolatedNodes.length > 0) {
         isolatedNodes.forEach(t => {
             let c = t.pct < 50 ? 'st-crit' : (t.pct < 95 ? 'st-warn' : 'st-good');
-            h += `<li><b>${t.node}</b>: Reachability <span class="${c}">${t.pct}%</span></li>`;
+            h += `<li style="cursor:pointer" onclick="showCellContextMenu(event, '${t.node}', '')"><b>${t.node}</b>: Reachability <span class="${c}">${t.pct}%</span></li>`;
         });
     } else if (md && md.node_stats) {
         h += `<li><span class="st-good">All nodes are 100% reachable!</span></li>`;
@@ -1424,14 +1425,15 @@ function showCellContextMenu(e, origin, dest) {
     const runId = runIdMatch ? runIdMatch[1] : '';
     
     menu.innerHTML = `
-        <div class="menu-header">${origin} ⇄ ${dest}</div>
-        <a href="../../../../ping-matrix/history.html?origin=${origin}&dest=${dest}" target="_blank">📈 P2P History & SLA</a>
-        <a href="../../../../ping-matrix/path.html?run=${runId}&origin=${origin}&dest=${dest}" target="_blank">🕸️ Route Analysis (Dijkstra)</a>
+        <div class="menu-header">${origin}${dest ? ' ⇄ ' + dest : ''}</div>
+        <a href="#" onclick="filterMatrix('${origin}', '${dest || ''}'); return false;">🔍 Filter Matrix by this Element(s)</a>
+        ${dest ? `<a href="../../../../ping-matrix/history.html?origin=${origin}&dest=${dest}" target="_blank">📈 P2P History & SLA</a>` : ''}
+        ${dest ? `<a href="../../../../ping-matrix/path.html?run=${runId}&origin=${origin}&dest=${dest}" target="_blank">🕸️ Route Analysis (Dijkstra)</a>` : ''}
         <a href="../../../../inventory/index.html?run=${runId}&device=${origin}" target="_blank">📦 Global Inventory (${origin})</a>
-        <a href="../../../../inventory/index.html?run=${runId}&device=${dest}" target="_blank">📦 Global Inventory (${dest})</a>
+        ${dest ? `<a href="../../../../inventory/index.html?run=${runId}&device=${dest}" target="_blank">📦 Global Inventory (${dest})</a>` : ''}
         ${hasDiff ? `
             <a href="../../../../diff/index.html?device=${origin}" target="_blank">⚖️ Drift Analysis (${origin})</a>
-            <a href="../../../../diff/index.html?device=${dest}" target="_blank">⚖️ Drift Analysis (${dest})</a>
+            ${dest ? `<a href="../../../../diff/index.html?device=${dest}" target="_blank">⚖️ Drift Analysis (${dest})</a>` : ''}
         ` : `
             <a href="#" class="disabled" style="opacity:0.5; cursor:not-allowed; pointer-events:none;" onclick="return false;">⚖️ Drift Analysis (Unavailable)</a>
         `}
@@ -1454,6 +1456,13 @@ function showCellContextMenu(e, origin, dest) {
     
     menu.style.left = x + 'px';
     menu.style.top = y + 'px';
+}
+function filterMatrix(origin, dest) {
+    document.getElementById('filterOrigin').value = origin;
+    document.getElementById('filterDest').value = dest;
+    renderMatrix();
+    const menu = document.getElementById('cellContextMenu');
+    if (menu) menu.style.display = 'none';
 }
 document.addEventListener('click', () => {
     const menu = document.getElementById('cellContextMenu');

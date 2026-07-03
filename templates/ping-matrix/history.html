@@ -469,14 +469,14 @@
             <input type="text" class="control-select" id="selDest" list="datalistDest" placeholder="Search destination..." onchange="onLinkSelectorChange()" oninput="onLinkSelectorInput(this)" autocomplete="off">
             <datalist id="datalistDest"></datalist>
         </div>
-        <div class="input-group">
-            <label for="selMode">Directionality</label>
-            <select class="control-select" id="selMode" onchange="renderCharts()">
-                <option value="direct">Outbound: A 🡲 B</option>
-                <option value="reverse">Inbound: B 🡰 A</option>
-                <option value="both">Bidirectional: A ⇄ B</option>
-                <option value="worst" selected>Worst Direction (Worst Case)</option>
-            </select>
+        <div class="input-group" style="grid-column: span 2;">
+            <label>Directionality</label>
+            <div class="quick-select-pills" id="directionPills">
+                <button class="pill-btn" data-value="direct" onclick="setDirectionFilter('direct', this)">Outbound: A 🡲 B</button>
+                <button class="pill-btn" data-value="reverse" onclick="setDirectionFilter('reverse', this)">Inbound: B 🡰 A</button>
+                <button class="pill-btn" data-value="both" onclick="setDirectionFilter('both', this)">Bidirectional: A ⇄ B</button>
+                <button class="pill-btn active" data-value="worst" onclick="setDirectionFilter('worst', this)">Worst Case</button>
+            </div>
         </div>
         <div class="input-group" style="grid-column: span 2;">
             <label>Analysis Period</label>
@@ -730,6 +730,14 @@
         let periodDays = 30;
         let validOrigins = new Set();
         let validDests = new Set();
+        let currentDirection = 'worst';
+
+        function setDirectionFilter(val, btn) {
+            currentDirection = val;
+            document.querySelectorAll('#directionPills .pill-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderCharts();
+        }
 
         // Sliders Threshold Values
         let thrLat = 200;
@@ -1035,7 +1043,7 @@
                 return;
             }
 
-            const mode = document.getElementById('selMode').value;
+            const mode = currentDirection;
             const origin = document.getElementById('selOrigin').value;
             const dest = document.getElementById('selDest').value;
 
@@ -1532,6 +1540,15 @@
             const urlParams = new URLSearchParams(window.location.search);
             const origin = urlParams.get('origin');
             const dest = urlParams.get('dest');
+            const direction = urlParams.get('direction') || urlParams.get('mode') || urlParams.get('selMode');
+            if (direction) {
+                const btn = document.querySelector(`#directionPills .pill-btn[data-value="${direction}"]`);
+                if (btn) {
+                    currentDirection = direction;
+                    document.querySelectorAll('#directionPills .pill-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                }
+            }
             if (origin) {
                 document.getElementById('selOrigin').value = origin;
             }
