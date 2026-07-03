@@ -21,9 +21,10 @@ SPEED_COLORS = {
     "100000000": {"width": 3, "color": "#006400"},
     "default": {"width": 4, "color": "#800080"}
 }
+NEIGHBOR_HOSTNAME_REGEX = "(D?(?:{dev_group})[A-Za-z0-9]+-[A-Za-z0-9-]+)"
 
 def load_settings(custom_path=None):
-    global IGNORE_VIRTUAL_PREFIXES, NEIGHBOR_PREFIXES, DEVICE_NAME_PREFIXES, SPEED_COLORS
+    global IGNORE_VIRTUAL_PREFIXES, NEIGHBOR_PREFIXES, DEVICE_NAME_PREFIXES, SPEED_COLORS, NEIGHBOR_HOSTNAME_REGEX
     from core.utils_shared import load_settings as load_cfg
     json_config = load_cfg(custom_path)
     if json_config:
@@ -32,6 +33,10 @@ def load_settings(custom_path=None):
         NEIGHBOR_PREFIXES = topology_cfg.get("neighbor_regex_prefixes", NEIGHBOR_PREFIXES)
         DEVICE_NAME_PREFIXES = topology_cfg.get("device_name_prefixes", DEVICE_NAME_PREFIXES)
         SPEED_COLORS = topology_cfg.get("speed_colors", SPEED_COLORS)
+        NEIGHBOR_HOSTNAME_REGEX = topology_cfg.get("neighbor_hostname_regex", NEIGHBOR_HOSTNAME_REGEX)
+
+# Pre-load settings so they are populated at import time
+load_settings()
 
 def parse_neighbor(description):
     """
@@ -41,9 +46,8 @@ def parse_neighbor(description):
     if pd.isna(description):
         return None
         
-    # Build regex like: ((?:RT|SW|SM|PTT|DW)[A-Za-z0-9]+-[A-Za-z0-9-]+)
     dev_group = "|".join(DEVICE_NAME_PREFIXES)
-    pattern = rf'((?:{dev_group})[A-Za-z0-9]+-[A-Za-z0-9-]+)'
+    pattern = NEIGHBOR_HOSTNAME_REGEX.replace("{dev_group}", dev_group)
     
     match = re.search(pattern, str(description), re.IGNORECASE)
     if match:

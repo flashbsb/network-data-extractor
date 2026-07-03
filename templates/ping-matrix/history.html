@@ -153,6 +153,26 @@
             text-shadow: 0 0 5px rgba(6, 182, 212, 0.3);
         }
 
+        .action-btn {
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid var(--color-action);
+            color: var(--color-action);
+            padding: 8px 16px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-radius: 1px;
+            text-shadow: 0 0 5px rgba(6, 182, 212, 0.3);
+        }
+
+        .action-btn:hover {
+            background: var(--color-action);
+            color: #fff;
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.4);
+        }
+
         /* Sliders Threshold */
         .threshold-box {
             grid-column: 1 / -1;
@@ -466,6 +486,10 @@
                 <button class="pill-btn active" onclick="setPeriodFilter(30)">30 Days</button>
                 <button class="pill-btn" onclick="setPeriodFilter(90)">All History</button>
             </div>
+        </div>
+        <div class="input-group" id="btnPathLinkGroup" style="display: none;">
+            <label>Path Actions</label>
+            <button class="action-btn" onclick="goToPath()" style="height: 38px;">🗺️ Route Analysis (Dijkstra)</button>
         </div>
 
         <!-- Thresholds Sliders -->
@@ -846,6 +870,18 @@
             onLinkSelectorChange();
         }
 
+        function goToPath() {
+            const origin = document.getElementById('selOrigin').value;
+            const dest = document.getElementById('selDest').value;
+            const urlParams = new URLSearchParams(window.location.search);
+            const run = urlParams.get('run');
+            let url = `path.html?origin=${encodeURIComponent(origin)}&dest=${encodeURIComponent(dest)}`;
+            if (run) {
+                url += `&run=${encodeURIComponent(run)}`;
+            }
+            window.location.href = url;
+        }
+
         // Dynamic Loading of Link Script
         function loadLinkHistory(origin, dest) {
             return new Promise((resolve, reject) => {
@@ -886,6 +922,15 @@
             
             originInput.style.borderColor = (origin && !isOriginValid) ? 'var(--color-danger, #ef4444)' : '';
             destInput.style.borderColor = (dest && !isDestValid) ? 'var(--color-danger, #ef4444)' : '';
+
+            const btnPath = document.getElementById('btnPathLinkGroup');
+            if (btnPath) {
+                if (isOriginValid && isDestValid && origin !== dest) {
+                    btnPath.style.display = 'flex';
+                } else {
+                    btnPath.style.display = 'none';
+                }
+            }
             
             if (!isOriginValid || !isDestValid || origin === dest) {
                 document.getElementById('kpiGrid').querySelectorAll('.kpi-val').forEach(el => el.innerText = "-");

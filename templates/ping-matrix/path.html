@@ -486,6 +486,7 @@
             <input type="text" class="control-input" id="inputHops" placeholder="RT-A, SW-B, RT-C, RT-D">
         </div>
         <button class="action-btn" onclick="calculateRoute()">⚡ Analyze</button>
+        <button class="action-btn" id="btnHistoryLink" onclick="goToHistory()" style="display: none; border-color: var(--color-warn); color: var(--color-warn); background: rgba(249, 115, 22, 0.1);">📈 P2P History & SLA</button>
     </div>
 
     <!-- Workspace -->
@@ -725,6 +726,7 @@
             if (origin && dest && validNodes.has(origin) && validNodes.has(dest)) {
                 calculateRoute();
             }
+            onNodeChange();
         }
 
         async function loadSnapshotData(id) {
@@ -762,10 +764,34 @@
             if (sortedNodes.length > 0) {
                 selDest.value = sortedNodes.length > 1 ? sortedNodes[1] : sortedNodes[0];
             }
+            onNodeChange();
         }
 
         function onNodeChange() {
-            // clear display
+            const originVal = document.getElementById('selOrigin').value.trim();
+            const destVal = document.getElementById('selDest').value.trim();
+            const btnHist = document.getElementById('btnHistoryLink');
+            if (btnHist) {
+                if (originVal && destVal && validNodes.has(originVal) && validNodes.has(destVal)) {
+                    btnHist.style.display = 'inline-block';
+                } else {
+                    btnHist.style.display = 'none';
+                }
+            }
+        }
+
+        function goToHistory() {
+            const originVal = document.getElementById('selOrigin').value.trim();
+            const destVal = document.getElementById('selDest').value.trim();
+            if (originVal && destVal) {
+                const urlParams = new URLSearchParams(window.location.search);
+                const run = urlParams.get('run');
+                let url = `history.html?origin=${encodeURIComponent(originVal)}&dest=${encodeURIComponent(destVal)}`;
+                if (run) {
+                    url += `&run=${encodeURIComponent(run)}`;
+                }
+                window.location.href = url;
+            }
         }
 
         function setMode(newMode) {

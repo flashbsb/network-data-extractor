@@ -13,10 +13,20 @@
         "_help_ssh": "Tuning parameters for the paramiko SSH connection backend. Increase timeout if devices are slow. Enable strict_host_key_checking to reject unknown host keys.",
         "timeout": 10,
         "delay_between_commands": 5,
-        "strict_host_key_checking": false
+        "strict_host_key_checking": false,
+        "_help_pager_disable_commands": "List of CLI commands executed by SSH sessions to disable terminal pagination (turn off 'more' pagination prompts).",
+        "pager_disable_commands": [
+            "terminal length 0",
+            "terminal pager 0",
+            "screen-length 0 disable"
+        ],
+        "_help_command_timeout": "Hard timeout limit in seconds per CLI command execution to prevent worker threads hanging indefinitely.",
+        "command_timeout": 20
     },
     "topology": {
         "_help_topology": "Core variables that instruct the Regex engine on how to generate the topology map (interface2connection.py).",
+        "_help_neighbor_hostname_regex": "Pattern template used to extract a neighbor's hostname from interface descriptions. {dev_group} is replaced dynamically by the device name prefixes list.",
+        "neighbor_hostname_regex": "(D?(?:{dev_group})[A-Za-z0-9]+-[A-Za-z0-9-]+)",
         "_help_ignore_virtual": "Prefixes of virtual or uninteresting interfaces that will be completely ignored during topology creation.",
         "ignore_virtual_prefixes": [
             "Bundle",
@@ -112,7 +122,31 @@
         "max_latency_warning": 200,
         "parallel_sessions": 10,
         "delay_between_commands": 1.0,
-        "asymmetric_threshold_pct": 25.0
+        "asymmetric_threshold_pct": 25.0,
+        "_help_transmitted_regex": "Regex pattern used to capture the transmitted packet count from vendor ping output.",
+        "transmitted_regex": "(\\d+)\\s+packet[s]?\\s*(?:\\([a-zA-Z\\s]+\\))? transmitted",
+        "_help_received_regex": "Regex pattern used to capture the received packet count from vendor ping output.",
+        "received_regex": "(\\d+)\\s+packet[s]?\\s*(?:\\([a-zA-Z\\s]+\\))? received",
+        "_help_rtt_regex": "Regex pattern used to extract min/avg/max latencies from vendor ping RTT summary lines.",
+        "rtt_regex": "min(?:imum)?/avg(?:erage)?/max(?:imum)?.*?=\\s*([\\d\\.]+)/([\\d\\.]+)/([\\d\\.]+)",
+        "_help_cisco_success_regex": "Regex pattern for Cisco native success percentage and transmit/receive fractions.",
+        "cisco_success_regex": "Success rate is \\d+\\s*percent\\s*\\(\\s*(\\d+)\\s*/\\s*(\\d+)\\s*\\)",
+        "_help_unreachable_indicators": "Substrings in the CLI ping output indicating that packets were blocked or dropped.",
+        "unreachable_indicators": [
+            "U.U.U",
+            "Admin Prohibited",
+            "Destination unreachable"
+        ]
+    },
+    "ping_history": {
+        "_help_ping_history": "Configurations for the historical ping latency aggregation and SLA threshold warnings.",
+        "_help_max_retention": "Maximum snapshots to retain per P2P link history database to control JSON file size bloat.",
+        "max_retention": 90,
+        "_help_thresholds": "Baseline performance SLA warning limits for latency (ms), packet loss (%), jitter (ms), and availability (%).",
+        "thr_latency": 200.0,
+        "thr_loss": 1.0,
+        "thr_jitter": 5.0,
+        "thr_avail": 99.5
     },
     "routing_hierarchy": {
         "_help": "Defines hostname prefixes and their rank for hierarchical path routing.",

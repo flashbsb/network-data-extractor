@@ -2,6 +2,32 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.77.0] - 2026-07-03
+### Added
+- **Bidirectional P2P Diagnostic Navigation**:
+  - Added **📈 P2P History & SLA** button in the Dijkstra Path dashboard (`path.html`), dynamically showing when valid source and destination elements are selected.
+  - Added **🗺️ Route Analysis (Dijkstra)** button in the History dashboard (`history.html`), dynamically showing when valid distinct node selections are made.
+  - Both navigation links automatically preserve active routing parameters (`origin`, `dest`, and `run`) across URL navigation.
+
+## [1.76.0] - 2026-07-03
+### Fixed
+- **Subprocess sys.path Import Routing**: Added project root parent directory path insertion to `core/ping_matrix.py` and `core/ping_history_generator.py` to prevent `ModuleNotFoundError: No module named 'core'` when invoked directly or launched as a subprocess from the main orchestrator during live collections.
+
+## [1.75.0] - 2026-07-03
+### Added
+- **Centralized Configuration in `config/settings.json`**: Unified and externalized all previously hardcoded variables, patterns, and threshold constraints directly inside a single configuration file (`settings.json`).
+- **New Configurable Keys & Self-Documentation**:
+  - Added help documentation tags (`_help_...`) alongside every parameter.
+  - `"neighbor_hostname_regex"` under `"topology"` to configure how neighbor node hostnames are parsed.
+  - `"pager_disable_commands"` and `"command_timeout"` under `"ssh"` for customized SSH terminal bypasses.
+  - `"transmitted_regex"`, `"received_regex"`, `"rtt_regex"`, `"cisco_success_regex"`, and `"unreachable_indicators"` under `"ping_matrix"` to customize parsing of different vendor ping diagnostics.
+  - `"max_retention"`, `"thr_latency"`, `"thr_loss"`, `"thr_jitter"`, and `"thr_avail"` under `"ping_history"` to parameterize statistics and SLA threshold sliders.
+- **Dynamic Hostname Name Correction**: Refactored `core/ping_history_generator.py` to dynamically sanitize node hostnames from historical run data to ensure backward compatibility and prevent 404 errors on older entries.
+
+## [1.74.0] - 2026-07-03
+### Fixed
+- **DCN Management Neighbors Topology Parsing**: Fixed a regex hostname matching bug in `core/interface2connection.py` that stripped the leading 'D' character from DCN management neighbor nodes (such as DRTD, DRTA, DSWD, and DSWA) specified in interface descriptions. Added an optional 'D' character prefix check to the device hostname detection regex. Updated all connections CSV files and regenerated the corresponding draw.io layout drawings across all existing runs in both `bb` and `minimal` datasets to correct historical files.
+
 ## [1.73.0] - 2026-07-02
 ### Fixed
 - **Drift Analyzer Timeline Tab Pre-filtering**: Solved a race condition in the Drift Analyzer (`core/diff_engine.py`) where loading the page with timeline parameters (device and interface) would trigger snapshot comparison asynchronously and override the view back to the Compare Snapshots tab. The page now skips comparing Snapshots on load when the user requests the timeline view, and only toggles the Compare Snapshots tab if the current tab is `'drift'`.

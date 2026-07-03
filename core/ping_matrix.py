@@ -14,15 +14,25 @@ import csv
 import re
 import threading
 
+# Add project root to sys.path to allow imports from core/
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 # Regex para Captura de Ping (Comporta formato normal de Cisco, Datacom, Huawei)
 # Cisco: "5 packets transmitted, 5 packets received, 0% packet loss"
 # Cisco RTT: "round-trip min/avg/max = 1/2/3 ms"
 # Huawei: "5 packet(s) transmitted... 5 packet(s) received"
 # Huawei RTT: "round-trip min/avg/max = 1/2/3 ms"
 
-RE_TRANSMITTED = re.compile(r'(\d+)\s+packet[s]?\s*(?:\([a-zA-Z\s]+\))? transmitted', re.IGNORECASE)
-RE_RECEIVED = re.compile(r'(\d+)\s+packet[s]?\s*(?:\([a-zA-Z\s]+\))? received', re.IGNORECASE)
-RE_RTT = re.compile(r'min(?:imum)?/avg(?:erage)?/max(?:imum)?.*?=\s*([\d\.]+)/([\d\.]+)/([\d\.]+)', re.IGNORECASE)
+from core.utils_shared import load_settings
+
+json_config = load_settings()
+ping_cfg = json_config.get("ping_matrix", {})
+
+RE_TRANSMITTED = re.compile(ping_cfg.get("transmitted_regex", r"(\d+)\s+packet[s]?\s*(?:\([a-zA-Z\s]+\))? transmitted"), re.IGNORECASE)
+RE_RECEIVED = re.compile(ping_cfg.get("received_regex", r"(\d+)\s+packet[s]?\s*(?:\([a-zA-Z\s]+\))? received"), re.IGNORECASE)
+RE_RTT = re.compile(ping_cfg.get("rtt_regex", r"min(?:imum)?/avg(?:erage)?/max(?:imum)?.*?=\s*([\d\.]+)/([\d\.]+)/([\d\.]+)"), re.IGNORECASE)
+CISCO_SUCCESS_PATTERN = ping_cfg.get("cisco_success_regex", r"Success rate is \d+\s*percent\s*\(\s*(\d+)\s*/\s*(\d+)\s*\)")
+UNREACHABLE_INDICATORS = ping_cfg.get("unreachable_indicators", ["U.U.U", "Admin Prohibited", "Destination unreachable"])
 
 def read_elements(path):
     elements = []
@@ -72,10 +82,11 @@ def parse_ping_output(output, host_dest):
         rx = int(rx_match.group(1))
 
     # Suporte ao formato nativo da Cisco: "Success rate is 100 percent (5/5)"
-    cisco_match = re.search(r'Success rate is \d+\s*percent\s*\(\s*(\d+)\s*/\s*(\d+)\s*\)', output, re.IGNORECASE)
-    if cisco_match:
-        rx = int(cisco_match.group(1))
-        tx = int(cisco_match.group(2))
+    if CISCO_SUCCESS_PATTERN:
+        cisco_match = re.search(CISCO_SUCCESS_PATTERN, output, re.IGNORECASE)
+        if cisco_match:
+            rx = int(cisco_match.group(1))
+            tx = int(cisco_match.group(2))
         
     rtt_match = RE_RTT.search(output)
     if rtt_match:
@@ -87,8 +98,11 @@ def parse_ping_output(output, host_dest):
             pass
 
     # Fallback/Deny analysis
-    if "U.U.U" in output or "Admin Prohibited" in output or "Destination unreachable" in output:
-        consistently_denied = True
+    if UNREACHABLE_INDICATORS:
+        for indicator in UNREACHABLE_INDICATORS:
+            if indicator in output:
+                consistently_denied = True
+                break
         
     is_unreachable = (tx > 0 and rx == 0)
     

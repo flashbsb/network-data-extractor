@@ -33,6 +33,9 @@ STRICT_HOST_KEY_CHECKING = ssh_cfg.get("strict_host_key_checking", False)
 extractor_cfg = json_config.get("extractor", {})
 LOG_LEVEL = extractor_cfg.get("log_level", "INFO").upper()
 
+PAGER_DISABLE_COMMANDS = ssh_cfg.get("pager_disable_commands", ["terminal length 0", "terminal pager 0", "screen-length 0 disable"])
+COMMAND_TIMEOUT = ssh_cfg.get("command_timeout", 20)
+
 
 def read_elements(path):
     elements = []
@@ -90,12 +93,7 @@ def execute_commands_shell(client, cmds):
     shell.recv(1000)  # clear banner
 
     # Disable pagination (Universal Shotgun Strategy)
-    paginators = [
-        'terminal length 0',      # Cisco IOS / IOS-XE
-        'terminal pager 0',       # Datacom / DmOS / Huawei
-        'screen-length 0 disable' # HP / H3C / Datacom Legacy
-    ]
-    for p_cmd in paginators:
+    for p_cmd in PAGER_DISABLE_COMMANDS:
         shell.send(p_cmd + '\n')
         time.sleep(0.5)
 
@@ -108,7 +106,7 @@ def execute_commands_shell(client, cmds):
         shell.send(cmd + '\n')
 
         buff = b''
-        timeout_limit = 20  # Maximum seconds to wait total per command
+        timeout_limit = COMMAND_TIMEOUT  # Maximum seconds to wait total per command
         start_time = time.time()
         last_recv_time = time.time()
 

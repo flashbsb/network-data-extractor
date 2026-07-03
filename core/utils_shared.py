@@ -19,7 +19,6 @@ def load_settings(custom_path=None):
         except Exception as e:
             print(f"Warning: Failed to load {settings_path}: {e}")
     return {}
-
 def normalize_hostname(name, fmt='simple'):
     """
     Returns the normalized hostname: 'simple' (pre-dot) or 'fqdn' (full).

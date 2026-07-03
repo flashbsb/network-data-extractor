@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import os
+import sys
+
+# Add project root to sys.path to allow imports from core/
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import json
 import glob
 import math
@@ -61,14 +66,19 @@ class PingHistoryGenerator:
         self.history_dir = os.path.join(self.ping_matrix_dir, "history")
         self.links_dir = os.path.join(self.history_dir, "links")
         
+        # Load JSON configurations
+        from core.utils_shared import load_settings
+        json_config = load_settings()
+        hist_cfg = json_config.get("ping_history", {})
+        
         # Max snapshots to hold per link series to prevent file bloat
-        self.max_retention = 90
+        self.max_retention = hist_cfg.get("max_retention", 90)
         
         # Sliders default thresholds
-        self.thr_latency = 200.0  # ms
-        self.thr_loss = 1.0       # %
-        self.thr_jitter = 5.0     # ms
-        self.thr_avail = 99.5     # %
+        self.thr_latency = hist_cfg.get("thr_latency", 200.0)  # ms
+        self.thr_loss = hist_cfg.get("thr_loss", 1.0)       # %
+        self.thr_jitter = hist_cfg.get("thr_jitter", 5.0)     # ms
+        self.thr_avail = hist_cfg.get("thr_avail", 99.5)     # %
 
     def run(self, force_rebuild=False):
         print(f"[*] Starting Ping History aggregation in: {self.ping_matrix_dir}")
@@ -187,8 +197,26 @@ class PingHistoryGenerator:
                         dt_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
                 for entry in run_data:
-                    o = entry["origin"]
-                    d = entry["dest"]
+                    o_raw = entry["origin"]
+                    d_raw = entry["dest"]
+                    
+                    # Fix historical mismatched neighbor names for management DCN elements
+                    def fix_node_name(node):
+                        if not node:
+                            return ""
+                        node_upper = node.upper()
+                        if node_upper.startswith("RTD-"):
+                            return "DRTD-" + node[4:]
+                        elif node_upper.startswith("RTA-"):
+                            return "DRTA-" + node[4:]
+                        elif node_upper.startswith("SWD-"):
+                            return "DSWD-" + node[4:]
+                        elif node_upper.startswith("SWA-"):
+                            return "DSWA-" + node[4:]
+                        return node
+                        
+                    o = fix_node_name(o_raw)
+                    d = fix_node_name(d_raw)
                     key = f"{o}|{d}"
                     
                     tx = entry.get("tx", 5)
