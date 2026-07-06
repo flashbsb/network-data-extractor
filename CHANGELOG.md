@@ -2,6 +2,17 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.81.0] - 2026-07-06
+### Added
+- **Global SLA History Context Menus**:
+  - Added interactive popover context menus to all entries in the Global Trends and Rankings panel inside the History dashboard (`history.html`) (Recent Anomalies, Top 10 Worst, Degradation Trend, and Instability).
+  - Cleaned navigation handlers to use dynamic DOM context menus rather than literal `<a href>` tags, satisfying Hick's Law audit checks.
+- **Routing Guidelines Warning Footer**:
+  - Added a styled warning footer box inside the Dijkstra Path Analysis page (`path.html`) detailing the boundaries and assumptions of the computed topologic path vs. real routing metrics (OSPF, BGP, MPLS-TE).
+- **Interactive Route Segment Header**:
+  - Replaced the static "Link: A ⇄ B" sidebar details header in `path.html` with an interactive, clickable link triggering context menus.
+  - Linked the details card to dynamic context actions (History, Inventory, Drift Analysis) pre-filtered for the active run and selected devices.
+
 ## [1.80.0] - 2026-07-03
 ### Added
 - **HUD Directionality Pill Tabs**:

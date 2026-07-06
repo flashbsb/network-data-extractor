@@ -5,8 +5,8 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
- * Version : 1.80.0
- * Date    : 2026-07-03
+ * Version : 1.81.0
+ * Date    : 2026-07-06
  * Author  : flashbsb (and contributors) 
  
 """
@@ -23,8 +23,8 @@ import types
 from datetime import datetime
 from glob import glob
 
-APP_VERSION = "1.80.0"
-APP_DATE = "2026-07-03"
+APP_VERSION = "1.81.0"
+APP_DATE = "2026-07-06"
 
 # ANSI Colors — must be declared before any function that uses them
 C_GREEN  = '\033[92m'

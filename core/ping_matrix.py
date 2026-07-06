@@ -17,7 +17,7 @@ import threading
 # Add project root to sys.path to allow imports from core/
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Regex para Captura de Ping (Comporta formato normal de Cisco, Datacom, Huawei)
+# Regex for Ping Capture (Supports normal Cisco, Datacom, Huawei formats)
 # Cisco: "5 packets transmitted, 5 packets received, 0% packet loss"
 # Cisco RTT: "round-trip min/avg/max = 1/2/3 ms"
 # Huawei: "5 packet(s) transmitted... 5 packet(s) received"
@@ -48,7 +48,7 @@ def read_elements(path):
             parts = line.split(';')
             if len(parts) >= 3:
                 # We only need hostname, first IP, and cmd_key
-                ip = parts[1].split('|')[0] # Pega o primeiro IP
+                ip = parts[1].split('|')[0] # Get the first IP
                 elements.append({'hostname': parts[0], 'ip': ip, 'cmd_key': parts[2].split('|')[0]})
     return elements
 
@@ -68,7 +68,7 @@ def read_icmp_commands(path):
     return commands
 
 def parse_ping_output(output, host_dest):
-    # Valores default
+    # Default values
     tx, rx = 0, 0
     t_min, t_avg, t_max = -1.0, -1.0, -1.0
     consistently_denied = False
@@ -81,7 +81,7 @@ def parse_ping_output(output, host_dest):
     if rx_match:
         rx = int(rx_match.group(1))
 
-    # Suporte ao formato nativo da Cisco: "Success rate is 100 percent (5/5)"
+    # Support for Cisco's native format: "Success rate is 100 percent (5/5)"
     if CISCO_SUCCESS_PATTERN:
         cisco_match = re.search(CISCO_SUCCESS_PATTERN, output, re.IGNORECASE)
         if cisco_match:
@@ -106,7 +106,7 @@ def parse_ping_output(output, host_dest):
         
     is_unreachable = (tx > 0 and rx == 0)
     
-    # Se perdemos os pacotes mas o parse falhou
+    # If packets were lost but parsing failed
     if rx == 0:
         t_min, t_avg, t_max = -1.0, -1.0, -1.0
         
@@ -243,7 +243,7 @@ def main():
                     continue
                 
                 dest_ip = dest_elem['ip']
-                # Formata comando
+                # Format command
                 # {ip}, {source_ip}, {count}, {size}, {timeout}
                 cmd_run = base_cmd.replace("{ip}", dest_ip)\
                                   .replace("{source_ip}", origin_ip)\
@@ -288,7 +288,7 @@ def main():
                 parsed = parse_ping_output(output_text, dest_elem['hostname'])
                 parsed['origin'] = origin_host
                 
-                # Armazena parcial
+                # Store partial result
                 with results_lock:
                     all_results.append(parsed)
                     
@@ -350,7 +350,7 @@ def main():
             parsed = parse_ping_output(content, dest_host)
             parsed['origin'] = origin_host
             
-            # Usar o timestamp do arquivo modificado
+            # Use the timestamp of the modified file
             mtime = os.path.getmtime(fpath)
             parsed['timestamp'] = datetime.datetime.fromtimestamp(mtime).strftime('%Y-%m-%d %H:%M:%S')
             
@@ -413,7 +413,7 @@ def main():
         o = r['origin']
         d = r['dest']
         
-        # Jitter estimado
+        # Estimated jitter
         tmin = r['min']
         tmax = r['max']
         tavg = r['avg']
@@ -1352,7 +1352,7 @@ function renderMatrix() {
              if (perspective === 'ba') primary = dIn;
              if (perspective === 'both' && !primary) primary = dIn;
              
-             // Definir Fundo da Celula (Modo Both julga o cenário mais danificado)
+             // Define Cell Background (Both Mode judges the worst-case scenario)
              let cssClass = 'st-good';
              if (perspective === 'ab') cssClass = evalCss(dOut);
              else if (perspective === 'ba') cssClass = evalCss(dIn);

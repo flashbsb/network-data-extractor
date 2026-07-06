@@ -2,7 +2,7 @@
   <h1>🌐 Network Data Extractor</h1>
   <p><strong>The Ultimate Multivendor NOC Orchestrator & Autonomous Discovery Engine</strong></p>
   
-  ![Version](https://img.shields.io/badge/version-1.80.0-blue.svg)
+  ![Version](https://img.shields.io/badge/version-1.81.0-blue.svg)
   ![Python](https://img.shields.io/badge/python-3.8%2B-green.svg)
 </div>
 
@@ -206,16 +206,22 @@ The dashboard routing supports:
 This contextual linkage creates an integrated diagnostic flow:
 ```mermaid
 graph TD
-    A[Global Inventory] -->|Click link| B(Context Menu)
+    A[Global Inventory] -->|Click link/cell| B(Context Menu)
     B -->|SLA History| C[P2P History & SLA]
     B -->|Dijkstra Route| D[Route Analysis]
     B -->|Drift/Timeline| E[Drift Workspace]
     B -->|Highlight Map| F[Network Topology]
     
-    C -->|Click cell| G(Matrix Menu)
-    G --> A
-    G --> D
-    G --> E
+    C -->|Click cell / list item| G(Context Menu)
+    G -->|Select & View Charts| C
+    G -->|Dijkstra Route| D
+    G -->|Global Inventory| A
+    G -->|Drift Analysis| E
+
+    D -->|Click link title A⇄B| H(Context Menu)
+    H -->|SLA History| C
+    H -->|Global Inventory| A
+    H -->|Drift Analysis| E
 ```
 
 ---

@@ -438,6 +438,49 @@
             background: rgba(6, 182, 212, 0.1);
             text-shadow: 0 0 5px var(--color-action);
         }
+
+        /* Context Menu style */
+        .context-menu {
+            position: absolute;
+            background: #0f172a;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border-radius: 8px;
+            z-index: 10000;
+            display: none;
+            flex-direction: column;
+            padding: 8px 0;
+            min-width: 200px;
+            font-family: 'Inter', sans-serif;
+        }
+        .context-menu a {
+            padding: 10px 16px;
+            text-decoration: none;
+            color: #e2e8f0;
+            font-size: 0.85rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: background 0.2s, color 0.2s;
+            text-align: left;
+            cursor: pointer;
+        }
+        .context-menu a:hover {
+            background: rgba(6, 182, 212, 0.1);
+            color: var(--color-action);
+        }
+        .context-menu .menu-header {
+            padding: 6px 16px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            margin-bottom: 4px;
+            text-align: left;
+        }
     </style>
     <!-- Historical manifests loaded dynamically during page initialization -->
 </head>
@@ -820,7 +863,7 @@
                 tblAnomalies.innerHTML = rankings.anomaly_events.slice(0, 15).map(e => `
                     <tr>
                         <td style="font-family:'JetBrains Mono', monospace; font-size:0.7rem;">${e.timestamp.split(' ')[0]}</td>
-                        <td><a href="#" style="color:var(--text-main); text-decoration:none;" onclick="selectLink('${e.origin}', '${e.dest}')">${e.origin} ➔ ${e.dest}</a></td>
+                        <td><a href="#" style="color:var(--text-main); text-decoration:none;" onclick="showCellContextMenu(event, '${e.origin}', '${e.dest}')">${e.origin} ➔ ${e.dest}</a></td>
                         <td class="txt-crit">${e.actual}ms</td>
                         <td><span class="anomaly-badge">Anomaly</span></td>
                     </tr>
@@ -834,7 +877,7 @@
             if (rankings.top_worst_circuits && rankings.top_worst_circuits.length > 0) {
                 tblWorst.innerHTML = rankings.top_worst_circuits.slice(0, 10).map(c => `
                     <tr>
-                        <td><b><a href="#" style="color:var(--text-main); text-decoration:none;" onclick="selectLink('${c.origin}', '${c.dest}')">${c.origin} ⇄ ${c.dest}</a></b></td>
+                        <td><b><a href="#" style="color:var(--text-main); text-decoration:none;" onclick="showCellContextMenu(event, '${c.origin}', '${c.dest}')">${c.origin} ⇄ ${c.dest}</a></b></td>
                         <td class="${c.avg_loss > 1.0 ? 'txt-crit' : 'txt-warn'}">${c.avg_loss}%</td>
                         <td>${c.avg_latency}ms</td>
                     </tr>
@@ -848,7 +891,7 @@
             if (rankings.worsening_trend && rankings.worsening_trend.length > 0) {
                 tblTrends.innerHTML = rankings.worsening_trend.slice(0, 10).map(t => `
                     <tr>
-                        <td><b><a href="#" style="color:var(--text-main); text-decoration:none;" onclick="selectLink('${t.origin}', '${t.dest}')">${t.origin} ➔ ${t.dest}</a></b></td>
+                        <td><b><a href="#" style="color:var(--text-main); text-decoration:none;" onclick="showCellContextMenu(event, '${t.origin}', '${t.dest}')">${t.origin} ➔ ${t.dest}</a></b></td>
                         <td class="txt-warn">+${t.slope} ms/run</td>
                         <td>${t.start_latency}ms ➔ ${t.end_latency}ms</td>
                     </tr>
@@ -862,7 +905,7 @@
             if (rankings.rankings_by_stability && rankings.rankings_by_stability.length > 0) {
                 tblStability.innerHTML = rankings.rankings_by_stability.slice(0, 10).map(s => `
                     <tr>
-                        <td><b><a href="#" style="color:var(--text-main); text-decoration:none;" onclick="selectLink('${s.origin}', '${s.dest}')">${s.origin} ⇄ ${s.dest}</a></b></td>
+                        <td><b><a href="#" style="color:var(--text-main); text-decoration:none;" onclick="showCellContextMenu(event, '${s.origin}', '${s.dest}')">${s.origin} ⇄ ${s.dest}</a></b></td>
                         <td class="txt-warn">σ = ${s.std_dev}</td>
                         <td>Avg: ${s.avg}ms</td>
                     </tr>
@@ -1519,7 +1562,72 @@
             });
         }
 
+        let hasDiff = false;
+        async function checkDiffAvailability() {
+            try {
+                const response = await fetch('../diff/index.html', { method: 'HEAD' });
+                hasDiff = response.ok || response.status === 0;
+            } catch (e) {
+                hasDiff = false;
+            }
+        }
+
+        function showCellContextMenu(e, origin, dest) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            let menu = document.getElementById('cellContextMenu');
+            if (!menu) {
+                menu = document.createElement('div');
+                menu.id = 'cellContextMenu';
+                menu.className = 'context-menu';
+                document.body.appendChild(menu);
+            }
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            const runId = urlParams.get('run') || '';
+            
+            menu.innerHTML = `
+                <div class="menu-header">${origin}${dest ? ' ⇄ ' + dest : ''}</div>
+                <a onclick="selectLink('${origin}', '${dest || ''}'); document.getElementById('cellContextMenu').style.display='none';">📈 Select Circuit & View Charts</a>
+                ${dest ? `<a onclick="window.location.href='path.html?run=${runId}&origin=${origin}&dest=${dest}'">🕸️ Route Analysis (Dijkstra)</a>` : ''}
+                <a onclick="window.open('../inventory/index.html?run=${runId}&device=${origin}', '_blank')">📦 Global Inventory (${origin})</a>
+                ${dest ? `<a onclick="window.open('../inventory/index.html?run=${runId}&device=${dest}', '_blank')">📦 Global Inventory (${dest})</a>` : ''}
+                ${hasDiff ? `
+                    <a onclick="window.open('../diff/index.html?device=${origin}', '_blank')">⚖️ Drift Analysis (${origin})</a>
+                    ${dest ? `<a onclick="window.open('../diff/index.html?device=${dest}', '_blank')">⚖️ Drift Analysis (${dest})</a>` : ''}
+                ` : `
+                    <a class="disabled" style="opacity:0.5; cursor:not-allowed;">⚖️ Drift Analysis (Unavailable)</a>
+                `}
+            `;
+            
+            menu.style.display = 'flex';
+            
+            const menuWidth = menu.offsetWidth || 200;
+            const menuHeight = menu.offsetHeight || 220;
+            
+            let x = e.pageX;
+            let y = e.pageY;
+            
+            if (x + menuWidth > window.innerWidth) {
+                x = window.innerWidth - menuWidth - 10;
+            }
+            if (y + menuHeight > window.innerHeight + window.scrollY) {
+                y = window.innerHeight + window.scrollY - menuHeight - 10;
+            }
+            
+            menu.style.left = x + 'px';
+            menu.style.top = y + 'px';
+        }
+
+        // Close menu on click outside
+        document.addEventListener('click', () => {
+            const menu = document.getElementById('cellContextMenu');
+            if (menu) menu.style.display = 'none';
+        });
+
         window.onload = async () => {
+            checkDiffAvailability();
             try {
                 await loadScript("history/history_manifest.js");
             } catch(e) {

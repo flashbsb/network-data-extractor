@@ -437,6 +437,49 @@
             font-size: 0.9rem;
             font-weight: 700;
         }
+
+        /* Context Menu style */
+        .context-menu {
+            position: absolute;
+            background: #0f172a;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border-radius: 8px;
+            z-index: 10000;
+            display: none;
+            flex-direction: column;
+            padding: 8px 0;
+            min-width: 200px;
+            font-family: 'Inter', sans-serif;
+        }
+        .context-menu a {
+            padding: 10px 16px;
+            text-decoration: none;
+            color: #e2e8f0;
+            font-size: 0.85rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: background 0.2s, color 0.2s;
+            text-align: left;
+            cursor: pointer;
+        }
+        .context-menu a:hover {
+            background: rgba(6, 182, 212, 0.1);
+            color: var(--color-action);
+        }
+        .context-menu .menu-header {
+            padding: 6px 16px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            margin-bottom: 4px;
+            text-align: left;
+        }
     </style>
     <!-- Load inventory manifest for dates -->
     <script src="../inventory/manifest.js" onerror="handleManifestError()"></script>
@@ -578,6 +621,12 @@
                 <li><b>Latency:</b> Deducts 10 points if average latency exceeds 200ms.</li>
             </ul>
         </div>
+    </div>
+
+    <!-- Routing Disclaimer -->
+    <div class="warning-panel" style="background: rgba(249, 115, 22, 0.05); border: 1px solid rgba(249, 115, 22, 0.2); padding: 20px; margin-top: 20px; border-radius: 2px; font-size: 0.8rem; line-height: 1.5; color: var(--text-dim);">
+        <strong style="color: var(--color-warn); display: block; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">⚠️ Routing Guidelines & Limitations Disclaimer</strong>
+        The paths displayed in this analysis are based strictly on active physical and logical connectivity identified between network elements (direct topology). This representation does not take into account dynamic routing metrics (such as OSPF cost, BGP path preference, IS-IS priorities), locally configured static routes, or traffic engineering (MPLS-TE) decisions active on the network devices. Therefore, the actual path traversed by data packets in production may differ from the calculated topological path.
     </div>
 
     <!-- Priority Queue implementation for Dijkstra -->
@@ -1424,9 +1473,9 @@
                 <table style="width:100%; border-collapse:collapse; font-size:0.75rem;">
                     <thead>
                         <tr style="border-bottom:1px solid var(--border-color); color:var(--text-dim); text-align:left;">
-                            <th style="padding:5px;">Porta</th>
-                            <th style="padding:5px;">Protocolo</th>
-                            <th style="padding:5px;">Banda</th>
+                            <th style="padding:5px;">Port</th>
+                            <th style="padding:5px;">Protocol</th>
+                            <th style="padding:5px;">Bandwidth</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1458,7 +1507,7 @@
             const u = segment.path[idx];
             const v = segment.path[idx + 1];
 
-            document.getElementById('drawerTitle').innerText = `Link: ${u} ⇄ ${v}`;
+            document.getElementById('drawerTitle').innerHTML = `Link: <span class="clickable-title" onclick="showLinkContextMenu(event, '${u}', '${v}')" style="cursor: pointer; text-decoration: underline; color: var(--color-action);">${u} ⇄ ${v}</span>`;
             
             // Fetch segment compiled dataset
             getSegmentDetails(u, v, idx);
@@ -1482,9 +1531,9 @@
                     <table style="width:100%; border-collapse:collapse; font-size:0.7rem; margin-top:5px; margin-bottom:15px;">
                         <thead>
                             <tr style="border-bottom:1px solid rgba(255,255,255,0.1); color:var(--text-dim); text-align:left;">
-                                <th style="padding:4px 0;">Porta</th>
+                                <th style="padding:4px 0;">Port</th>
                                 <th style="padding:4px 0; text-align:center;">Status</th>
-                                <th style="padding:4px 0; padding-left:10px;">Descrição</th>
+                                <th style="padding:4px 0; padding-left:10px;">Description</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1513,9 +1562,9 @@
                     <table style="width:100%; border-collapse:collapse; font-size:0.7rem; margin-top:5px; margin-bottom:15px;">
                         <thead>
                             <tr style="border-bottom:1px solid rgba(255,255,255,0.1); color:var(--text-dim); text-align:left;">
-                                <th style="padding:4px 0;">Porta</th>
+                                <th style="padding:4px 0;">Port</th>
                                 <th style="padding:4px 0; text-align:center;">Status</th>
-                                <th style="padding:4px 0; padding-left:10px;">Descrição</th>
+                                <th style="padding:4px 0; padding-left:10px;">Description</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1655,8 +1704,71 @@
             }
         }
 
+        let hasDiff = false;
+        async function checkDiffAvailability() {
+            try {
+                const response = await fetch('../diff/index.html', { method: 'HEAD' });
+                hasDiff = response.ok || response.status === 0;
+            } catch (e) {
+                hasDiff = false;
+            }
+        }
+
+        function showLinkContextMenu(e, origin, dest) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            let menu = document.getElementById('linkContextMenu');
+            if (!menu) {
+                menu = document.createElement('div');
+                menu.id = 'linkContextMenu';
+                menu.className = 'context-menu';
+                document.body.appendChild(menu);
+            }
+            
+            const currentRunId = document.getElementById('selSnapshot').value;
+            
+            menu.innerHTML = `
+                <div class="menu-header">${origin} ⇄ ${dest}</div>
+                <a onclick="window.open('history.html?origin=${origin}&dest=${dest}&run=${currentRunId}', '_blank')">📈 P2P History & SLA</a>
+                <a onclick="window.open('../inventory/index.html?run=${currentRunId}&device=${origin}', '_blank')">📦 Global Inventory (${origin})</a>
+                <a onclick="window.open('../inventory/index.html?run=${currentRunId}&device=${dest}', '_blank')">📦 Global Inventory (${dest})</a>
+                ${hasDiff ? `
+                    <a onclick="window.open('../diff/index.html?device=${origin}', '_blank')">⚖️ Drift Analysis (${origin})</a>
+                    <a onclick="window.open('../diff/index.html?device=${dest}', '_blank')">⚖️ Drift Analysis (${dest})</a>
+                ` : `
+                    <a class="disabled" style="opacity:0.5; cursor:not-allowed;">⚖️ Drift Analysis (Unavailable)</a>
+                `}
+            `;
+            
+            menu.style.display = 'flex';
+            
+            const menuWidth = menu.offsetWidth || 200;
+            const menuHeight = menu.offsetHeight || 200;
+            
+            let x = e.pageX;
+            let y = e.pageY;
+            
+            if (x + menuWidth > window.innerWidth) {
+                x = window.innerWidth - menuWidth - 10;
+            }
+            if (y + menuHeight > window.innerHeight + window.scrollY) {
+                y = window.innerHeight + window.scrollY - menuHeight - 10;
+            }
+            
+            menu.style.left = x + 'px';
+            menu.style.top = y + 'px';
+        }
+
+        // Close menu on click outside
+        document.addEventListener('click', () => {
+            const menu = document.getElementById('linkContextMenu');
+            if (menu) menu.style.display = 'none';
+        });
+
         window.onload = () => {
             initSelectors();
+            checkDiffAvailability();
         };
     </script>
 </body>
