@@ -481,6 +481,52 @@
             margin-bottom: 4px;
             text-align: left;
         }
+        .info-tooltip:hover {
+            color: var(--color-action) !important;
+        }
+
+        /* Collapsible Section Styles */
+        .collapsible-section {
+            border: 1px solid var(--border-color);
+            background: var(--panel-bg);
+            border-radius: 4px;
+            margin-bottom: 25px;
+            overflow: hidden;
+            transition: border-color 0.2s;
+        }
+        .collapsible-section:hover {
+            border-color: rgba(6, 182, 212, 0.3);
+        }
+        .collapsible-header {
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+            background: rgba(255, 255, 255, 0.01);
+            transition: background 0.2s;
+        }
+        .collapsible-header:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+        .collapsible-header h2 {
+            font-size: 1.1rem;
+            color: var(--color-action);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .collapsible-header .trigger-icon {
+            font-size: 1rem;
+            color: var(--color-action);
+            transition: transform 0.2s;
+        }
+        .collapsible-content {
+            padding: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.03);
+        }
     </style>
     <!-- Historical manifests loaded dynamically during page initialization -->
 </head>
@@ -513,12 +559,15 @@
             <datalist id="datalistDest"></datalist>
         </div>
         <div class="input-group" style="grid-column: span 2;">
-            <label>Directionality</label>
+            <label style="display: flex; align-items: center; gap: 6px;">
+                Directionality
+                <span class="info-tooltip" title="Outbound: direct path. Inbound: reverse path. Bidirectional: average of both paths. Worst Case: maximum loss/latency at each snapshot." style="cursor: help; color: var(--text-dim); font-size: 0.8rem; transition: color 0.2s;">ℹ️</span>
+            </label>
             <div class="quick-select-pills" id="directionPills">
-                <button class="pill-btn" data-value="direct" onclick="setDirectionFilter('direct', this)">Outbound: A 🡲 B</button>
-                <button class="pill-btn" data-value="reverse" onclick="setDirectionFilter('reverse', this)">Inbound: B 🡰 A</button>
-                <button class="pill-btn" data-value="both" onclick="setDirectionFilter('both', this)">Bidirectional: A ⇄ B</button>
-                <button class="pill-btn active" data-value="worst" onclick="setDirectionFilter('worst', this)">Worst Case</button>
+                <button class="pill-btn" data-value="direct" onclick="setDirectionFilter('direct', this)" title="Displays statistics from Origin (A) to Destination (B).">Outbound: A 🡲 B</button>
+                <button class="pill-btn" data-value="reverse" onclick="setDirectionFilter('reverse', this)" title="Displays statistics from Destination (B) to Origin (A).">Inbound: B 🡰 A</button>
+                <button class="pill-btn" data-value="both" onclick="setDirectionFilter('both', this)" title="Displays the mathematical average of both directions.">Bidirectional: A ⇄ B</button>
+                <button class="pill-btn active" data-value="worst" onclick="setDirectionFilter('worst', this)" title="Displays the worst-case values (highest latency/loss) registered between the two directions at each snapshot.">Worst Case</button>
             </div>
         </div>
         <div class="input-group" style="grid-column: span 2;">
@@ -615,123 +664,134 @@
                 </div>
             </div>
 
-            <!-- Grid Heatmap & Probability -->
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                <div class="chart-panel" style="margin-bottom:0;">
-                    <div class="panel-header">
-                        <h2>Latency Density Analysis (Percentiles)</h2>
-                    </div>
-                    <div style="position: relative; height: 220px;">
-                        <canvas id="chartPercentiles"></canvas>
-                    </div>
+            <!-- Collapsible Section: Latency Density & Weekly Loss Heatmap -->
+            <div class="collapsible-section" id="sectionDensityHeatmap">
+                <div class="collapsible-header" onclick="toggleHistorySection('collapsibleDensityHeatmap', 'iconDensityHeatmap')">
+                    <h2>📊 Latency Density & Weekly Loss Heatmap</h2>
+                    <span class="trigger-icon" id="iconDensityHeatmap">▼</span>
                 </div>
+                <div id="collapsibleDensityHeatmap" class="collapsible-content" style="display: none;">
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div class="chart-panel" style="margin-bottom:0; background:none; border:none; padding:0;">
+                            <div class="panel-header">
+                                <h2>Latency Density Analysis (Percentiles)</h2>
+                            </div>
+                            <div style="position: relative; height: 220px;">
+                                <canvas id="chartPercentiles"></canvas>
+                            </div>
+                        </div>
 
-                <div class="chart-panel" style="margin-bottom:0;">
-                    <div class="panel-header">
-                        <h2>Weekly Heatmap (Worst Loss)</h2>
+                        <div class="chart-panel" style="margin-bottom:0; background:none; border:none; padding:0;">
+                            <div class="panel-header">
+                                <h2>Weekly Heatmap (Worst Loss)</h2>
+                            </div>
+                            <div class="heatmap-grid" id="heatmapGrid"></div>
+                        </div>
                     </div>
-                    <div class="heatmap-grid" id="heatmapGrid"></div>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Network-Wide Rankings and Global Trends Section -->
-    <div class="network-wide-section" style="margin-top: 40px; border-top: 2px solid var(--border-color); padding-top: 30px;">
-        <div class="panel-header" style="margin-bottom: 20px;">
-            <h2 style="font-size: 1.4rem; color: var(--color-action); text-shadow: 0 0 10px rgba(6, 182, 212, 0.2); border-left: 4px solid var(--color-action); padding-left: 12px;">🌐 Network-Wide Health & Performance Intelligence (All Circuits)</h2>
+    <div class="collapsible-section" id="sectionNetworkHealth" style="margin-top: 40px;">
+        <div class="collapsible-header" onclick="toggleHistorySection('collapsibleNetworkHealth', 'iconNetworkHealth')">
+            <h2>🌐 Network-Wide Health & Performance Intelligence (All Circuits)</h2>
+            <span class="trigger-icon" id="iconNetworkHealth">▼</span>
         </div>
         
-        <div class="rankings-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; margin-bottom: 25px;">
-            <!-- Anomalies -->
-            <div class="sidebar-panel" style="max-height: none;">
-                <div class="panel-header" style="margin-bottom:10px;">
-                    <h2>Recent Anomalies</h2>
+        <div id="collapsibleNetworkHealth" class="collapsible-content" style="display: none;">
+            <div class="rankings-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; margin-bottom: 25px;">
+                <!-- Anomalies -->
+                <div class="sidebar-panel" style="max-height: none;">
+                    <div class="panel-header" style="margin-bottom:10px;">
+                        <h2>Recent Anomalies</h2>
+                    </div>
+                    <table class="list-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Link</th>
+                                <th>Measured</th>
+                                <th>Deviation</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tblAnomalies"></tbody>
+                    </table>
                 </div>
-                <table class="list-table">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Link</th>
-                            <th>Measured</th>
-                            <th>Deviation</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tblAnomalies"></tbody>
-                </table>
+
+                <!-- Top Worst -->
+                <div class="sidebar-panel" style="max-height: none;">
+                    <div class="panel-header" style="margin-bottom:10px;">
+                        <h2>Top 10 Worst Circuits (Last 10 Snapshots)</h2>
+                    </div>
+                    <table class="list-table">
+                        <thead>
+                            <tr>
+                                <th>Origin ⇄ Destination</th>
+                                <th>Avg Loss</th>
+                                <th>Avg Latency</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tblWorst"></tbody>
+                    </table>
+                </div>
+
+                <!-- Worsening Trend -->
+                <div class="sidebar-panel" style="max-height: none;">
+                    <div class="panel-header" style="margin-bottom:10px;">
+                        <h2>Degradation Trend (Regression)</h2>
+                    </div>
+                    <table class="list-table">
+                        <thead>
+                            <tr>
+                                <th>Link</th>
+                                <th>Coefficient (Δ/run)</th>
+                                <th>Evolution</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tblTrends"></tbody>
+                    </table>
+                </div>
+
+                <!-- Instability (Variance) -->
+                <div class="sidebar-panel" style="max-height: none;">
+                    <div class="panel-header" style="margin-bottom:10px;">
+                        <h2>Instability Ranking (Std Dev)</h2>
+                    </div>
+                    <table class="list-table">
+                        <thead>
+                            <tr>
+                                <th>Circuit</th>
+                                <th>Std Dev (σ)</th>
+                                <th>Avg Latency</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tblStability"></tbody>
+                    </table>
+                </div>
             </div>
 
-            <!-- Top Worst -->
-            <div class="sidebar-panel" style="max-height: none;">
-                <div class="panel-header" style="margin-bottom:10px;">
-                    <h2>Top 10 Worst Circuits (Last 10 Snapshots)</h2>
-                </div>
-                <table class="list-table">
-                    <thead>
-                        <tr>
-                            <th>Origin ⇄ Destination</th>
-                            <th>Avg Loss</th>
-                            <th>Avg Latency</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tblWorst"></tbody>
-                </table>
-            </div>
-
-            <!-- Worsening Trend -->
-            <div class="sidebar-panel" style="max-height: none;">
-                <div class="panel-header" style="margin-bottom:10px;">
-                    <h2>Degradation Trend (Regression)</h2>
-                </div>
-                <table class="list-table">
-                    <thead>
-                        <tr>
-                            <th>Link</th>
-                            <th>Coefficient (Δ/run)</th>
-                            <th>Evolution</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tblTrends"></tbody>
-                </table>
-            </div>
-
-            <!-- Instability (Variance) -->
-            <div class="sidebar-panel" style="max-height: none;">
-                <div class="panel-header" style="margin-bottom:10px;">
-                    <h2>Instability Ranking (Std Dev)</h2>
-                </div>
-                <table class="list-table">
-                    <thead>
-                        <tr>
-                            <th>Circuit</th>
-                            <th>Std Dev (σ)</th>
-                            <th>Avg Latency</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tblStability"></tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Footer Explanatory Legend -->
-        <div class="legend-panel" style="background: rgba(30, 41, 59, 0.4); border: 1px solid var(--border-color); padding: 20px; margin-top: 25px; border-radius: 2px;">
-            <h4 style="color: var(--color-action); font-size: 1rem; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px;">📖 Network Intelligence Metrics Legend</h4>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; font-size: 0.8rem; line-height: 1.5; color: var(--text-dim);">
-                <div>
-                    <strong style="color: var(--text-main); display: block; margin-bottom: 5px;">⚠️ Recent Anomalies</strong>
-                    Identifies historical standard deviation spikes. Shows recent connections where measured latency or loss significantly exceeded the baseline average.
-                </div>
-                <div>
-                    <strong style="color: var(--text-main); display: block; margin-bottom: 5px;">🔥 Top 10 Worst Circuits</strong>
-                    Aggregates circuits with the highest average packet loss and latency over the last 10 snapshots. Useful for highlighting consistently poor-performing connections.
-                </div>
-                <div>
-                    <strong style="color: var(--text-main); display: block; margin-bottom: 5px;">📉 Degradation Trend (Regression)</strong>
-                    Applies linear regression analysis over time. Circuits with a positive coefficient (+) are progressively worsening (latency or loss increasing per run).
-                </div>
-                <div>
-                    <strong style="color: var(--text-main); display: block; margin-bottom: 5px;">📊 Instability Ranking (Std Dev)</strong>
-                    Sorts circuits by standard deviation (σ) of latency. High values indicate highly unstable circuits with jitter and performance fluctuations.
+            <!-- Footer Explanatory Legend -->
+            <div class="legend-panel" style="background: rgba(30, 41, 59, 0.4); border: 1px solid var(--border-color); padding: 20px; margin-top: 25px; border-radius: 2px;">
+                <h4 style="color: var(--color-action); font-size: 1rem; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px;">📖 Network Intelligence Metrics Legend</h4>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; font-size: 0.8rem; line-height: 1.5; color: var(--text-dim);">
+                    <div>
+                        <strong style="color: var(--text-main); display: block; margin-bottom: 5px;">⚠️ Recent Anomalies</strong>
+                        Identifies historical standard deviation spikes. Shows recent connections where measured latency or loss significantly exceeded the baseline average.
+                    </div>
+                    <div>
+                        <strong style="color: var(--text-main); display: block; margin-bottom: 5px;">🔥 Top 10 Worst Circuits</strong>
+                        Aggregates circuits with the highest average packet loss and latency over the last 10 snapshots. Useful for highlighting consistently poor-performing connections.
+                    </div>
+                    <div>
+                        <strong style="color: var(--text-main); display: block; margin-bottom: 5px;">📉 Degradation Trend (Regression)</strong>
+                        Applies linear regression analysis over time. Circuits with a positive coefficient (+) are progressively worsening (latency or loss increasing per run).
+                    </div>
+                    <div>
+                        <strong style="color: var(--text-main); display: block; margin-bottom: 5px;">📊 Instability Ranking (Std Dev)</strong>
+                        Sorts circuits by standard deviation (σ) of latency. High values indicate highly unstable circuits with jitter and performance fluctuations.
+                    </div>
                 </div>
             </div>
         </div>
@@ -739,6 +799,22 @@
 
     <script>
         let hasData = true;
+        
+        function toggleHistorySection(id, iconId) {
+            const content = document.getElementById(id);
+            const icon = document.getElementById(iconId);
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                if (icon) icon.innerHTML = '▲';
+                if (id === 'collapsibleDensityHeatmap' && chartInstancePercentiles) {
+                    chartInstancePercentiles.resize();
+                    chartInstancePercentiles.update();
+                }
+            } else {
+                content.style.display = 'none';
+                if (icon) icon.innerHTML = '▼';
+            }
+        }
         
         function handleLoadError(file) {
             hasData = false;

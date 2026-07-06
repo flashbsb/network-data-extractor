@@ -2,6 +2,20 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.82.0] - 2026-07-06
+### Added
+- **Interactive Section Collapsibility (history.html)**:
+  - Collapsed the "Latency Density & Weekly Loss Heatmap" and the "Network-Wide Health & Performance Intelligence (All Circuits)" sections by default on page load.
+  - Implemented dynamic icon toggle (▼ / ▲) and wired Chart.js resize/update triggers to prevent canvas size collapse upon expanding hidden elements.
+- **Visual Layout Harmonization (history.html)**:
+  - Wrapped the rankings and global legend sections in the standard `.collapsible-section` card layout, aligning border styles, paddings, backgrounds, and hover indicators with the density heatmap panel.
+- **Directionality Tooltip Helpers (history.html)**:
+  - Added descriptive hover `title` tags to each directionality pill (Outbound, Inbound, Bidirectional, Worst Case) and added a dedicated tooltip info icon (ℹ️) next to the filter label.
+- **Default Collapsed Advanced Analytics (index.html)**:
+  - Set the dynamically generated "Advanced Analytics" section inside the main portal index to collapsed by default (`style="display:none;"` and toggle icon `▼`).
+- **Historical Snapshot Dashboard Regenerator**:
+  - Developed and executed an offline parser script to batch-regenerate the `ping_matrix_dashboard.html` files for all historical runs across the production datasets, aligning older reports with the new default collapsed state.
+
 ## [1.81.0] - 2026-07-06
 ### Added
 - **Global SLA History Context Menus**:

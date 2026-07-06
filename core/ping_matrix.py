@@ -1122,9 +1122,9 @@ function buildAnalytics() {
     let h = `
     <div class="analytics-header" onclick="toggleAnalytics()">
         <h3>📊 Advanced Analytics</h3>
-        <span id="analyticsToggleIcon" style="color:#38bdf8; font-size:16px;">▲</span>
+        <span id="analyticsToggleIcon" style="color:#38bdf8; font-size:16px;">▼</span>
     </div>
-    <div id="analyticsContent" class="analytics-content" style="display:flex;">
+    <div id="analyticsContent" class="analytics-content" style="display:none;">
         <div class="analytics-card"><h4>⏱️ High Latency Links</h4><ul>`;
         
     if (topLatency.length > 0) {
