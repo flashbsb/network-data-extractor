@@ -5,7 +5,7 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
- * Version : 1.83.1
+ * Version : 1.83.2
  * Date    : 2026-07-08
  * Author  : flashbsb (and contributors) 
  
@@ -23,7 +23,7 @@ import types
 from datetime import datetime
 from glob import glob
 
-APP_VERSION = "1.83.1"
+APP_VERSION = "1.83.2"
 APP_DATE = "2026-07-08"
 
 # Force line-buffered output to prevent out-of-order logs when redirected (e.g. in cron)

@@ -2,6 +2,13 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.83.2] - 2026-07-08
+### Fixed
+- **Canvas Panning Interactivity**:
+  - Implemented a custom mouse grab-to-scroll dragging listener using the event capture phase (`true`) and window-level drag bounds tracking. This fully bypasses mxGraph event interception, allowing smooth left-click-and-hold canvas dragging.
+- **Topology Multi-Page Toolbar selector**:
+  - Added the `pages` option to the Draw.io static viewer configuration (`toolbar: 'pages zoom layers tags'`). This enables the native page selection dropdown and navigation buttons directly in the top bar, restoring access to all pages (GENERAL, CORE, METRO, etc.) inside the `.drawio` files.
+
 ## [1.83.1] - 2026-07-08
 ### Fixed
 - **Cron and Redirection Logging Stability**:

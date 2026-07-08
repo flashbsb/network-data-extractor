@@ -713,7 +713,6 @@ class TopologyEngine:
             overflow: auto !important;
             position: relative;
         }
-        /* Custom styles to enable scrollbars on the inner container */
         .geDiagramContainer {
             overflow: auto !important;
         }
@@ -724,25 +723,140 @@ class TopologyEngine:
         body > div.geSidebarContainer {
             z-index: 100000 !important;
         }
+
+        /* Custom Page Tabs Bar at the bottom */
+        #page-tabs-bar {
+            width: 100%;
+            height: 40px;
+            background-color: #0f172a; /* Dark slate matching NOC dashboard */
+            border-top: 1px solid #334155;
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            box-sizing: border-box;
+            gap: 8px;
+            overflow-x: auto;
+            white-space: nowrap;
+            scrollbar-width: none; /* Firefox */
+        }
+        #page-tabs-bar::-webkit-scrollbar {
+            display: none; /* Chrome/Safari */
+        }
+        .page-tab {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #94a3b8;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-family: system-ui, -apple-system, sans-serif;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .page-tab:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #f1f5f9;
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+        .page-tab.active {
+            background: #2563eb;
+            color: #ffffff;
+            border-color: #3b82f6;
+            box-shadow: 0 0 10px rgba(37, 99, 235, 0.3);
+        }
+
+        /* Force cursor during dragging */
+        body.grabbing, body.grabbing * {
+            cursor: grabbing !important;
+        }
     </style>
     <script src="viewer-static.min.js"></script>
 </head>
 <body>
     <div id="graph-container"></div>
+    <div id="page-tabs-bar" style="display: none;"></div>
     <script>
+        let activeXmlContent = null;
+        let activePageIndex = 0;
+
+        window.parent.postMessage(JSON.stringify({ event: 'init' }), '*');
+
         window.addEventListener('message', function(event) {
             try {
                 const data = JSON.parse(event.data);
                 if (data.action === 'load' && data.xml) {
-                    renderGraph(data.xml);
+                    activeXmlContent = data.xml;
+                    activePageIndex = 0;
+                    renderGraph(activeXmlContent, 0);
+                    renderPageTabs(activeXmlContent);
                 }
             } catch (e) {}
         });
 
-        // Signalize to parent window that iframe is ready to receive diagram
-        window.parent.postMessage(JSON.stringify({ event: 'init' }), '*');
+        function parseDiagramPages(xmlString) {
+            const pages = [];
+            try {
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlString, "text/xml");
+                const diagrams = xmlDoc.getElementsByTagName("diagram");
+                for (let i = 0; i < diagrams.length; i++) {
+                    pages.push({
+                        index: i,
+                        name: diagrams[i].getAttribute("name") || ("Page " + (i + 1))
+                    });
+                }
+            } catch (e) {
+                console.warn("DOMParser failed, using regex fallback:", e);
+            }
+            
+            if (pages.length === 0) {
+                const re = /<diagram\s+[^>]*name="([^"]+)"/g;
+                let match;
+                let index = 0;
+                while ((match = re.exec(xmlString)) !== null) {
+                    pages.push({
+                        index: index++,
+                        name: match[1]
+                    });
+                }
+            }
+            return pages;
+        }
 
-        function renderGraph(xmlContent) {
+        function renderPageTabs(xmlString) {
+            const tabsBar = document.getElementById('page-tabs-bar');
+            const graphContainer = document.getElementById('graph-container');
+            tabsBar.innerHTML = '';
+            
+            const pages = parseDiagramPages(xmlString);
+            if (pages.length <= 1) {
+                tabsBar.style.display = 'none';
+                graphContainer.style.height = '100%';
+                return;
+            }
+            
+            tabsBar.style.display = 'flex';
+            graphContainer.style.height = 'calc(100% - 40px)';
+            
+            pages.forEach(page => {
+                const btn = document.createElement('button');
+                btn.className = 'page-tab' + (page.index === activePageIndex ? ' active' : '');
+                btn.innerText = page.name;
+                btn.addEventListener('click', function() {
+                    if (page.index === activePageIndex) return;
+                    activePageIndex = page.index;
+                    
+                    document.querySelectorAll('.page-tab').forEach(t => t.classList.remove('active'));
+                    btn.classList.add('active');
+                    
+                    renderGraph(activeXmlContent, page.index);
+                });
+                tabsBar.appendChild(btn);
+            });
+        }
+
+        function renderGraph(xmlContent, pageIndex = 0) {
             const container = document.getElementById('graph-container');
             container.innerHTML = '';
             
@@ -756,7 +870,8 @@ class TopologyEngine:
                 lightbox: false,
                 nav: true,
                 resize: true,
-                toolbar: 'zoom layers tags',
+                page: pageIndex,
+                toolbar: 'pages zoom layers tags',
                 edit: '_blank'
             }));
             
@@ -830,45 +945,79 @@ class TopologyEngine:
         }
 
         function applyGraphConfiguration(graph) {
-            // Enable the graph so it can receive mouse events for panning
-            graph.setEnabled(true);
+            // Keep graph disabled to prevent mxGraph from intercepting mouse dragging
+            graph.setEnabled(false);
             
-            // Keep graph read-only and static
-            graph.setCellsEditable(false);
-            graph.setCellsMovable(false);
-            graph.setCellsResizable(false);
-            graph.setCellsSelectable(false);
-            graph.setConnectable(false);
-            
-            // Enable scrollbars and panning
+            // Enable scrollbars in mxGraph
             graph.useScrollbarsForPanning = true;
-            graph.panningEnabled = true;
-            if (graph.panningHandler) {
-                graph.panningHandler.useLeftButtonForPanning = true;
-                graph.panningHandler.usePopupTrigger = false;
-                graph.panningHandler.ignoreCell = true;
-                graph.panningHandler.setEnabled(true);
-            }
+            graph.panningEnabled = false; // Disable mxGraph's native panning to prevent conflicts
             
-            // Centralize zoom out
-            graph.centerZoom = true;
-            
-            // Customize cursor to indicate grab/draggable state
+            // Customize cursor and enable manual grab-to-scroll navigation
             const containerEl = graph.container;
-            if (containerEl) {
+            const mainContainer = document.getElementById('graph-container');
+            if (containerEl && mainContainer) {
+                let isDown = false;
+                let startX, startY;
+                let scrollLeft, scrollTop;
+                let mainScrollLeft, mainScrollTop;
+                let hasDragged = false;
+                
                 containerEl.style.cursor = 'grab';
-                containerEl.addEventListener('mousedown', function() {
-                    containerEl.style.cursor = 'grabbing';
-                });
-                containerEl.addEventListener('mouseup', function() {
-                    containerEl.style.cursor = 'grab';
-                });
+                mainContainer.style.cursor = 'grab';
+                
+                // Capture phase on mousedown to intercept pointer interactions early
+                containerEl.addEventListener('mousedown', function(e) {
+                    if (e.button !== 0) return; // Left mouse button only
+                    isDown = true;
+                    hasDragged = false;
+                    startX = e.clientX;
+                    startY = e.clientY;
+                    scrollLeft = containerEl.scrollLeft;
+                    scrollTop = containerEl.scrollTop;
+                    mainScrollLeft = mainContainer.scrollLeft;
+                    mainScrollTop = mainContainer.scrollTop;
+                }, true);
+                
+                // Use window events to capture mouse dragging outside diagram container bounds
+                window.addEventListener('mousemove', function(e) {
+                    if (!isDown) return;
+                    const dx = e.clientX - startX;
+                    const dy = e.clientY - startY;
+                    
+                    // Only treat as drag if mouse moved at least 3 pixels, preserving standard click events
+                    if (!hasDragged && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
+                        hasDragged = true;
+                        document.body.classList.add('grabbing');
+                    }
+                    
+                    if (hasDragged) {
+                        containerEl.scrollLeft = scrollLeft - dx;
+                        containerEl.scrollTop = scrollTop - dy;
+                        mainContainer.scrollLeft = mainScrollLeft - dx;
+                        mainContainer.scrollTop = mainScrollTop - dy;
+                        e.preventDefault();
+                        e.stopPropagation(); // Stop browser text selection/default dragging
+                    }
+                }, true);
+                
+                const clearDragState = function(e) {
+                    if (isDown) {
+                        isDown = false;
+                        document.body.classList.remove('grabbing');
+                        if (hasDragged) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                        }
+                    }
+                };
+                
+                window.addEventListener('mouseup', clearDragState, true);
+                window.addEventListener('mouseleave', clearDragState, true);
             }
         }
     </script>
 </body>
-</html>
-"""
+</html>"""
         with open(os.path.join(self.topology_dir, "viewer.html"), 'w', encoding='utf-8') as f:
             f.write(viewer_html_content)
 
