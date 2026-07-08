@@ -5,8 +5,8 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
- * Version : 1.82.0
- * Date    : 2026-07-06
+ * Version : 1.83.1
+ * Date    : 2026-07-08
  * Author  : flashbsb (and contributors) 
  
 """
@@ -23,8 +23,16 @@ import types
 from datetime import datetime
 from glob import glob
 
-APP_VERSION = "1.82.0"
-APP_DATE = "2026-07-06"
+APP_VERSION = "1.83.1"
+APP_DATE = "2026-07-08"
+
+# Force line-buffered output to prevent out-of-order logs when redirected (e.g. in cron)
+if hasattr(sys.stdout, 'reconfigure'):
+    try:
+        sys.stdout.reconfigure(line_buffering=True)
+        sys.stderr.reconfigure(line_buffering=True)
+    except Exception:
+        pass
 
 # ANSI Colors — must be declared before any function that uses them
 C_GREEN  = '\033[92m'
@@ -845,8 +853,8 @@ if args.topology:
         print(f"{C_YELLOW}Please verify if the topology generator repository is cloned and --topology-generator-path points to the correct script.{C_RESET}")
         sys.exit(1)
 
-# 4. Clear screen for password security
-if args.password:
+# 4. Clear screen for password security (only when running interactively on a TTY)
+if args.password and sys.stdout.isatty():
     os.system('clear' if os.name == 'posix' else 'cls')
 
 # --- COMPRESSION VALIDATION ---

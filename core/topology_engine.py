@@ -135,6 +135,25 @@ class TopologyEngine:
             f.write(manifest_js)
 
     def _update_dashboard(self):
+        # Check and download local viewer-static.min.js if not present
+        viewer_js_path = os.path.join(self.topology_dir, "viewer-static.min.js")
+        if not os.path.exists(viewer_js_path):
+            print("[*] Local viewer-static.min.js not found. Downloading...")
+            try:
+                import urllib.request
+                url = "https://viewer.diagrams.net/js/viewer-static.min.js"
+                req = urllib.request.Request(
+                    url, 
+                    headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+                )
+                with urllib.request.urlopen(req, timeout=15) as response:
+                    with open(viewer_js_path, 'wb') as out_file:
+                        out_file.write(response.read())
+                print(f"[+] Local viewer-static.min.js saved successfully to {viewer_js_path}")
+            except Exception as e:
+                print(f"{self.C_RED}[!] Failed to download offline Draw.io viewer: {e}{self.C_RESET}")
+                print(f"{self.C_YELLOW}[!] Please download 'https://viewer.diagrams.net/js/viewer-static.min.js' manually and place it in '{self.topology_dir}' to enable offline visualization.{self.C_RESET}")
+
         html_content = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -254,7 +273,18 @@ class TopologyEngine:
 
         /* Viewer Frame area */
         .viewer-container { flex: 1; border: 1px solid var(--border); border-radius: 6px; background: #000; overflow: hidden; position: relative; display: flex; flex-direction: column; }
-        iframe#drawio-viewer { width: 100%; height: 100%; border: none; background: #ffffff; }
+        iframe#drawio-viewer { width: 100%; height: 100%; border: none; background: #ffffff; overflow: hidden; position: relative; }
+
+        /* Controls to Maximize */
+        .expand-controls { display: flex; gap: 8px; position: absolute; top: 15px; right: 15px; z-index: 1000; }
+        .expand-btn { background: rgba(15, 23, 42, 0.85); border: 1px solid var(--border); color: var(--accent); padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 600; backdrop-filter: blur(10px); transition: all 0.2s ease; display: flex; align-items: center; gap: 6px; border-style: solid; }
+        .expand-btn:hover { border-color: var(--accent); background: var(--accent); color: var(--bg-dark); box-shadow: 0 0 10px rgba(6, 182, 212, 0.4); }
+
+        /* Theater Mode CSS */
+        body.theater-mode .sidebar { display: none !important; }
+        body.theater-mode .hud-header { display: none !important; }
+        body.theater-mode #dashboardOverlay { padding: 0 !important; margin: 0 !important; position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 99999 !important; background: var(--bg-dark); }
+        body.theater-mode .topo-controls { position: absolute; top: 15px; left: 15px; z-index: 1000; background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(10px); box-shadow: 0 4px 20px rgba(0,0,0,0.5); width: auto; max-width: calc(100% - 300px); }
 
         /* Fallback offline panel */
         .offline-fallback { display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px; height: 100%; background: rgba(15, 23, 42, 0.95); z-index: 10; overflow-y: auto; }
@@ -330,7 +360,18 @@ class TopologyEngine:
                 </div>
             </div>
 
-            <div class="viewer-container">
+            <div class="viewer-container" id="viewer-container">
+                <div class="expand-controls" id="expandControls" style="display: none;">
+                    <button class="expand-btn" id="theaterBtn" onclick="toggleTheaterMode()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect></svg>
+                        <span>Theater Mode</span>
+                    </button>
+                    <button class="expand-btn" id="fullscreenBtn" onclick="toggleFullscreen()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+                        <span>Fullscreen</span>
+                    </button>
+                </div>
+
                 <div class="loader-overlay" id="loader">
                     <div class="spinner"></div>
                     <p style="color: var(--accent); font-family: 'Outfit'; font-size: 1.1rem; font-weight: 600;">Loading Topology...</p>
@@ -501,16 +542,78 @@ class TopologyEngine:
             loadDiagram(file);
         }
 
+        function toggleTheaterMode() {
+            const isTheater = document.body.classList.toggle('theater-mode');
+            const theaterBtn = document.getElementById('theaterBtn');
+            const btnSpan = theaterBtn.querySelector('span');
+            
+            if (isTheater) {
+                btnSpan.innerText = 'Exit Theater';
+                theaterBtn.style.borderColor = 'var(--accent)';
+                theaterBtn.style.background = 'var(--accent)';
+                theaterBtn.style.color = 'var(--bg-dark)';
+            } else {
+                btnSpan.innerText = 'Theater Mode';
+                theaterBtn.style.borderColor = 'var(--border)';
+                theaterBtn.style.background = 'rgba(15, 23, 42, 0.85)';
+                theaterBtn.style.color = 'var(--accent)';
+            }
+            
+            setTimeout(() => {
+                window.dispatchEvent(new Event('resize'));
+            }, 100);
+        }
+
+        function toggleFullscreen() {
+            const container = document.getElementById('viewer-container');
+            const fsBtn = document.getElementById('fullscreenBtn');
+            const btnSpan = fsBtn.querySelector('span');
+            
+            if (!document.fullscreenElement) {
+                container.requestFullscreen().then(() => {
+                    btnSpan.innerText = 'Exit Fullscreen';
+                    fsBtn.style.borderColor = 'var(--accent)';
+                    fsBtn.style.background = 'var(--accent)';
+                    fsBtn.style.color = 'var(--bg-dark)';
+                }).catch(err => {
+                    alert(`Error attempting to enable fullscreen: ${err.message}`);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        document.addEventListener('fullscreenchange', () => {
+            const fsBtn = document.getElementById('fullscreenBtn');
+            const btnSpan = fsBtn.querySelector('span');
+            if (!document.fullscreenElement) {
+                btnSpan.innerText = 'Fullscreen';
+                fsBtn.style.borderColor = 'var(--border)';
+                fsBtn.style.background = 'rgba(15, 23, 42, 0.85)';
+                fsBtn.style.color = 'var(--accent)';
+            } else {
+                btnSpan.innerText = 'Exit Fullscreen';
+                fsBtn.style.borderColor = 'var(--accent)';
+                fsBtn.style.background = 'var(--accent)';
+                fsBtn.style.color = 'var(--bg-dark)';
+            }
+            setTimeout(() => {
+                window.dispatchEvent(new Event('resize'));
+            }, 100);
+        });
+
         function loadDiagram(file) {
             const viewerFrame = document.getElementById('drawio-viewer');
             const offlinePanel = document.getElementById('offlineFallback');
             const loader = document.getElementById('loader');
             const downloadBtn = document.getElementById('headerDownloadBtn');
+            const expandControls = document.getElementById('expandControls');
             
             if (!file) {
                 viewerFrame.src = 'about:blank';
                 offlinePanel.style.display = 'none';
                 downloadBtn.style.display = 'none';
+                expandControls.style.display = 'none';
                 currentFilename = '';
                 return;
             }
@@ -524,16 +627,17 @@ class TopologyEngine:
             
             // Handle local file:/// protocol fallback
             if (isLocalProtocol) {
-                viewerFrame.style.display = 'none';
+                viewerFrame.src = 'about:blank';
                 offlinePanel.style.display = 'flex';
                 document.getElementById('fallbackDownloadBtn').href = filePath;
                 loader.style.display = 'none';
+                expandControls.style.display = 'none';
                 return;
             }
             
-            viewerFrame.style.display = 'block';
             offlinePanel.style.display = 'none';
             loader.style.display = 'flex';
+            expandControls.style.display = 'flex';
             
             viewerLoaded = false;
             
@@ -545,44 +649,30 @@ class TopologyEngine:
                 })
                 .then(xml => {
                     xmlContent = xml;
-                    // Prepare embedded viewer
-                    viewerFrame.src = 'https://viewer.diagrams.net/?embed=1&proto=json&layers=1&nav=1';
+                    viewerFrame.src = 'viewer.html';
                 })
                 .catch(err => {
                     console.error(err);
                     loader.style.display = 'none';
+                    expandControls.style.display = 'none';
                     alert("Error retrieving topology XML diagram.");
                 });
         }
 
-        // Listen to Draw.io embed API protocol
         window.addEventListener('message', function(event) {
-            const allowedOrigins = [
-                'https://viewer.diagrams.net',
-                'https://embed.diagrams.net',
-                'https://app.diagrams.net',
-                'https://www.draw.io',
-                'https://draw.io'
-            ];
-            if (!allowedOrigins.includes(event.origin)) return;
-            
             try {
                 const data = JSON.parse(event.data);
                 if (data.event === 'init') {
-                    // Send XML to load in viewer
                     const iframe = document.getElementById('drawio-viewer');
                     iframe.contentWindow.postMessage(JSON.stringify({
                         action: 'load',
                         xml: xmlContent
-                    }), event.origin);
+                    }), '*');
                     
-                    // Hide loader
                     document.getElementById('loader').style.display = 'none';
                     viewerLoaded = true;
                 }
-            } catch (e) {
-                // Ignore parsing errors for other system messages
-            }
+            } catch (e) {}
         });
 
         window.addEventListener('DOMContentLoaded', () => {
@@ -600,6 +690,187 @@ class TopologyEngine:
 """
         with open(os.path.join(self.topology_dir, "index.html"), 'w', encoding='utf-8') as f:
             f.write(html_content)
+
+        viewer_html_content = """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="description" content="Network Topology Interactive Viewer">
+    <meta property="og:title" content="Network Topology Viewer">
+    <title>Draw.io Offline Viewer</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #ffffff;
+        }
+        #graph-container {
+            width: 100%;
+            height: 100%;
+            overflow: auto !important;
+            position: relative;
+        }
+        /* Custom styles to enable scrollbars on the inner container */
+        .geDiagramContainer {
+            overflow: auto !important;
+        }
+        
+        /* Adjust popup menus and dropdowns to have extreme z-index */
+        body > div.mxPopupMenu, 
+        body > div.mxWindow,
+        body > div.geSidebarContainer {
+            z-index: 100000 !important;
+        }
+    </style>
+    <script src="viewer-static.min.js"></script>
+</head>
+<body>
+    <div id="graph-container"></div>
+    <script>
+        window.addEventListener('message', function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.action === 'load' && data.xml) {
+                    renderGraph(data.xml);
+                }
+            } catch (e) {}
+        });
+
+        // Signalize to parent window that iframe is ready to receive diagram
+        window.parent.postMessage(JSON.stringify({ event: 'init' }), '*');
+
+        function renderGraph(xmlContent) {
+            const container = document.getElementById('graph-container');
+            container.innerHTML = '';
+            
+            const graphDiv = document.createElement('div');
+            graphDiv.className = 'mxgraph';
+            graphDiv.style.width = '100%';
+            graphDiv.style.height = '100%';
+            
+            graphDiv.setAttribute('data-mxgraph', JSON.stringify({
+                xml: xmlContent,
+                lightbox: false,
+                nav: true,
+                resize: true,
+                toolbar: 'zoom layers tags',
+                edit: '_blank'
+            }));
+            
+            container.appendChild(graphDiv);
+            
+            if (window.GraphViewer && typeof window.GraphViewer.createViewerForElement === 'function') {
+                initViewer(graphDiv);
+            } else {
+                let attempts = 0;
+                const interval = setInterval(function() {
+                    attempts++;
+                    if (window.GraphViewer && typeof window.GraphViewer.createViewerForElement === 'function') {
+                        clearInterval(interval);
+                        initViewer(graphDiv);
+                    } else if (attempts > 30) {
+                        clearInterval(interval);
+                    }
+                }, 100);
+            }
+        }
+
+        function initViewer(div) {
+            try {
+                window.GraphViewer.createViewerForElement(div);
+                
+                // Poll for the graph instance to ensure it is fully initialized and attached
+                let pollAttempts = 0;
+                const pollInterval = setInterval(function() {
+                    pollAttempts++;
+                    const graph = findGraphInstance(div);
+                    if (graph) {
+                        clearInterval(pollInterval);
+                        applyGraphConfiguration(graph);
+                        console.log("Successfully configured graph after " + (pollAttempts * 100) + "ms");
+                    } else if (pollAttempts > 100) { // Timeout after 10 seconds
+                        clearInterval(pollInterval);
+                        console.warn("Failed to find mxGraph instance after 10 seconds.");
+                    }
+                }, 100);
+            } catch (e) {
+                console.error("Error creating viewer:", e);
+            }
+        }
+
+        function findGraphInstance(div) {
+            // 1. Check in GraphViewer.viewers for active graph whose container is in the DOM
+            if (window.GraphViewer && window.GraphViewer.viewers) {
+                for (let i = window.GraphViewer.viewers.length - 1; i >= 0; i--) {
+                    const v = window.GraphViewer.viewers[i];
+                    if (v && v.graph && v.graph.container && document.body.contains(v.graph.container)) {
+                        return v.graph;
+                    }
+                }
+            }
+            
+            // 2. Fallback: Check direct properties of the placeholder
+            if (div.mxGraph) return div.mxGraph;
+            if (div.graph && div.graph.panningHandler) return div.graph;
+            
+            // 3. Fallback: Search the entire active DOM body recursively for the mxGraph instance
+            function searchDOM(el) {
+                if (el.mxGraph) return el.mxGraph;
+                if (el.graph && el.graph.panningHandler) return el.graph;
+                for (let i = 0; i < el.childNodes.length; i++) {
+                    const result = searchDOM(el.childNodes[i]);
+                    if (result) return result;
+                }
+                return null;
+            }
+            return searchDOM(document.body);
+        }
+
+        function applyGraphConfiguration(graph) {
+            // Enable the graph so it can receive mouse events for panning
+            graph.setEnabled(true);
+            
+            // Keep graph read-only and static
+            graph.setCellsEditable(false);
+            graph.setCellsMovable(false);
+            graph.setCellsResizable(false);
+            graph.setCellsSelectable(false);
+            graph.setConnectable(false);
+            
+            // Enable scrollbars and panning
+            graph.useScrollbarsForPanning = true;
+            graph.panningEnabled = true;
+            if (graph.panningHandler) {
+                graph.panningHandler.useLeftButtonForPanning = true;
+                graph.panningHandler.usePopupTrigger = false;
+                graph.panningHandler.ignoreCell = true;
+                graph.panningHandler.setEnabled(true);
+            }
+            
+            // Centralize zoom out
+            graph.centerZoom = true;
+            
+            // Customize cursor to indicate grab/draggable state
+            const containerEl = graph.container;
+            if (containerEl) {
+                containerEl.style.cursor = 'grab';
+                containerEl.addEventListener('mousedown', function() {
+                    containerEl.style.cursor = 'grabbing';
+                });
+                containerEl.addEventListener('mouseup', function() {
+                    containerEl.style.cursor = 'grab';
+                });
+            }
+        }
+    </script>
+</body>
+</html>
+"""
+        with open(os.path.join(self.topology_dir, "viewer.html"), 'w', encoding='utf-8') as f:
+            f.write(viewer_html_content)
 
 if __name__ == "__main__":
     import argparse

@@ -2,6 +2,24 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.83.1] - 2026-07-08
+### Fixed
+- **Cron and Redirection Logging Stability**:
+  - Prevented "TERM environment variable not set" error inside cron execution by verifying `sys.stdout.isatty()` before executing `os.system('clear')`.
+  - Configured line-buffered outputs (`sys.stdout.reconfigure(line_buffering=True)`) to guarantee logs from Python and its child processes are flushed immediately, resolving out-of-order logs when stdout is redirected to a file.
+
+## [1.83.0] - 2026-07-07
+### Added
+- **Isolated Offline Topology Viewer (`viewer.html`)**:
+  - Refactored Draw.io static topology visualizer to render inside an isolated local iframe (`viewer.html`) inside `topology/`.
+  - Fixed visibility and interactivity of toolbar control dropdowns (zoom, fit, layers) in HTML5 Fullscreen and Theater modes.
+- **Custom Panning and Scrolling Overrides**:
+  - Enabled click-and-drag panning using the left mouse button (`useLeftButtonForPanning = true`, `ignoreCell = true`, `setEnabled(true)`).
+  - Integrated browser-native scrollbars (`overflow: auto`) with `useScrollbarsForPanning = true` to allow mouse wheel (roller) scrolling.
+  - Fixed SVG centering issues and flex scroll clipping by removing display:flex and align-items:center CSS rules on `.geDiagramContainer`.
+  - Configured `centerZoom = true` on the graph instance for balanced zooming out.
+  - Added robust polling and container-aware graph lookup using `GraphViewer.viewers` list inside the viewer window.
+
 ## [1.82.0] - 2026-07-06
 ### Added
 - **Interactive Section Collapsibility (history.html)**:
