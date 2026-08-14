@@ -1571,3 +1571,8 @@ loadData();
 </body>
 </html>"""
     return html_template.replace("__JSON_PAYLOAD_HERE__", json.dumps(json_payload, indent=None))
+
+if __name__ == "__main__":
+    main()
+
+
