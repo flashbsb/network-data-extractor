@@ -303,32 +303,85 @@ python3 network-data-extractor.py --offline infos/20261231_235959
 
 ## 🔗 Interactive Inter-Dashboard Navigation
 
-The workspace features a high-performance **contextual navigation network**. When analyzing topology links, interfaces, heatmaps, or drifts, clicking on a node or link triggers a context menu that lets you instantly jump to other dashboards with elements already pre-filtered.
+The workspace features a high-performance **contextual navigation network** starting from the central Root Portal (`infos/index.html`). When analyzing topology links, interfaces, heatmaps, or drifts, clicking on any element, cell, or link triggers an interactive context menu that lets you instantly jump across specialized diagnostic views with pre-filtered parameters.
 
-The dashboard routing supports:
+The dashboard routing supports URL parameter passing:
 - **`run`**: Timestamped snapshot selection (e.g. `20260630_090001`).
 - **`origin` / `dest`**: Pre-populates source and target fields in P2P latency history, heatmaps, and triggers automated Dijkstra shortest-path calculations.
-- **`device` / `focus`**: Pre-filters interface listings, highlights nodes inside Draw.io topology maps, and jumps directly to interface timelines.
+- **`device` / `interface` / `focus`**: Pre-filters interface listings, highlights nodes inside Draw.io topology maps, and jumps directly to interface timelines.
 
-This contextual linkage creates an integrated diagnostic flow:
+This contextual linkage creates an integrated 4-level diagnostic flow:
 ```mermaid
-graph TD
-    A[Global Inventory] -->|Click link/cell| B(Context Menu)
-    B -->|SLA History| C[P2P History & SLA]
-    B -->|Dijkstra Route| D[Route Analysis]
-    B -->|Drift/Timeline| E[Drift Workspace]
-    B -->|Highlight Map| F[Network Topology]
-    
-    C -->|Click cell / list item| G(Context Menu)
-    G -->|Select & View Charts| C
-    G -->|Dijkstra Route| D
-    G -->|Global Inventory| A
-    G -->|Drift Analysis| E
+flowchart TB
 
-    D -->|Click link title A⇄B| H(Context Menu)
-    H -->|SLA History| C
-    H -->|Global Inventory| A
-    H -->|Drift Analysis| E
+%% ==========================================================
+%% STYLES (Cyber / NOC Theme)
+%% ==========================================================
+classDef root fill:#7C3AED,stroke:#5B21B6,stroke-width:2px,color:#fff,rx:8,ry:8
+classDef workspace fill:#0F172A,stroke:#06B6D4,stroke-width:2px,color:#67E8F9,rx:6,ry:6
+classDef menu fill:#D97706,stroke:#78350F,stroke-width:2px,color:#fff,rx:12,ry:12
+classDef subview fill:#059669,stroke:#064E3B,stroke-width:2px,color:#fff,rx:6,ry:6
+
+%% ==========================================================
+%% LEVEL 1: ENTRY PORTAL
+%% ==========================================================
+subgraph L1["🌐 LEVEL 1: CENTRAL NAVIGATION HUB"]
+    ROOT["🏠 Root Navigation Portal
+    (infos/index.html)"]:::root
+end
+
+%% ==========================================================
+%% LEVEL 2: 4 CORE WORKSPACES
+%% ==========================================================
+subgraph L2["📊 LEVEL 2: NETWORK WORKSPACES"]
+    direction LR
+    INV["📦 Global Inventory
+    (inventory/index.html)"]:::workspace
+    DIFF["🔍 Drift Analysis
+    (diff/index.html)"]:::workspace
+    TOPO["🗺️ Network Topology
+    (topology/index.html)"]:::workspace
+    PM["⚡ Ping Matrix & Telemetry
+    (ping-matrix/index.html)"]:::workspace
+end
+
+ROOT --> INV
+ROOT --> DIFF
+ROOT --> TOPO
+ROOT --> PM
+
+%% ==========================================================
+%% LEVEL 3: CONTEXTUAL INTERACTION ENGINE (CENTERED)
+%% ==========================================================
+subgraph L3["🖱️ LEVEL 3: CONTEXTUAL LINKAGE ENGINE"]
+    MENU["👆 Interactive Context Popover Menu
+    (Triggered on Cell / Node / Link / Event click)"]:::menu
+end
+
+INV -->|Click Link| MENU
+DIFF -->|Click Event| MENU
+TOPO -->|Click Node| MENU
+PM -->|Click Cell| MENU
+
+%% ==========================================================
+%% LEVEL 4: SPECIALIZED DIAGNOSTIC VIEWS
+%% ==========================================================
+subgraph L4["🔬 LEVEL 4: SPECIALIZED DIAGNOSTIC VIEWS"]
+    direction LR
+    HIST["📈 P2P SLA History
+    (history.html)"]:::subview
+    PATH["🗺️ Dijkstra Path Simulator
+    (path.html)"]:::subview
+    TIME["⏱️ Interface Timeline
+    (diff/index.html#timeline)"]:::subview
+    MAP["🔍 Topology Highlight
+    (topology/index.html?focus=)"]:::subview
+end
+
+MENU -->|"?origin=X&dest=Y"| HIST
+MENU -->|"?origin=X&dest=Y&run=T"| PATH
+MENU -->|"?device=X&interface=Y"| TIME
+MENU -->|"?focus=DeviceName"| MAP
 ```
 
 ---
