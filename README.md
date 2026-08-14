@@ -312,7 +312,7 @@ The dashboard routing supports URL parameter passing:
 
 This contextual linkage creates an integrated 4-level diagnostic flow:
 ```mermaid
-flowchart TB
+flowchart LR
 
 %% ==========================================================
 %% STYLES (Cyber / NOC Theme)
@@ -323,18 +323,17 @@ classDef menu fill:#D97706,stroke:#78350F,stroke-width:2px,color:#fff,rx:12,ry:1
 classDef subview fill:#059669,stroke:#064E3B,stroke-width:2px,color:#fff,rx:6,ry:6
 
 %% ==========================================================
-%% LEVEL 1: ENTRY PORTAL
+%% STEP 1: ENTRY PORTAL
 %% ==========================================================
-subgraph L1["🌐 LEVEL 1: CENTRAL NAVIGATION HUB"]
+subgraph STEP1["🌐 STEP 1: ENTRY HUB"]
     ROOT["🏠 Root Navigation Portal
     (infos/index.html)"]:::root
 end
 
 %% ==========================================================
-%% LEVEL 2: 4 CORE WORKSPACES
+%% STEP 2: NETWORK WORKSPACES
 %% ==========================================================
-subgraph L2["📊 LEVEL 2: NETWORK WORKSPACES"]
-    direction LR
+subgraph STEP2["📊 STEP 2: WORKSPACES"]
     INV["📦 Global Inventory
     (inventory/index.html)"]:::workspace
     DIFF["🔍 Drift Analysis
@@ -345,17 +344,17 @@ subgraph L2["📊 LEVEL 2: NETWORK WORKSPACES"]
     (ping-matrix/index.html)"]:::workspace
 end
 
-ROOT --> INV
-ROOT --> DIFF
-ROOT --> TOPO
-ROOT --> PM
+ROOT -->|Select| INV
+ROOT -->|Select| DIFF
+ROOT -->|Select| TOPO
+ROOT -->|Select| PM
 
 %% ==========================================================
-%% LEVEL 3: CONTEXTUAL INTERACTION ENGINE (CENTERED)
+%% STEP 3: CONTEXT ENGINE (CENTERED)
 %% ==========================================================
-subgraph L3["🖱️ LEVEL 3: CONTEXTUAL LINKAGE ENGINE"]
-    MENU["👆 Interactive Context Popover Menu
-    (Triggered on Cell / Node / Link / Event click)"]:::menu
+subgraph STEP3["🖱️ STEP 3: CONTEXT ENGINE"]
+    MENU["👆 Context Popover Menu
+    (Cell / Node / Link / Event click)"]:::menu
 end
 
 INV -->|Click Link| MENU
@@ -364,10 +363,9 @@ TOPO -->|Click Node| MENU
 PM -->|Click Cell| MENU
 
 %% ==========================================================
-%% LEVEL 4: SPECIALIZED DIAGNOSTIC VIEWS
+%% STEP 4: DIAGNOSTIC VIEWS
 %% ==========================================================
-subgraph L4["🔬 LEVEL 4: SPECIALIZED DIAGNOSTIC VIEWS"]
-    direction LR
+subgraph STEP4["🔬 STEP 4: DIAGNOSTIC VIEWS"]
     HIST["📈 P2P SLA History
     (history.html)"]:::subview
     PATH["🗺️ Dijkstra Path Simulator
