@@ -67,6 +67,64 @@ def read_icmp_commands(path):
                 commands[key.strip().lower()] = cmd.strip()
     return commands
 
+def get_element_role(hostname, json_config):
+    routing_hierarchy = json_config.get("routing_hierarchy", {})
+    hostname_upper = hostname.upper()
+    for role, prefixes in routing_hierarchy.items():
+        if role.startswith("_help"):
+            continue
+        if isinstance(prefixes, list):
+            for prefix in prefixes:
+                if prefix.upper() in hostname_upper:
+                    return role
+    return None
+
+def is_pair_allowed(origin_host, dest_host, json_config):
+    ping_cfg = json_config.get("ping_matrix", {})
+    mode = ping_cfg.get("mode", "selective")
+    if str(mode).lower() == "full":
+        return True
+
+    matrix_rules = ping_cfg.get("matrix_rules", {})
+    if not matrix_rules:
+        return True
+
+    default_allow = ping_cfg.get("default_allow_unmapped", False)
+    routing_hierarchy = json_config.get("routing_hierarchy", {})
+
+    origin_role = get_element_role(origin_host, json_config)
+    dest_role = get_element_role(dest_host, json_config)
+
+    origin_key = origin_role if (origin_role and origin_role in matrix_rules) else None
+    if not origin_key:
+        for k in matrix_rules.keys():
+            if k.startswith("_help"):
+                continue
+            if k.upper() in origin_host.upper():
+                origin_key = k
+                break
+
+    if not origin_key:
+        return default_allow
+
+    allowed_targets = matrix_rules.get(origin_key, [])
+    
+    if dest_role and dest_role in allowed_targets:
+        return True
+
+    dest_host_upper = dest_host.upper()
+    for target in allowed_targets:
+        if target.upper() in dest_host_upper:
+            return True
+        role_prefixes = routing_hierarchy.get(target, [])
+        if isinstance(role_prefixes, list):
+            for p in role_prefixes:
+                if p.upper() in dest_host_upper:
+                    return True
+
+    return False
+
+
 def parse_ping_output(output, host_dest):
     # Default values
     tx, rx = 0, 0
@@ -241,6 +299,9 @@ def main():
             for dest_elem in elements:
                 if origin_host == dest_elem['hostname']:
                     continue
+                if not is_pair_allowed(origin_host, dest_elem['hostname'], json_config):
+                    continue
+
                 
                 dest_ip = dest_elem['ip']
                 # Format command
@@ -315,8 +376,17 @@ def main():
 
     import math
     total_origins = len(elements)
-    pings_per_origin = total_origins - 1 if total_origins > 0 else 0
-    total_pings = total_origins * pings_per_origin
+    allowed_pair_count = 0
+    for o_elem in elements:
+        for d_elem in elements:
+            if o_elem['hostname'] == d_elem['hostname']:
+                continue
+            if is_pair_allowed(o_elem['hostname'], d_elem['hostname'], json_config):
+                allowed_pair_count += 1
+
+    total_possible_pings = total_origins * (total_origins - 1) if total_origins > 1 else 0
+    total_pings = allowed_pair_count
+    pings_per_origin = math.ceil(total_pings / total_origins) if total_origins > 0 else 0
     matrix_start_time = time.time()
 
     if args.offline_mode:
@@ -373,12 +443,13 @@ def main():
         h, m = divmod(m, 60)
         est_str = f"{h}h {m}m {s}s" if h > 0 else f"{m}m {s}s"
         
+        mode_str = ping_cfg.get("mode", "selective").upper()
+        saved_pings = total_possible_pings - total_pings
         print("\n" + "="*60)
-        print(" 📡 PING MATRIX EXECUTION PLAN")
+        print(f" 📡 PING MATRIX EXECUTION PLAN ({mode_str} MODE)")
         print("="*60)
         print(f" • Origin Elements : {total_origins}")
-        print(f" • Targets per Node: {pings_per_origin} (Sending {count} packets each)")
-        print(f" • Total Pings     : {total_pings}")
+        print(f" • Target Pings    : {total_pings} (Saved {saved_pings} out-of-scope pings from {total_possible_pings} max)")
         print(f" • Est. Duration   : ~{est_str} (Based on 10ms avg latency)")
         print("   * Note: Actual time will fluctuate depending on real network latency.")
         print("="*60)
@@ -518,12 +589,14 @@ def main():
                 "count": count,
                 "datagram_size": size,
                 "timeout": timeout_ping,
-                "threads": thread_count
+                "threads": thread_count,
+                "matrix_mode": ping_cfg.get("mode", "selective")
             },
             "execution_metrics": {
                 "total_origins": total_origins,
                 "pings_per_origin": pings_per_origin,
                 "total_pings_expected": total_pings,
+                "total_possible_pings": total_possible_pings,
                 "estimated_duration_seconds": round(est_total_seconds, 1),
                 "actual_duration_seconds": actual_duration_seconds
             },
@@ -540,7 +613,13 @@ def main():
         print(f"Done. JSON saved to {json_path}")
     if ex_html:
         html_path = os.path.join(args.resume_dir, f"ping_matrix_dashboard{file_suffix}.html")
-        html_template = """<!DOCTYPE html>
+        html_content = render_ping_matrix_html(json_payload)
+        with open(html_path, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+        print(f"Done. Interactive HTML saved to {html_path}")
+
+def render_ping_matrix_html(json_payload):
+    html_template = """<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -674,6 +753,7 @@ td:hover { background-color: rgba(255,255,255,0.1) !important; transform: scale(
 .st-warn { color: #fbbf24; text-shadow: 0 0 5px rgba(251, 191, 36, 0.4); }
 .st-crit { color: #f87171; background: rgba(127, 29, 29, 0.3); text-shadow: 0 0 5px rgba(248, 113, 113, 0.5); }
 .st-dead { background: rgba(0,0,0,0.4) !important; color: #475569; }
+.st-filtered { background: rgba(30, 41, 59, 0.2) !important; color: #475569; }
 .st-self { background: rgba(30,41,59,0.3) !important; color: #334155; }
 
 /* Split cell */
@@ -798,6 +878,7 @@ td:hover { background-color: rgba(255,255,255,0.1) !important; transform: scale(
             <span>Path:</span>
             <label class="toggle-btn"><input type="checkbox" id="chkDirect" checked onchange="renderMatrix()"> Direct 🡲</label>
             <label class="toggle-btn"><input type="checkbox" id="chkReverse" checked onchange="renderMatrix()"> Reverse 🡰</label>
+            <label class="toggle-btn"><input type="checkbox" id="chkHideScope" checked onchange="renderMatrix()"> Hide Out-of-Scope 🚫</label>
         </div>
         <div class="filter-group">
             <span>Metrics:</span>
@@ -1328,6 +1409,14 @@ function renderMatrix() {
     let nodes = Array.from(nodesSet).sort((a, b) => a.localeCompare(b));
     let rowNodes = nodes.filter(n => multiMatch(n, fOrig));
     let colNodes = nodes.filter(n => multiMatch(n, fDest));
+
+    let hideScope = document.getElementById('chkHideScope') ? document.getElementById('chkHideScope').checked : true;
+    if (hideScope) {
+        let activeCols = colNodes.filter(c => rowNodes.some(r => dataMap[`${r}|${c}`] || dataMap[`${c}|${r}`]));
+        let activeRows = rowNodes.filter(r => activeCols.some(c => dataMap[`${r}|${c}`] || dataMap[`${c}|${r}`]));
+        if (activeCols.length > 0) colNodes = activeCols;
+        if (activeRows.length > 0) rowNodes = activeRows;
+    }
     document.getElementById('metricsbox').innerHTML = `
         <div class="metric-box"><h3>${nodes.length}</h3><span>Nodes Parsed</span></div>
         <div class="metric-box"><h3>${stGood}</h3><span>Healthy Connections</span></div>
@@ -1346,7 +1435,15 @@ function renderMatrix() {
              let dOut = dataMap[`${r}|${c}`];
              let dIn = dataMap[`${c}|${r}`];
              
-             if (!dOut && !dIn) { html += '<td class="st-dead">N/A</td>'; return; }
+             if (!dOut && !dIn) {
+                 let hideScope = document.getElementById('chkHideScope') ? document.getElementById('chkHideScope').checked : true;
+                 if (hideScope && !isAllSelected) {
+                     html += '<td style="background:transparent; border:none; opacity:0"></td>';
+                 } else {
+                     html += '<td class="st-filtered" title="Out of Scope by Architecture Policy">-</td>';
+                 }
+                 return;
+             }
              
              let primary = dOut;
              if (perspective === 'ba') primary = dIn;
@@ -1473,10 +1570,4 @@ loadData();
 <div id="globalTooltip"></div>
 </body>
 </html>"""
-        html_content = html_template.replace("__JSON_PAYLOAD_HERE__", json.dumps(json_payload, indent=None))
-        with open(html_path, 'w', encoding='utf-8') as f:
-            f.write(html_content)
-        print(f"Done. Interactive HTML saved to {html_path}")
-
-if __name__ == "__main__":
-    main()
+    return html_template.replace("__JSON_PAYLOAD_HERE__", json.dumps(json_payload, indent=None))

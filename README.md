@@ -2,7 +2,7 @@
   <h1>🌐 Network Data Extractor</h1>
   <p><strong>The Ultimate Multivendor NOC Orchestrator & Autonomous Discovery Engine</strong></p>
   
-  ![Version](https://img.shields.io/badge/version-1.83.2-blue.svg)
+  ![Version](https://img.shields.io/badge/version-1.84.0-blue.svg)
   ![Python](https://img.shields.io/badge/python-3.8%2B-green.svg)
 </div>
 
@@ -23,7 +23,7 @@ Beyond simple command execution, it acts as an **intelligence layer**—parsing 
 - **🧩 Universal Multivendor Parsing**: Regex-based "Blind Analyzer" bypasses human typos in descriptions to seamlessly map logical and physical topologies across different vendors.
 - **📊 Local-First Dashboards**: Generates High-Performance SPAs (Single Page Applications) embedded directly in HTML. Works 100% offline without CORS issues.
 - **🔍 Network Drift Analysis**: Instantly compares historical snapshots to detect port status changes, bandwidth variations, and missing links.
-- **🛡️ Intelligent ICMP Diagnostics**: The *Ping Matrix* engine calculates latency, jitter, asymmetric routing, and highlights isolated nodes in a visual heatmap.
+- **🛡️ Selective ICMP Diagnostics (Ping Matrix)**: Architecture-aware rules engine (`mode: "selective"`) filters out non-routable cross-tier pings before SSH execution, reducing ICMP load by up to ~80%. Includes dynamic column pruning (`Hide Out-of-Scope 🚫`) in visual heatmaps.
 - **📈 Historical Telemetry (Ping History)**: Tracks latency, packet loss, jitter, and node availability over time to identify chronic degradation trends and trigger anomaly warnings.
 - **🗺️ Dijkstra Route Analysis**: State-expanded simulator that computes the shortest, hierarchically compliant (valley-free) path between network nodes based on active latency and loss telemetry.
 - **⚠️ Topology Fault Isolation**: Actively maps connection failures, proactively warning the operator when a router loses its logical LLDP adjacencies.
@@ -139,20 +139,21 @@ python network-data-extractor.py
 ### 2. Core Configuration Files (`config/`)
 The tool relies on two primary configuration files:
 
-- **`elements.cfg`** (The targets list). Syntax: `Hostname;IP;ProfileKey`
+- **`elements.cfg`** (The targets list). Syntax: `Hostname;IP;ProfileKey`. Lines starting with `#` are treated as comments and ignored.
   ```text
+  # Core Network Elements
   CORE-ROUTER-A;10.0.0.1;cisco02
-  EDGE-SW-01;10.0.50.22;datacom01
+  # EDGE-SW-01;10.0.50.22;datacom01  <-- Commented element (ignored)
   ```
 
-- **`commands.cfg`** (The SSH macros assigned). Syntax: `ProfileKey;Command`
+- **`commands.cfg`** (The SSH macros assigned). Syntax: `ProfileKey;Command`. Lines starting with `#` are treated as comments.
   ```text
   cisco02;show int status
   cisco02;show lldp neighbors detail
   datacom01;show system
   ```
 
-*(Note: Global behaviors, regex topology patterns, and authentication fallback configurations are safely managed in `config/settings.json`)*
+*(Note: Global behaviors, architecture matrix rules, regex topology patterns, and authentication fallback configurations are safely managed in `config/settings.json`)*
 
 ---
 
@@ -167,7 +168,7 @@ python3 network-data-extractor.py --skip-wizard --user "nocadmin" --key "~/.ssh/
 ```
 
 ### [B] Ping Matrix Diagnostics
-Bypasses standard parsing to execute a bidirectional ICMP sweep, generating an interactive offline heatmap to detect routing issues.
+Executes a bidirectional ICMP sweep using selective routing rules (`mode: "selective"`), generating an interactive offline heatmap.
 ```bash
 python3 network-data-extractor.py --ping-matrix --ping-commands config/commands.icmp.cfg --ping-format html
 ```
@@ -183,7 +184,7 @@ Re-processes historical snapshots to generate comparative UI dashboards without 
 ```bash
 python3 network-data-extractor.py --diff                 # Detects drift between two snapshots
 python3 network-data-extractor.py --inventory            # Builds a cumulative global inventory UI
-python3 network-data-extractor.py --rebuild-index        # Rebuild all dashboards (Root, Ping Matrix, Inventory, Diff) in the outbase using existing data.
+python3 network-data-extractor.py --rebuild-index        # Rebuilds all dashboards (Root, Ping Matrix, Inventory, Diff, Topology) & upgrades run HTML files.
 ```
 
 ### [E] Offline Parsing

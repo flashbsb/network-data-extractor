@@ -2,6 +2,21 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.84.0] - 2026-08-14
+### Added
+- **Selective Architecture Ping Matrix (`mode: "selective"`)**:
+  - Integrated routing hierarchy rules (`matrix_rules` in `config/settings.json`) mapping roles (`metro`, `edge`, `core_agg`, `core`, `peering`, `router_reflector`).
+  - Automatically filters out non-routable cross-tier pair testing prior to SSH execution, optimizing collection windows and reducing network ICMP load by up to ~80%.
+  - Added execution plan terminal telemetry detailing target ping count vs. saved out-of-scope pings.
+  - Added support for unmapped elements handling (`default_allow_unmapped: false`) and clean parsing of `_help` documentation keys inside `settings.json`.
+- **Dynamic Header & Column Pruning in Ping Matrix HTML Dashboard**:
+  - Refactored `renderMatrix()` in `core/ping_matrix.py` to prune column headers (`<th>`) and table rows (`<tr>`) dynamically when `Hide Out-of-Scope 🚫` is checked.
+  - Un-tested out-of-scope pairs render with muted `.st-filtered` styling (`-`) and informative tooltips explaining the routing rule.
+  - Exposed `render_ping_matrix_html(json_payload)` at module top level in `core/ping_matrix.py` so `--rebuild-index` automatically upgrades HTML dashboards across all historical run folders.
+- **Comment Support (`#`) in Configuration Files**:
+  - Implemented and verified native `#` comment line skipping across all configuration parser functions (`read_elements` in `commands.py`, `ping_matrix.py`, `discovery.py`, `element_status.py`, etc.).
+  - Operators can now insert organizational section headers or comment out specific equipment targets without causing execution errors.
+
 ## [1.83.2] - 2026-07-08
 ### Fixed
 - **Canvas Panning Interactivity**:

@@ -247,7 +247,7 @@ def generate_master_dashboard(outbase):
             json_file = os.path.join(run_dir, "resume", "ping_matrix_list.json")
             html_file = os.path.join(run_dir, "resume", "ping_matrix_dashboard.html")
         
-        if os.path.isfile(html_file) and os.path.isfile(json_file):
+        if os.path.isfile(json_file):
             try:
                 with open(json_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
@@ -255,6 +255,15 @@ def generate_master_dashboard(outbase):
                 # Filter out empty or partial runs
                 if not data.get("data") or len(data.get("data", [])) == 0:
                     continue
+
+                # Re-render HTML dashboard to update UI code (e.g. activeCols column pruning)
+                try:
+                    from core.ping_matrix import render_ping_matrix_html
+                    updated_html = render_ping_matrix_html(data)
+                    with open(html_file, 'w', encoding='utf-8') as hf:
+                        hf.write(updated_html)
+                except Exception:
+                    pass
                 
                 metadata = data.get("metadata", {})
                 health = metadata.get("network_health", {})

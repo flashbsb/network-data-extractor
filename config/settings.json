@@ -115,7 +115,17 @@
         ]
     },
     "ping_matrix": {
-        "_help_ping_matrix": "Specific settings for Ping Matrix latency testing (when --ping-matrix is enabled).",
+        "_help_ping_matrix": "Specific settings for Ping Matrix latency testing (when --ping-matrix is enabled). Set mode to 'selective' for architecture-based matrix testing or 'full' for all-to-all testing.",
+        "mode": "selective",
+        "default_allow_unmapped": false,
+        "matrix_rules": {
+            "metro": ["metro", "edge"],
+            "edge": ["metro", "edge", "core_agg", "core"],
+            "core_agg": ["edge", "core_agg", "core"],
+            "core": ["edge", "core_agg", "core", "peering", "router_reflector"],
+            "peering": ["core"],
+            "router_reflector": ["core"]
+        },
         "count": 5,
         "datagram_size": 100,
         "timeout": 2,
