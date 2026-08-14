@@ -35,86 +35,192 @@ Beyond simple command execution, it acts as an **intelligence layer**—parsing 
 The orchestrator operates through five distinct modular branches, designed to handle everything from live extraction to offline post-mortem analysis:
 
 ```mermaid
-graph LR
-    %% Styling Definitions
-    classDef engine fill:#2563eb,stroke:#1e3a8a,stroke-width:2px,color:#ffffff,rx:8,ry:8
-    classDef branch fill:#7c3aed,stroke:#4c1d95,stroke-width:2px,color:#ffffff,rx:15,ry:15
-    classDef storage fill:#059669,stroke:#064e3b,stroke-width:2px,color:#ffffff,rx:4,ry:4
-    classDef module fill:#ea580c,stroke:#9a3412,stroke-width:2px,color:#ffffff,rx:4,ry:4
-    classDef web fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#38bdf8,rx:8,ry:8
-    classDef csv fill:#f8fafc,stroke:#cbd5e1,stroke-width:1px,color:#334155,rx:2,ry:2
+flowchart TB
 
-    %% Link styles
-    linkStyle default stroke:#64748b,stroke-width:1px
+%% ==========================================================
+%% STYLE
+%% ==========================================================
 
-    START["🚀 CLI / WIZARD"]:::engine --> MODE{EXECUTION<br/>MODE}:::branch
+classDef engine fill:#2563EB,stroke:#1E3A8A,stroke-width:2px,color:#fff
+classDef decision fill:#6366F1,stroke:#4338CA,stroke-width:2px,color:#fff
+classDef process fill:#F59E0B,stroke:#B45309,stroke-width:2px,color:#fff
+classDef storage fill:#10B981,stroke:#065F46,stroke-width:2px,color:#fff
+classDef dataset fill:#F3F4F6,stroke:#9CA3AF,color:#374151
+classDef web fill:#0F172A,stroke:#06B6D4,stroke-width:2px,color:#67E8F9
 
-    subgraph "A & C: Extraction & Pruning"
-        MODE -->|"--discovery"| DISCO[Discovery Loop]:::module
-        DISCO --> SSH
-        MODE -->|Standard| SSH[SSH Engine]:::engine
-        SSH --> RUN_DIR[("📁 runs/TIMESTAMP/")]:::storage
-        RUN_DIR -->|Prune Expired| PRUNE[Unified Retention Engine]:::module
-        PRUNE --> ACTIVE_RUN_DIR[("📁 Keep Active runs")]:::storage
-    end
+%% ==========================================================
+%% ENTRY
+%% ==========================================================
 
-    subgraph "E: Offline Parsing"
-        MODE -->|"--offline"| ACTIVE_RUN_DIR
-        ACTIVE_RUN_DIR --> PARSE{Data Parsers}:::module
-        PARSE --> CSV_INT["📄 resume/interfaces_all.json"]:::csv
-        PARSE --> CSV_LLDP["📄 resume/status.elements.csv"]:::csv
-        
-        CSV_INT --> TOPO[Topology Checker]:::module
-        CSV_LLDP --> TOPO
-        TOPO --> CSV_WARN["📄 resume/warnings.csv"]:::csv
-    end
+CLI["🚀 CLI / Wizard"]:::engine
 
-    subgraph "B: Ping Matrix & History"
-        MODE -->|"--ping-matrix"| ICMP[ICMP Motor]:::engine
-        ICMP --> PING_RES[("📁 runs/TIMESTAMP/ping-matrix")]:::storage
-        PING_RES --> PING_HTML{{"📲 ping_matrix_dashboard.html"}}:::web
-        PING_RES --> HIST_HTML{{"📲 history.html"}}:::web
-        PING_RES --> PATH_HTML{{"📲 path.html"}}:::web
-    end
+MODE{"Execution<br/>Mode"}:::decision
 
-    subgraph "D: Visual Workspaces (Incremental Cache)"
-        MODE -->|"--inventory"| INV_GEN[Inventory Builder]:::module
-        CSV_WARN -.->|"Auto-trigger"| INV_GEN
-        INV_GEN -->|Incremental Cache| INV_HTML{{"📲 inventory/index.html"}}:::web
+CLI --> MODE
 
-        MODE -->|"--diff"| DIFF_GEN[Drift Engine]:::module
-        DIFF_GEN -->|Incremental Cache| DIFF_HTML{{"📲 diff/index.html"}}:::web
+%% ==========================================================
+%% COLLECTION
+%% ==========================================================
 
-        MODE -->|"--rebuild-index"| REBUILD[Master Rebuild & Prune]:::engine
-        
-        PING_HTML -.->|"Auto-trigger"| PM_GEN[Ping Matrix Index]:::module
-        HIST_HTML -.->|"Auto-trigger"| PM_GEN
-        PATH_HTML -.->|"Auto-trigger"| PM_GEN
-        
-        REBUILD --> PRUNE
-        REBUILD --> INV_GEN
-        REBUILD --> DIFF_GEN
-        REBUILD --> PM_GEN
-        
-        PM_GEN --> PM_HTML{{"📊 ping-matrix/index.html"}}:::web
-        PM_GEN --> HIST_VIEW{{"📈 ping-matrix/history.html"}}:::web
-        PM_GEN --> PATH_VIEW{{"🗺️ ping-matrix/path.html"}}:::web
-        
-        INV_GEN -.->|"Auto-trigger"| ROOT_GEN[Root Navigation Portal]:::module
-        DIFF_GEN -.->|"Auto-trigger"| ROOT_GEN
-        PM_GEN -.->|"Auto-trigger"| ROOT_GEN
-        REBUILD --> ROOT_GEN
-        
-        ROOT_GEN --> ROOT_HTML{{"🧭 infos/index.html"}}:::web
-    end
+subgraph L1["① Collection Layer"]
 
-    subgraph "F: Topology Sync & Indexing"
-        MODE -->|"--topology"| TOPO_SYNC[Sync Topologies]:::module
-        TOPO_SYNC --> TOPO_ENG[Topology Engine]:::module
-        REBUILD --> TOPO_ENG
-        TOPO_ENG --> TOPO_HTML{{"📊 topology/index.html"}}:::web
-        TOPO_ENG -.->|"Auto-trigger"| ROOT_GEN
-    end
+SSH["SSH Engine"]:::engine
+
+DISC["Discovery Loop"]:::process
+
+PING["ICMP Engine"]:::engine
+
+SYNC["Topology Sync"]:::process
+
+MODE -->|Standard| SSH
+MODE -->|--discovery| DISC
+DISC --> SSH
+
+MODE -->|--ping-matrix| PING
+
+MODE -->|--topology| SYNC
+
+end
+
+%% ==========================================================
+%% STORAGE
+%% ==========================================================
+
+subgraph L2["② Storage Layer"]
+
+RUN["📁 runs/TIMESTAMP"]:::storage
+
+RET["Retention Engine"]:::process
+
+ACTIVE["📁 Active Runs"]:::storage
+
+SSH --> RUN
+PING --> RUN
+SYNC --> RUN
+
+RUN --> RET
+RET --> ACTIVE
+
+end
+
+%% ==========================================================
+%% PARSERS
+%% ==========================================================
+
+subgraph L3["③ Parsing Layer"]
+
+PARSE["Offline Parsers"]:::process
+
+DATA["Parsed Dataset
+
+• Interfaces
+
+• Status
+
+• LLDP
+
+• Warnings"]:::dataset
+
+MODE -->|--offline| PARSE
+
+ACTIVE --> PARSE
+
+PARSE --> DATA
+
+end
+
+%% ==========================================================
+%% ANALYSIS
+%% ==========================================================
+
+subgraph L4["④ Analysis Engines"]
+
+TOPO["Topology Engine"]:::process
+
+INV["Inventory Builder"]:::process
+
+DIFF["Drift Engine"]:::process
+
+PM["Ping Matrix Engine"]:::process
+
+DATA --> TOPO
+DATA --> INV
+DATA --> DIFF
+
+ACTIVE --> PM
+
+end
+
+%% ==========================================================
+%% MAINTENANCE
+%% ==========================================================
+
+subgraph L5["⑤ Maintenance"]
+
+REBUILD["Master Rebuild"]:::engine
+
+TASKS["Maintenance Tasks"]:::process
+
+MODE -->|--rebuild-index| REBUILD
+
+REBUILD --> TASKS
+
+TASKS --> RET
+TASKS --> INV
+TASKS --> DIFF
+TASKS --> TOPO
+TASKS --> PM
+
+end
+
+%% ==========================================================
+%% VISUALIZATION
+%% ==========================================================
+
+subgraph L6["⑥ HTML Workspaces"]
+
+INVHTML["📊 inventory/index.html"]:::web
+
+DIFFHTML["📊 diff/index.html"]:::web
+
+TOPOHTML["🗺 topology/index.html"]:::web
+
+PINGHTML["📈 ping-matrix/index.html"]:::web
+
+HISTORY["📈 history.html"]:::web
+
+PATH["🧭 path.html"]:::web
+
+INV --> INVHTML
+
+DIFF --> DIFFHTML
+
+TOPO --> TOPOHTML
+
+PM --> PINGHTML
+PM --> HISTORY
+PM --> PATH
+
+end
+
+%% ==========================================================
+%% ROOT
+%% ==========================================================
+
+subgraph L7["⑦ Navigation"]
+
+ROOT["Root Navigation Portal"]:::process
+
+INDEX["🏠 infos/index.html"]:::web
+
+INVHTML --> ROOT
+DIFFHTML --> ROOT
+TOPOHTML --> ROOT
+PINGHTML --> ROOT
+
+ROOT --> INDEX
+
+end
 ```
 
 ---
