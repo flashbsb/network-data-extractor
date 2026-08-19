@@ -564,10 +564,11 @@
                 <span class="info-tooltip" title="Outbound: direct path. Inbound: reverse path. Bidirectional: average of both paths. Worst Case: maximum loss/latency at each snapshot." style="cursor: help; color: var(--text-dim); font-size: 0.8rem; transition: color 0.2s;">ℹ️</span>
             </label>
             <div class="quick-select-pills" id="directionPills">
+                <button class="pill-btn active" data-value="all" onclick="setDirectionFilter('all', this)" title="Exibe todas as direções (Outbound, Inbound e Pior Caso) simultaneamente no gráfico de latência.">Todas as Direções: A ⇄ B</button>
                 <button class="pill-btn" data-value="direct" onclick="setDirectionFilter('direct', this)" title="Displays statistics from Origin (A) to Destination (B).">Outbound: A 🡲 B</button>
                 <button class="pill-btn" data-value="reverse" onclick="setDirectionFilter('reverse', this)" title="Displays statistics from Destination (B) to Origin (A).">Inbound: B 🡰 A</button>
                 <button class="pill-btn" data-value="both" onclick="setDirectionFilter('both', this)" title="Displays the mathematical average of both directions.">Bidirectional: A ⇄ B</button>
-                <button class="pill-btn active" data-value="worst" onclick="setDirectionFilter('worst', this)" title="Displays the worst-case values (highest latency/loss) registered between the two directions at each snapshot.">Worst Case</button>
+                <button class="pill-btn" data-value="worst" onclick="setDirectionFilter('worst', this)" title="Displays the worst-case values (highest latency/loss) registered between the two directions at each snapshot.">Worst Case</button>
             </div>
         </div>
         <div class="input-group" style="grid-column: span 2;">
@@ -849,7 +850,7 @@
         let periodDays = 30;
         let validOrigins = new Set();
         let validDests = new Set();
-        let currentDirection = 'worst';
+        let currentDirection = 'all';
 
         function setDirectionFilter(val, btn) {
             currentDirection = val;
@@ -1179,6 +1180,9 @@
             const latAvg = [];
             const latMin = [];
             const latMax = [];
+            const latOutbound = [];
+            const latInbound = [];
+            const latWorst = [];
             const loss = [];
             const jitter = [];
             const asymmetry = [];
@@ -1199,11 +1203,6 @@
             // Day 0 = Sunday, 6 = Saturday
             const heatmapData = Array(24).fill(null).map(() => Array(7).fill(null).map(() => ({ count: 0, max_loss: 0 })));
 
-            // Extract reverse data if both directions needed
-            // If direct, read h.avg, h.loss, etc.
-            // If both, direct = direct, reverse = loaded reverse script dynamically
-            // (For simplicity we assume bidirectional analysis compares direct vs reverse in the same loaded dataset
-            // if it exists, or just reads inverse attributes. Let's lookup key in inverse route)
             let inverseHistoryMap = {};
             const invKey = fileKey === "direct" ? `${dest}_${origin}` : `${origin}_${dest}`;
             if (window.ping_link_history && window.ping_link_history[invKey]) {
@@ -1215,92 +1214,103 @@
             filteredHistory.forEach(h => {
                 labels.push(h.t.substring(5, 16)); // MM-DD HH:MM
                 
+                const invH = inverseHistoryMap[h.t];
+
+                // Determine directional objects relative to selected origin/dest
+                const outH = (fileKey === "direct") ? h : invH;
+                const inH = (fileKey === "direct") ? invH : h;
+
                 let curAvg = h.avg;
                 let curMin = h.min;
                 let curMax = h.max;
                 let curLoss = h.loss;
                 let curJit = h.jitter;
-                
-                // Handle retrocompatibility of old data (if loss is 100% and jitter is 0, treat as null)
+
                 if (parseFloat(curLoss) === 100.0 && (curJit === 0 || curJit === 0.0)) {
                     curJit = null;
                 }
-                
-                const invH = inverseHistoryMap[h.t];
-                
+
                 if (mode === "reverse") {
-                    if (invH) {
-                        curAvg = invH.avg;
-                        curMin = invH.min;
-                        curMax = invH.max;
-                        curLoss = invH.loss;
-                        let invJit = invH.jitter;
-                        if (parseFloat(invH.loss) === 100.0 && (invJit === 0 || invJit === 0.0)) {
+                    if (inH) {
+                        curAvg = inH.avg;
+                        curMin = inH.min;
+                        curMax = inH.max;
+                        curLoss = inH.loss;
+                        let invJit = inH.jitter;
+                        if (parseFloat(inH.loss) === 100.0 && (invJit === 0 || invJit === 0.0)) {
                             invJit = null;
                         }
-                        curJit = (parseFloat(invH.loss) === 100.0 || invJit === null || invJit === undefined) ? null : invJit;
+                        curJit = (parseFloat(inH.loss) === 100.0 || invJit === null || invJit === undefined) ? null : invJit;
                     } else {
-                        // In reverse mode, if no reverse data exists for this timestamp, everything is null
                         curAvg = null;
                         curMin = null;
                         curMax = null;
                         curLoss = null;
                         curJit = null;
                     }
-                } else if (mode === "worst" && invH) {
-                    // Pick the worst direction per metric
-                    curLoss = Math.max(h.loss, invH.loss);
-                    curAvg = Math.max(h.avg, invH.avg);
-                    curMin = Math.min(h.min, invH.min);
-                    curMax = Math.max(h.max, invH.max);
-                    
-                    let jitA = (parseFloat(h.loss) === 100.0 || curJit === null || curJit === undefined) ? null : curJit;
-                    let invJit = invH.jitter;
-                    if (parseFloat(invH.loss) === 100.0 && (invJit === 0 || invJit === 0.0)) {
-                        invJit = null;
-                    }
-                    let jitB = (parseFloat(invH.loss) === 100.0 || invJit === null || invJit === undefined) ? null : invJit;
-                    
-                    if (jitA === null && jitB === null) {
-                        curJit = null;
-                    } else if (jitA === null) {
-                        curJit = jitB;
-                    } else if (jitB === null) {
-                        curJit = jitA;
-                    } else {
-                        curJit = Math.max(jitA, jitB);
-                    }
-                } else if (mode === "both" && invH) {
-                    // Bidirectional mode: average metric values
-                    curLoss = (parseFloat(h.loss) + parseFloat(invH.loss)) / 2;
-                    curAvg = (h.avg >= 0 && invH.avg >= 0) ? (h.avg + invH.avg) / 2 : (h.avg >= 0 ? h.avg : invH.avg);
-                    curMin = (h.min >= 0 && invH.min >= 0) ? Math.min(h.min, invH.min) : (h.min >= 0 ? h.min : invH.min);
-                    curMax = (h.max >= 0 && invH.max >= 0) ? Math.max(h.max, invH.max) : (h.max >= 0 ? h.max : invH.max);
-                    
-                    let jitA = (parseFloat(h.loss) === 100.0 || curJit === null || curJit === undefined) ? null : curJit;
-                    let invJit = invH.jitter;
-                    if (parseFloat(invH.loss) === 100.0 && (invJit === 0 || invJit === 0.0)) {
-                        invJit = null;
-                    }
-                    let jitB = (parseFloat(invH.loss) === 100.0 || invJit === null || invJit === undefined) ? null : invJit;
-                    
-                    if (jitA === null && jitB === null) {
-                        curJit = null;
-                    } else if (jitA === null) {
-                        curJit = jitB;
-                    } else if (jitB === null) {
-                        curJit = jitA;
-                    } else {
-                        curJit = (jitA + jitB) / 2;
-                    }
+                } else if ((mode === "worst" || mode === "all") && (outH || inH)) {
+                    // Pick worst case per metric (used for KPIs, Loss & Jitter, and Worst Case Peak)
+                    const lossA = outH ? parseFloat(outH.loss) : 0;
+                    const lossB = inH ? parseFloat(inH.loss) : 0;
+                    curLoss = Math.max(lossA, lossB);
+
+                    const avgA = (outH && outH.avg >= 0) ? outH.avg : -1;
+                    const avgB = (inH && inH.avg >= 0) ? inH.avg : -1;
+                    curAvg = (avgA >= 0 && avgB >= 0) ? Math.max(avgA, avgB) : (avgA >= 0 ? avgA : avgB);
+
+                    const minA = (outH && outH.min >= 0) ? outH.min : -1;
+                    const minB = (inH && inH.min >= 0) ? inH.min : -1;
+                    curMin = (minA >= 0 && minB >= 0) ? Math.min(minA, minB) : (minA >= 0 ? minA : minB);
+
+                    const maxA = (outH && outH.max >= 0) ? outH.max : -1;
+                    const maxB = (inH && inH.max >= 0) ? inH.max : -1;
+                    curMax = (maxA >= 0 && maxB >= 0) ? Math.max(maxA, maxB) : (maxA >= 0 ? maxA : maxB);
+
+                    let jitA = (outH && parseFloat(outH.loss) < 100.0 && outH.jitter !== null && outH.jitter !== undefined) ? outH.jitter : null;
+                    let jitB = (inH && parseFloat(inH.loss) < 100.0 && inH.jitter !== null && inH.jitter !== undefined) ? inH.jitter : null;
+
+                    if (jitA === null && jitB === null) curJit = null;
+                    else if (jitA === null) curJit = jitB;
+                    else if (jitB === null) curJit = jitA;
+                    else curJit = Math.max(jitA, jitB);
+                } else if (mode === "both" && (outH || inH)) {
+                    const lossA = outH ? parseFloat(outH.loss) : 0;
+                    const lossB = inH ? parseFloat(inH.loss) : 0;
+                    curLoss = (lossA + lossB) / 2;
+
+                    const avgA = (outH && outH.avg >= 0) ? outH.avg : -1;
+                    const avgB = (inH && inH.avg >= 0) ? inH.avg : -1;
+                    curAvg = (avgA >= 0 && avgB >= 0) ? (avgA + avgB) / 2 : (avgA >= 0 ? avgA : avgB);
+
+                    const minA = (outH && outH.min >= 0) ? outH.min : -1;
+                    const minB = (inH && inH.min >= 0) ? inH.min : -1;
+                    curMin = (minA >= 0 && minB >= 0) ? Math.min(minA, minB) : (minA >= 0 ? minA : minB);
+
+                    const maxA = (outH && outH.max >= 0) ? outH.max : -1;
+                    const maxB = (inH && inH.max >= 0) ? inH.max : -1;
+                    curMax = (maxA >= 0 && maxB >= 0) ? Math.max(maxA, maxB) : (maxA >= 0 ? maxA : maxB);
+
+                    let jitA = (outH && parseFloat(outH.loss) < 100.0 && outH.jitter !== null && outH.jitter !== undefined) ? outH.jitter : null;
+                    let jitB = (inH && parseFloat(inH.loss) < 100.0 && inH.jitter !== null && inH.jitter !== undefined) ? inH.jitter : null;
+
+                    if (jitA === null && jitB === null) curJit = null;
+                    else if (jitA === null) curJit = jitB;
+                    else if (jitB === null) curJit = jitA;
+                    else curJit = (jitA + jitB) / 2;
                 } else {
-                    // direct mode or no invH
+                    // direct mode
+                    if (outH) {
+                        curAvg = outH.avg;
+                        curMin = outH.min;
+                        curMax = outH.max;
+                        curLoss = outH.loss;
+                        curJit = outH.jitter;
+                    }
                     if (parseFloat(curLoss) === 100.0 || curJit === null || curJit === undefined) {
                         curJit = null;
                     }
                 }
 
-                // Guarantee coherence: if the calculated loss is 100%, the jitter must be null
                 if (parseFloat(curLoss) === 100.0) {
                     curJit = null;
                 }
@@ -1308,6 +1318,10 @@
                 latAvg.push(curAvg >= 0 ? curAvg : null);
                 latMin.push(curMin >= 0 ? curMin : null);
                 latMax.push(curMax >= 0 ? curMax : null);
+                latOutbound.push(outH && outH.avg >= 0 ? outH.avg : null);
+                latInbound.push(inH && inH.avg >= 0 ? inH.avg : null);
+                latWorst.push(curAvg >= 0 ? curAvg : null);
+
                 loss.push(curLoss);
                 jitter.push(curJit);
 
@@ -1323,7 +1337,6 @@
                 totalLossSum += curLoss;
                 if (curLoss > worstLoss) worstLoss = curLoss;
                 if (parseFloat(curLoss) === 100.0) {
-                    // dead
                     console.log(`[Telemetry Debug] Route: ${origin} ➔ ${dest} | Time: ${h.t} | Loss: ${curLoss}% | Jitter: ${curJit}`);
                 } else {
                     okSamples++;
@@ -1348,13 +1361,12 @@
 
                 // Heatmap logic
                 try {
-                    // Parse timestamp to day of week / hour
                     const parts = h.t.split(' ');
                     const dateParts = parts[0].split('-');
                     const timeParts = parts[1].split(':');
                     const hDate = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
-                    const day = hDate.getDay(); // 0-6
-                    const hour = parseInt(timeParts[0]); // 0-23
+                    const day = hDate.getDay();
+                    const hour = parseInt(timeParts[0]);
                     
                     if (hour >= 0 && hour < 24 && day >= 0 && day < 7) {
                         heatmapData[hour][day].count += 1;
@@ -1405,35 +1417,149 @@
             // --- Render Chart 1: Latency Timeline ---
             if (chartInstanceLat) chartInstanceLat.destroy();
             const ctxLat = document.getElementById('chartLatency').getContext('2d');
+
+            let datasetsLat = [];
+            if (mode === "all") {
+                datasetsLat = [
+                    {
+                        label: `Outbound (${origin} 🡲 ${dest})`,
+                        data: latOutbound,
+                        borderColor: '#06b6d4',
+                        backgroundColor: 'rgba(6, 182, 212, 0.1)',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.1
+                    },
+                    {
+                        label: `Inbound (${dest} 🡰 ${origin})`,
+                        data: latInbound,
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.1
+                    },
+                    {
+                        label: 'Worst Case Peak',
+                        data: latWorst,
+                        borderColor: 'rgba(239, 68, 68, 0.8)',
+                        borderWidth: 1.5,
+                        borderDash: [4, 4],
+                        fill: false,
+                        tension: 0.1
+                    }
+                ];
+            } else if (mode === "direct") {
+                datasetsLat = [
+                    {
+                        label: `Outbound Avg (${origin} 🡲 ${dest})`,
+                        data: latAvg,
+                        borderColor: '#06b6d4',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.1
+                    },
+                    {
+                        label: 'Max Latency',
+                        data: latMax,
+                        borderColor: 'rgba(239, 68, 68, 0.4)',
+                        borderWidth: 1.5,
+                        borderDash: [3, 3],
+                        fill: false
+                    },
+                    {
+                        label: 'Min Latency',
+                        data: latMin,
+                        borderColor: 'rgba(16, 185, 129, 0.4)',
+                        borderWidth: 1,
+                        fill: false
+                    }
+                ];
+            } else if (mode === "reverse") {
+                datasetsLat = [
+                    {
+                        label: `Inbound Avg (${dest} 🡰 ${origin})`,
+                        data: latAvg,
+                        borderColor: '#f59e0b',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.1
+                    },
+                    {
+                        label: 'Max Latency',
+                        data: latMax,
+                        borderColor: 'rgba(239, 68, 68, 0.4)',
+                        borderWidth: 1.5,
+                        borderDash: [3, 3],
+                        fill: false
+                    },
+                    {
+                        label: 'Min Latency',
+                        data: latMin,
+                        borderColor: 'rgba(16, 185, 129, 0.4)',
+                        borderWidth: 1,
+                        fill: false
+                    }
+                ];
+            } else if (mode === "both") {
+                datasetsLat = [
+                    {
+                        label: 'Bidirectional Avg',
+                        data: latAvg,
+                        borderColor: '#06b6d4',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.1
+                    },
+                    {
+                        label: 'Max Latency',
+                        data: latMax,
+                        borderColor: 'rgba(239, 68, 68, 0.4)',
+                        borderWidth: 1.5,
+                        borderDash: [3, 3],
+                        fill: false
+                    },
+                    {
+                        label: 'Min Latency',
+                        data: latMin,
+                        borderColor: 'rgba(16, 185, 129, 0.4)',
+                        borderWidth: 1,
+                        fill: false
+                    }
+                ];
+            } else {
+                datasetsLat = [
+                    {
+                        label: 'Worst Case Latency',
+                        data: latAvg,
+                        borderColor: '#ef4444',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.1
+                    },
+                    {
+                        label: 'Max Latency',
+                        data: latMax,
+                        borderColor: 'rgba(239, 68, 68, 0.4)',
+                        borderWidth: 1.5,
+                        borderDash: [3, 3],
+                        fill: false
+                    },
+                    {
+                        label: 'Min Latency',
+                        data: latMin,
+                        borderColor: 'rgba(16, 185, 129, 0.4)',
+                        borderWidth: 1,
+                        fill: false
+                    }
+                ];
+            }
+
             chartInstanceLat = new Chart(ctxLat, {
                 type: 'line',
                 data: {
                     labels: labels,
-                    datasets: [
-                        {
-                            label: 'Avg Latency',
-                            data: latAvg,
-                            borderColor: '#06b6d4',
-                            borderWidth: 2,
-                            fill: false,
-                            tension: 0.1
-                        },
-                        {
-                            label: 'Max Latency',
-                            data: latMax,
-                            borderColor: 'rgba(239, 68, 68, 0.4)',
-                            borderWidth: 1.5,
-                            borderDash: [3, 3],
-                            fill: false
-                        },
-                        {
-                            label: 'Min Latency',
-                            data: latMin,
-                            borderColor: 'rgba(16, 185, 129, 0.4)',
-                            borderWidth: 1,
-                            fill: false
-                        }
-                    ]
+                    datasets: datasetsLat
                 },
                 options: {
                     responsive: true,
@@ -1455,7 +1581,7 @@
                                     if (val !== null && val !== undefined) {
                                         label += val + 'ms';
                                     } else {
-                                        label += 'Unavailable (100% Loss)';
+                                        label += 'Unavailable';
                                     }
                                     return label;
                                 }
