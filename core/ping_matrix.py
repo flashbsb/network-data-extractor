@@ -1518,7 +1518,7 @@ function showCellContextMenu(e, origin, dest) {
         document.body.appendChild(menu);
     }
     
-    const runIdMatch = window.location.pathname.match(/(20\d{6}_\d{6})/);
+    const runIdMatch = window.location.pathname.match(/(20\\d{6}_\\d{6})/);
     const runId = runIdMatch ? runIdMatch[1] : '';
     
     menu.innerHTML = `

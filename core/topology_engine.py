@@ -811,7 +811,7 @@ class TopologyEngine:
             }
             
             if (pages.length === 0) {
-                const re = /<diagram\s+[^>]*name="([^"]+)"/g;
+                const re = /<diagram\\s+[^>]*name="([^"]+)"/g;
                 let match;
                 let index = 0;
                 while ((match = re.exec(xmlString)) !== null) {

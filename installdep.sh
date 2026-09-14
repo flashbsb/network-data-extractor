@@ -1,22 +1,33 @@
 #!/bin/bash
 
-# installdep.sh - Because dependencies don't install themselves.
-# Valid for Debian/Ubuntu minimal.
+# installdep.sh - Automated dependency installer for Network Data Extractor
+# Valid for Debian/Ubuntu (including Debian 13 / Trixie with PEP 668)
 
-if [ "$EUID" -ne 0 ]
-  then echo "Please run as root (sudo). I don't have a crystal ball to guess your password."
-  exit
+if [ "$EUID" -ne 0 ]; then
+  echo "Please run as root (sudo)."
+  exit 1
 fi
 
-echo "Updating package list (this might take a while if you're on dial-up)..."
+echo "Updating package list..."
 apt-get update
 
-echo "Installing Python3, Pip, Pandas, Paramiko, Zip, and Tar..."
-apt-get install -y python3 python3-pip python3-pandas python3-paramiko zip tar
+echo "Installing Python3, Pip, Core & Topology packages (Pandas, Paramiko, NetworkX, NumPy, SciPy, Psutil, Chardet), Zip, and Tar..."
+apt-get install -y \
+  python3 \
+  python3-pip \
+  python3-pandas \
+  python3-paramiko \
+  python3-networkx \
+  python3-numpy \
+  python3-scipy \
+  python3-psutil \
+  python3-chardet \
+  zip \
+  tar
 
-# If pandas via apt is too old (debian stable moments), we guarantee it via pip
-# But usually apt resolves the basics.
-# pip3 install pandas --break-system-packages 2>/dev/null || pip3 install pandas
+echo ""
+echo "Validating installed dependencies..."
+python3 network-data-extractor.py --check-deps
 
-echo "Done. Now you can run the orchestrator:"
+echo "Done! You can now run the orchestrator:"
 echo "  python3 network-data-extractor.py --help"

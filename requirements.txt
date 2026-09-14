@@ -1,2 +1,10 @@
+# Core Extraction & Consolidation Dependencies
 pandas>=2.0.0
 paramiko>=3.0.0
+
+# Network Topology Generation Dependencies (for --topology flag)
+networkx>=3.0.0
+numpy>=1.24.0
+scipy>=1.10.0
+psutil>=5.9.0
+chardet>=5.0.0

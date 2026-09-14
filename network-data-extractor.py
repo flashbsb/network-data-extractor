@@ -41,6 +41,113 @@ C_CYAN   = '\033[96m'
 C_YELLOW = '\033[93m'
 C_RESET  = '\033[0m'
 
+# --- PRE-FLIGHT SYSTEM DEPENDENCY CHECKER ---
+def check_system_dependencies(args=None, standalone=False):
+    """Pre-flight check for runtime Python libraries and system requirements.
+    Prevents execution failure halfway through long collection runs.
+    """
+    core_deps = {
+        "paramiko": "Required for SSH connections and remote CLI execution (core/commands.py, core/ping_matrix.py)",
+        "pandas": "Required for interface mapping and topology connections (core/interface2connection.py)"
+    }
+    
+    topo_deps = {
+        "networkx": "Required for network graph generation and layout computation",
+        "numpy": "Required for matrix calculations and organic layouts",
+        "scipy": "Required for scientific graph algorithms and organic force layouts",
+        "psutil": "Required for memory and CPU resource throttling during generation",
+        "chardet": "Required for character encoding detection on vendor configuration files"
+    }
+
+    missing_core = []
+    found_core = {}
+    for mod_name, desc in core_deps.items():
+        try:
+            m = __import__(mod_name)
+            ver = getattr(m, "__version__", "installed")
+            found_core[mod_name] = ver
+        except ImportError:
+            missing_core.append((mod_name, desc))
+
+    missing_topo = []
+    found_topo = {}
+    for mod_name, desc in topo_deps.items():
+        try:
+            m = __import__(mod_name)
+            ver = getattr(m, "__version__", "installed")
+            found_topo[mod_name] = ver
+        except ImportError:
+            missing_topo.append((mod_name, desc))
+
+    zip_supported = "zip" in [f[0] for f in shutil.get_archive_formats()]
+
+    if standalone:
+        print(f"\n{C_CYAN}============================================================{C_RESET}")
+        print(f"{C_CYAN}         NETWORK DATA EXTRACTOR - PRE-FLIGHT CHECK          {C_RESET}")
+        print(f"{C_CYAN}============================================================{C_RESET}")
+        
+        print(f"\n{C_CYAN}[Core Extraction & Consolidation Engine]{C_RESET}")
+        for mod, ver in found_core.items():
+            print(f"  • {mod:15s}: {C_GREEN}[OK]{C_RESET} (v{ver})")
+        for mod, desc in missing_core:
+            print(f"  • {mod:15s}: {C_RED}[MISSING]{C_RESET} - {desc}")
+
+        print(f"\n{C_CYAN}[Topology Generator Engine (--topology)]{C_RESET}")
+        for mod, ver in found_topo.items():
+            print(f"  • {mod:15s}: {C_GREEN}[OK]{C_RESET} (v{ver})")
+        for mod, desc in missing_topo:
+            print(f"  • {mod:15s}: {C_YELLOW}[MISSING]{C_RESET} - {desc}")
+
+        print(f"\n{C_CYAN}[System Archive Support]{C_RESET}")
+        if zip_supported:
+            print(f"  • {'zip archive':15s}: {C_GREEN}[OK]{C_RESET} (Supported by shutil)")
+        else:
+            print(f"  • {'zip archive':15s}: {C_RED}[MISSING]{C_RESET} (Zip archive format not available)")
+
+        print(f"\n{C_CYAN}------------------------------------------------------------{C_RESET}")
+        if missing_core or missing_topo or not zip_supported:
+            print(f"{C_YELLOW}[!] Some optional or mandatory dependencies are missing.{C_RESET}")
+            print("Run the following command to install missing dependencies via apt:")
+            missing_pkgs = [f"python3-{m[0]}" for m in missing_core + missing_topo]
+            print(f"  {C_GREEN}sudo apt update && sudo apt install -y {' '.join(dict.fromkeys(missing_pkgs))}{C_RESET}\n")
+            if missing_core:
+                sys.exit(1)
+            sys.exit(0)
+        else:
+            print(f"{C_GREEN}[+] All core and topology dependencies are properly satisfied!{C_RESET}\n")
+            sys.exit(0)
+
+    # Runtime pre-flight check (enforced before starting runs)
+    has_fatal_error = False
+    
+    if missing_core:
+        has_fatal_error = True
+        print(f"\n{C_RED}============================================================{C_RESET}")
+        print(f"{C_RED}   [!] FATAL ERROR: MISSING CORE PYTHON DEPENDENCIES         {C_RESET}")
+        print(f"{C_RED}============================================================{C_RESET}")
+        print("The orchestrator cannot proceed because essential modules are missing:\n")
+        for mod, desc in missing_core:
+            print(f"  ❌ {C_RED}{mod}{C_RESET}: {desc}")
+        print("\nQuick fix on Debian/Ubuntu:")
+        print(f"  {C_GREEN}sudo apt update && sudo apt install -y " + " ".join([f"python3-{m[0]}" for m in missing_core]) + f"{C_RESET}")
+        print(f"  or execute: {C_GREEN}sudo ./installdep.sh{C_RESET}\n")
+
+    if getattr(args, 'topology', False) and missing_topo:
+        has_fatal_error = True
+        print(f"\n{C_RED}============================================================{C_RESET}")
+        print(f"{C_RED}   [!] ERROR: MISSING TOPOLOGY GENERATOR DEPENDENCIES       {C_RESET}")
+        print(f"{C_RED}============================================================{C_RESET}")
+        print("You specified '--topology', but the topology generator requires libraries that are not installed:\n")
+        for mod, desc in missing_topo:
+            print(f"  ❌ {C_RED}{mod}{C_RESET}: {desc}")
+        print("\nQuick fix on Debian/Ubuntu:")
+        print(f"  {C_GREEN}sudo apt update && sudo apt install -y " + " ".join([f"python3-{m[0]}" for m in missing_topo]) + f"{C_RESET}\n")
+
+    if has_fatal_error:
+        print(f"{C_RED}[!] Aborting execution to prevent partial/corrupted collection runs.{C_RESET}\n")
+        sys.exit(1)
+
+
 # --- UNIFIED RETENTION ENGINE ---
 def prune_old_runs(outbase, json_config):
     retention = json_config.get("retention", {})
@@ -646,6 +753,7 @@ group_global.add_argument("--settings", type=str, default="config/settings.json"
 group_global.add_argument("--outbase", type=str, default=def_outbase, help=f"Root directory for outputs (default: {def_outbase})")
 group_global.add_argument("--skip-wizard", action="store_true", help="Skip configuration confirmation prompt")
 group_global.add_argument("--force", action="store_true", help="Force execution even if collection fails (ignored in --ping-matrix/--diff)")
+group_global.add_argument("--check-deps", action="store_true", help="Verify all system and Python dependencies and exit")
 
 group_auth = parser.add_argument_group("Authentication (ignored in --offline/--diff)")
 group_auth.add_argument("--user", type=str, help="SSH Username (required for automated auth)")
@@ -687,6 +795,12 @@ group_f.add_argument("--topo-locations", type=str, default=def_topo_locations, h
 group_f.add_argument("--topo-theme", type=str, default=def_topo_theme, help=f"Theme/Layout option for the topology generator (default: {def_topo_theme})")
 
 args = parser.parse_args()
+
+# --- PRE-FLIGHT DEPENDENCY CHECK ---
+if args.check_deps:
+    check_system_dependencies(args, standalone=True)
+
+check_system_dependencies(args, standalone=False)
 
 # --- STRICT ARGUMENT VALIDATION & GATEKEEPER ---
 
