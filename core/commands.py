@@ -43,16 +43,20 @@ def read_elements(path):
         logging.error(f"Element file not found: {path}")
         sys.exit(1)
 
-    with open(path, 'r') as f:
+    with open(path, 'r', encoding='utf-8') as f:
         for lineno, line in enumerate(f, start=1):
             line = line.strip()
             if not line or line.startswith('#'):
                 continue
             parts = line.split(';')
-            if len(parts) != 3:
+            if len(parts) < 3:
                 logging.warning(f"Invalid line {lineno} in {path} (Expected format: hostname;ip;command_key): {line}")
                 continue
-            elements.append(dict(zip(['hostname', 'ip', 'cmd_key'], parts)))
+            elements.append({
+                'hostname': parts[0].strip(),
+                'ip': parts[1].strip(),
+                'cmd_key': parts[2].strip()
+            })
     return elements
 
 
@@ -62,7 +66,7 @@ def read_commands(path):
         logging.error(f"Commands file not found: {path}")
         sys.exit(1)
 
-    with open(path, 'r') as f:
+    with open(path, 'r', encoding='utf-8') as f:
         for lineno, line in enumerate(f, start=1):
             line = line.strip()
             if not line or line.startswith('#'):
@@ -72,7 +76,7 @@ def read_commands(path):
                 logging.warning(f"Invalid line {lineno} in {path}: {line}")
                 continue
             key, cmd = parts
-            commands.setdefault(key, []).append(cmd)
+            commands.setdefault(key.strip(), []).append(cmd.strip())
     return commands
 
 
@@ -211,13 +215,6 @@ def main():
         nonlocal counter
         nonlocal files_written
         host = elem['hostname']
-        ip = elem['ip']
-        client = paramiko.SSHClient()
-        if STRICT_HOST_KEY_CHECKING:
-            client.load_system_host_keys()
-            client.set_missing_host_key_policy(paramiko.RejectPolicy())
-        else:
-            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         
         # Support multiple IPs and cmd_keys joined by '|'
         ip_list = elem['ip'].split('|')
@@ -227,12 +224,20 @@ def main():
         timestamp = datetime.datetime.now().strftime('%d%m%y%H%M%S')
         
         for current_ip in ip_list:
-            if success: break
+            if success:
+                break
             for current_key in cmd_key_list:
                 cmds = commands_map.get(current_key)
                 if not cmds:
                     logging.warning(f"No commands found for key '{current_key}' on element '{host}'")
                     continue
+
+                client = paramiko.SSHClient()
+                if STRICT_HOST_KEY_CHECKING:
+                    client.load_system_host_keys()
+                    client.set_missing_host_key_policy(paramiko.RejectPolicy())
+                else:
+                    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                     
                 try:
                     connect_kwargs = {
@@ -253,13 +258,12 @@ def main():
                     
                     # If we reached here, connection worked. Now try to execute.
                     outputs = execute_commands_shell(client, cmds)
-                    client.close()
                     
                     # Save files
                     for cmd, out in outputs.items():
                         fname = f"{host}.{timestamp}.{sanitize_filename(cmd)}.txt"
                         try:
-                            with open(os.path.join(args.outdir, fname), 'w') as f:
+                            with open(os.path.join(args.outdir, fname), 'w', encoding='utf-8') as f:
                                 f.write(f"# Host: {host}\n# IP: {current_ip}\n# Command: {cmd}\n# Date: {timestamp}\n\n")
                                 f.write(out)
                             with files_written_lock:
@@ -272,7 +276,7 @@ def main():
                     # element_status.py reads it from collect_dir (not resumedir).
                     success_keys_file = os.path.join(args.outdir, "successful_keys.csv")
                     with files_written_lock:
-                        with open(success_keys_file, 'a') as skf:
+                        with open(success_keys_file, 'a', encoding='utf-8') as skf:
                             skf.write(f"{host};{current_ip};{current_key}\n")
 
                     success = True
@@ -281,9 +285,12 @@ def main():
                     
                 except Exception as e:
                     logging.warning(f"Connection/Execution failed for {host} at {current_ip} with key '{current_key}': {e}")
-                    try: client.close()
-                    except Exception: pass
                     continue
+                finally:
+                    try:
+                        client.close()
+                    except Exception:
+                        pass
 
         with counter_lock:
             counter += 1

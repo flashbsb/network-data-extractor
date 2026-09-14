@@ -2,6 +2,26 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.85.0] - 2026-09-14
+### Added
+- **Pre-flight System Dependency Checker (`--check-deps`)**:
+  - Implemented proactive environment validation checking mandatory core packages (`paramiko`, `pandas`, `zip` archive format support) and topology generator components (`networkx`, `numpy`, `scipy`, `psutil`, `chardet`).
+  - Halts execution cleanly with actionable error instructions before initiating SSH worker threads or creating incomplete run folders.
+  - Added CLI flag `--check-deps` for instant operational environment diagnosis.
+- **Selective Architecture Matrix Refinement & Site-Scope Modifiers**:
+  - Refined default `matrix_rules` for the `metro` tier in `config/settings.json` to target `["edge"]`, eliminating over 31,500 redundant cross-ring and cross-city ICMP tests in production (65% reduction in total ping pairs).
+  - Added support for `:same_site` target scoping in `core/ping_matrix.py` (e.g. `metro:same_site`), allowing optional intra-ring switch testing based on hostname site tokens (`<ROLE>-<SITE>-<ID>`) without requiring complex topology file dependencies.
+
+### Fixed
+- **SSH Client Connection Lifecycle & Socket Leak Prevention**:
+  - Encapsulated Paramiko client connection attempts in `core/commands.py` with in-scope instantiation and unconditional `try ... finally: client.close()` blocks. Resolves socket and file descriptor leaks (`EMFILE`) during large multi-threaded batch extractions.
+- **Robust Elements & Commands File Parsing**:
+  - Standardized `read_elements()` and command reader functions across `commands.py` and `ping_matrix.py` to enforce explicit `utf-8` encoding and tolerate metadata/trailing fields (`len(parts) >= 3`).
+  - Added guaranteed file descriptor cleanup in `network-data-extractor.py` (`run_and_stream_capture()`).
+- **Python 3.13 Compatibility & Hardening**:
+  - Fixed invalid regex escape sequences (`\d`, `\s`) in `core/ping_matrix.py` and `core/topology_engine.py` to resolve Python 3.13 `SyntaxWarning`s.
+  - Updated `installdep.sh` and `requirements.txt` to fully support modern Debian 13 (Trixie) and PEP 668 environments.
+
 ## [1.84.0] - 2026-08-14
 ### Added
 - **Selective Architecture Ping Matrix (`mode: "selective"`)**:

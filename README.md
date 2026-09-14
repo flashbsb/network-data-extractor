@@ -2,7 +2,7 @@
   <h1>🌐 Network Data Extractor</h1>
   <p><strong>The Ultimate Multivendor NOC Orchestrator & Autonomous Discovery Engine</strong></p>
   
-  ![Version](https://img.shields.io/badge/version-1.84.0-blue.svg)
+  ![Version](https://img.shields.io/badge/version-1.85.0-blue.svg)
   ![Python](https://img.shields.io/badge/python-3.8%2B-green.svg)
 </div>
 
@@ -23,7 +23,8 @@ Beyond simple command execution, it acts as an **intelligence layer**—parsing 
 - **🧩 Universal Multivendor Parsing**: Regex-based "Blind Analyzer" bypasses human typos in descriptions to seamlessly map logical and physical topologies across different vendors.
 - **📊 Local-First Dashboards**: Generates High-Performance SPAs (Single Page Applications) embedded directly in HTML. Works 100% offline without CORS issues.
 - **🔍 Network Drift Analysis**: Instantly compares historical snapshots to detect port status changes, bandwidth variations, and missing links.
-- **🛡️ Selective ICMP Diagnostics (Ping Matrix)**: Architecture-aware rules engine (`mode: "selective"`) filters out non-routable cross-tier pings before SSH execution, reducing ICMP load by up to ~80%. Includes dynamic column pruning (`Hide Out-of-Scope 🚫`) in visual heatmaps.
+- **🛡️ Selective ICMP Diagnostics (Ping Matrix)**: Architecture-aware rules engine (`mode: "selective"`) filters out non-routable cross-tier pings before SSH execution, reducing ICMP load by up to ~80% (including optimized metro-to-edge rules and `:same_site` scoping). Includes dynamic column pruning (`Hide Out-of-Scope 🚫`) in visual heatmaps.
+- **🩺 Pre-flight Dependency Diagnostics**: Proactively validates Python modules and system tools (`--check-deps`) prior to execution, halting with actionable guidance to prevent corrupted or interrupted runs.
 - **📈 Historical Telemetry (Ping History)**: Tracks latency, packet loss, jitter, and node availability over time to identify chronic degradation trends and trigger anomaly warnings.
 - **🗺️ Dijkstra Route Analysis**: State-expanded simulator that computes the shortest, hierarchically compliant (valley-free) path between network nodes based on active latency and loss telemetry.
 - **⚠️ Topology Fault Isolation**: Actively maps connection failures, proactively warning the operator when a router loses its logical LLDP adjacencies.
@@ -32,7 +33,7 @@ Beyond simple command execution, it acts as an **intelligence layer**—parsing 
 
 ## 🏗️ Operational Architecture
 
-The orchestrator operates through five distinct modular branches, designed to handle everything from live extraction to offline post-mortem analysis:
+The orchestrator operates through modular branches with integrated pre-flight validation, designed to handle everything from live extraction to offline post-mortem analysis:
 
 ```mermaid
 flowchart TB
@@ -53,10 +54,11 @@ classDef web fill:#0F172A,stroke:#06B6D4,stroke-width:2px,color:#67E8F9
 %% ==========================================================
 
 CLI["🚀 CLI / Wizard"]:::engine
-
+PRECHECK{"🛡️ Pre-flight Check<br/>(--check-deps)"}:::decision
 MODE{"Execution<br/>Mode"}:::decision
 
-CLI --> MODE
+CLI --> PRECHECK
+PRECHECK -->|Dependencies OK| MODE
 
 %% ==========================================================
 %% COLLECTION
@@ -297,6 +299,12 @@ python3 network-data-extractor.py --rebuild-index        # Rebuilds all dashboar
 If you have already collected raw data and simply want to rerun the parsing stack against an existing folder.
 ```bash
 python3 network-data-extractor.py --offline infos/20261231_235959
+```
+
+### [F] Environment Pre-flight Diagnostics
+Audit your operating system, Python libraries, and tools before running collections.
+```bash
+python3 network-data-extractor.py --check-deps           # Validates core & topology packages
 ```
 
 ---

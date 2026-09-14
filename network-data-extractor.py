@@ -23,8 +23,8 @@ import types
 from datetime import datetime
 from glob import glob
 
-APP_VERSION = "1.83.2"
-APP_DATE = "2026-07-08"
+APP_VERSION = "1.85.0"
+APP_DATE = "2026-09-14"
 
 # Force line-buffered output to prevent out-of-order logs when redirected (e.g. in cron)
 if hasattr(sys.stdout, 'reconfigure'):
@@ -1199,16 +1199,20 @@ def run_and_stream_capture(cmd, env=None, out_path=None):
         print("\nInterrupted by user. Killing child process.")
         proc.kill()
         proc.wait()
-        if out_file:
-            out_file.close()
         return 130
     finally:
-        # Ensures clean teardown
-        proc.stdout.close()
+        # Ensures clean teardown of pipe and file descriptors
+        try:
+            proc.stdout.close()
+        except Exception:
+            pass
+        if out_file:
+            try:
+                out_file.close()
+            except Exception:
+                pass
 
     rc = proc.wait()
-    if out_file:
-        out_file.close()
     return rc
 
 

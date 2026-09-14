@@ -40,23 +40,28 @@ def read_elements(path):
         logging.error(f"Element file not found: {path}")
         sys.exit(1)
 
-    with open(path, 'r') as f:
+    with open(path, 'r', encoding='utf-8') as f:
         for lineno, line in enumerate(f, start=1):
             line = line.strip()
             if not line or line.startswith('#'):
                 continue
             parts = line.split(';')
             if len(parts) >= 3:
-                # We only need hostname, first IP, and cmd_key
-                ip = parts[1].split('|')[0] # Get the first IP
-                elements.append({'hostname': parts[0], 'ip': ip, 'cmd_key': parts[2].split('|')[0]})
+                ip = parts[1].split('|')[0].strip()
+                elements.append({
+                    'hostname': parts[0].strip(),
+                    'ip': ip,
+                    'cmd_key': parts[2].split('|')[0].strip()
+                })
+            else:
+                logging.warning(f"Invalid line {lineno} in {path} (Expected format: hostname;ip;command_key): {line}")
     return elements
 
 def read_icmp_commands(path):
     commands = {}
     if not os.path.isfile(path):
         return commands
-    with open(path, 'r') as f:
+    with open(path, 'r', encoding='utf-8') as f:
         for line in f:
             line = line.strip()
             if not line or line.startswith('#'):
@@ -78,6 +83,15 @@ def get_element_role(hostname, json_config):
                 if prefix.upper() in hostname_upper:
                     return role
     return None
+
+def get_element_site(hostname):
+    """Extracts site/PoP identifier from standard hostnames (e.g. SWAC-BSA01-01 -> BSA01)."""
+    if not hostname:
+        return ""
+    parts = hostname.strip().upper().split('-')
+    if len(parts) >= 2:
+        return parts[1]
+    return hostname.strip().upper()
 
 def is_pair_allowed(origin_host, dest_host, json_config):
     ping_cfg = json_config.get("ping_matrix", {})
@@ -108,15 +122,31 @@ def is_pair_allowed(origin_host, dest_host, json_config):
         return default_allow
 
     allowed_targets = matrix_rules.get(origin_key, [])
-    
-    if dest_role and dest_role in allowed_targets:
-        return True
+    origin_site = get_element_site(origin_host)
+    dest_site = get_element_site(dest_host)
 
-    dest_host_upper = dest_host.upper()
     for target in allowed_targets:
-        if target.upper() in dest_host_upper:
+        if not target or target.startswith("_help"):
+            continue
+
+        same_site_only = False
+        target_role = target
+        if ":same_site" in target.lower():
+            same_site_only = True
+            target_role = target.split(":")[0].strip()
+
+        # If site-constrained, reject early if sites do not match or are empty
+        if same_site_only and (not origin_site or not dest_site or origin_site != dest_site):
+            continue
+
+        if dest_role and dest_role.lower() == target_role.lower():
             return True
-        role_prefixes = routing_hierarchy.get(target, [])
+
+        dest_host_upper = dest_host.upper()
+        if target_role.upper() in dest_host_upper:
+            return True
+
+        role_prefixes = routing_hierarchy.get(target_role, [])
         if isinstance(role_prefixes, list):
             for p in role_prefixes:
                 if p.upper() in dest_host_upper:
