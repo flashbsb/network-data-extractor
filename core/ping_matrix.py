@@ -29,9 +29,11 @@ json_config = load_settings()
 ping_cfg = json_config.get("ping_matrix", {})
 
 RE_TRANSMITTED = re.compile(ping_cfg.get("transmitted_regex", r"(\d+)\s+packet[s]?\s*(?:\([a-zA-Z\s]+\))? transmitted"), re.IGNORECASE)
-RE_RECEIVED = re.compile(ping_cfg.get("received_regex", r"(\d+)\s+packet[s]?\s*(?:\([a-zA-Z\s]+\))? received"), re.IGNORECASE)
+RE_RECEIVED = re.compile(ping_cfg.get("received_regex", r"(\d+)\s+(?:packet[s]?\s*(?:\([a-zA-Z\s]+\))?\s*)?received"), re.IGNORECASE)
 RE_RTT = re.compile(ping_cfg.get("rtt_regex", r"min(?:imum)?/avg(?:erage)?/max(?:imum)?.*?=\s*([\d\.]+)/([\d\.]+)/([\d\.]+)"), re.IGNORECASE)
 CISCO_SUCCESS_PATTERN = ping_cfg.get("cisco_success_regex", r"Success rate is \d+\s*percent\s*\(\s*(\d+)\s*/\s*(\d+)\s*\)")
+RE_CISCO_SUCCESS = re.compile(CISCO_SUCCESS_PATTERN, re.IGNORECASE)
+PROMPT_RE = re.compile(r'[A-Za-z0-9_\-\.\:\/]+[#>]\s*$')
 UNREACHABLE_INDICATORS = ping_cfg.get("unreachable_indicators", ["U.U.U", "Admin Prohibited", "Destination unreachable"])
 
 def read_elements(path):
@@ -342,6 +344,10 @@ def main():
                                   .replace("{size}", str(size))\
                                   .replace("{timeout}", str(timeout_ping))
                                   
+                # Drain any stray bytes from previous commands to prevent cross-contamination
+                while shell.recv_ready():
+                    shell.recv(65535)
+
                 shell.send(cmd_run + '\n')
                 
                 # Fetch output logic specific for pings
@@ -359,9 +365,25 @@ def main():
                         if chunk:
                             buff += chunk
                             last_recv = time.time()
+
+                            # Fast-break: Check if terminal prompt has returned on the last line
+                            # (Prompt appears only after ping finishes and control returns to CLI)
+                            if len(buff) > 20:
+                                decoded_tail = buff.decode('utf-8', errors='ignore').rstrip()
+                                last_line = decoded_tail.split('\n')[-1] if decoded_tail else ''
+                                if PROMPT_RE.search(last_line):
+                                    break
                     else:
-                        # If idle for 1.5s and prompt is in buffer, assume completed
-                        if time.time() - last_recv > 1.5 and len(buff) > 10:
+                        # Idle period: evaluate if conclusive summary or failure is in buffer
+                        decoded_buff = buff.decode('utf-8', errors='ignore')
+                        has_summary = (
+                            bool(RE_CISCO_SUCCESS.search(decoded_buff)) or
+                            bool(RE_TRANSMITTED.search(decoded_buff) and RE_RECEIVED.search(decoded_buff)) or
+                            any(ind in decoded_buff for ind in UNREACHABLE_INDICATORS)
+                        )
+                        # If summary is present, 0.5s idle ensures final trailing lines are flushed.
+                        # If NO summary is present yet, wait up to 3.0s idle to avoid premature timeout on WAN latency.
+                        if (has_summary and (time.time() - last_recv > 0.5)) or (time.time() - last_recv > 3.0 and len(buff) > 10):
                             break
                         time.sleep(0.1)
 

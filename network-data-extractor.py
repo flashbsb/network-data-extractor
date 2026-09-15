@@ -23,7 +23,7 @@ import types
 from datetime import datetime
 from glob import glob
 
-APP_VERSION = "1.85.1"
+APP_VERSION = "1.85.2"
 APP_DATE = "2026-09-15"
 
 # Force line-buffered output to prevent out-of-order logs when redirected (e.g. in cron)

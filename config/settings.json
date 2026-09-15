@@ -137,7 +137,7 @@
         "_help_transmitted_regex": "Regex pattern used to capture the transmitted packet count from vendor ping output.",
         "transmitted_regex": "(\\d+)\\s+packet[s]?\\s*(?:\\([a-zA-Z\\s]+\\))? transmitted",
         "_help_received_regex": "Regex pattern used to capture the received packet count from vendor ping output.",
-        "received_regex": "(\\d+)\\s+packet[s]?\\s*(?:\\([a-zA-Z\\s]+\\))? received",
+        "received_regex": "(\\d+)\\s+(?:packet[s]?\\s*(?:\\([a-zA-Z\\s]+\\))?\\s*)?received",
         "_help_rtt_regex": "Regex pattern used to extract min/avg/max latencies from vendor ping RTT summary lines.",
         "rtt_regex": "min(?:imum)?/avg(?:erage)?/max(?:imum)?.*?=\\s*([\\d\\.]+)/([\\d\\.]+)/([\\d\\.]+)",
         "_help_cisco_success_regex": "Regex pattern for Cisco native success percentage and transmit/receive fractions.",

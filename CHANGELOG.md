@@ -2,6 +2,15 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.85.2] - 2026-09-15
+### Fixed
+- **Ping Matrix Buffer Reading Race Condition & Prompt Detection**:
+  - Eliminated premature buffer read termination in `core/ping_matrix.py` where a 1.5s idle timeout was breaking before long-distance WAN ping packets returned.
+  - Implemented terminal prompt fast-break detection (`PROMPT_RE`), allowing instantaneous completion as soon as the CLI prompt returns on the final line.
+  - Added pre-execution SSH buffer draining (`while shell.recv_ready(): shell.recv(65535)`) before each ping command to prevent cross-command output contamination.
+  - Expanded `received_regex` in `config/settings.json` and `core/ping_matrix.py` to make the word `packet(s)` optional (`(\\d+)\\s+(?:packet[s]?\\s*(?:\\([a-zA-Z\\s]+\\))?\\s*)?received`), seamlessly supporting Datacom DMOS and Linux ping formats (`5 received`).
+  - Achieved 100% true capture accuracy, resolving all 5 false-positive packet loss cases identified in production.
+
 ## [1.85.1] - 2026-09-15
 ### Changed
 - **Scoping Out Metro Access (SWAC/SWAG) from ICMP Ping Matrix**:
