@@ -2,6 +2,14 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.85.1] - 2026-09-15
+### Changed
+- **Scoping Out Metro Access (SWAC/SWAG) from ICMP Ping Matrix**:
+  - Updated default `matrix_rules` in `config/settings.json` to assign `"metro": []` and remove `"metro"` from the allowed destinations of the `"edge"` tier (`["edge", "core_agg", "core"]`).
+  - Completely isolates L2 Metro access switches (e.g. Datacom DMOS) from the L3 IP backbone ICMP latency matrix, preventing 13,000+ unroutable pings across disjoint management/DCN and backbone VRFs (reducing production ping pairs from 16,806 to 3,782).
+  - Preserves full support for Metro access switches in command collection (`collect`), port state extraction (`connections`), and dynamic network diagramming (`topology`).
+  - Significantly reduces Ping Matrix dashboard file size (from 4.7 MB to ~800 KB) and eliminates DOM rendering lag in browser dashboards.
+
 ## [1.85.0] - 2026-09-14
 ### Added
 - **Pre-flight System Dependency Checker (`--check-deps`)**:

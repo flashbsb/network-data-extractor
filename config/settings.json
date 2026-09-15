@@ -120,8 +120,8 @@
         "default_allow_unmapped": false,
         "_help_matrix_rules": "Defines target roles for each origin role. Suffix with ':same_site' (e.g. 'metro:same_site') to restrict targets to matching site IDs.",
         "matrix_rules": {
-            "metro": ["edge"],
-            "edge": ["metro", "edge", "core_agg", "core"],
+            "metro": [],
+            "edge": ["edge", "core_agg", "core"],
             "core_agg": ["edge", "core_agg", "core"],
             "core": ["edge", "core_agg", "core", "peering", "router_reflector"],
             "peering": ["core"],
