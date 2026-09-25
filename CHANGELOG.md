@@ -2,6 +2,20 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.86.0] - 2026-09-25
+### Added
+- **Automated Data Lifecycle & Retention Management**:
+  - Activated default global retention window (`max_collections: 30`, `max_days: 30`) in `config/settings.json`, automatically rolling snapshots and preventing disk exhaustion on high-frequency cron jobs.
+  - Added CLI flag `--retention-days <N>` to `network-data-extractor.py` allowing runtime override of the global retention window without modifying configuration files.
+  - Added standalone lifecycle tool `tools/manage_runs_retention.py` to identify, back up (GNU `tar -czf`), and safely prune legacy run folders (>30 days) along with dependent diff and inventory caches.
+  - Added standalone sanitization tool `tools/sanitize_history.py` to identify, back up, and purge obsolete out-of-scope link history files and recalculate clean global history rankings.
+
+### Changed
+- **Dynamic Ping History Sanitization (`auto_purge_out_of_scope`)**:
+  - Enhanced `core/ping_history_generator.py` to cross-reference historical link telemetry with active architecture routing rules (`is_pair_allowed`) during history aggregation.
+  - Added `"auto_purge_out_of_scope": true` configuration in `settings.json`, ensuring obsolete cross-tier or Metro switch link history files (`.json` and `.js`) are automatically pruned from `ping-matrix/history/links/` during standard execution and re-indexing.
+  - Cleaned ranking manifest calculations (`history_rankings.json`, `history_manifest.json`) so out-of-scope nodes no longer pollute `top_worst` or chronic packet loss metrics.
+
 ## [1.85.2] - 2026-09-15
 ### Fixed
 - **Ping Matrix Buffer Reading Race Condition & Prompt Detection**:

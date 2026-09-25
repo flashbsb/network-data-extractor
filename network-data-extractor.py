@@ -5,8 +5,8 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
- * Version : 1.83.2
- * Date    : 2026-07-08
+ * Version : 1.86.0
+ * Date    : 2026-09-25
  * Author  : flashbsb (and contributors) 
  
 """
@@ -23,8 +23,8 @@ import types
 from datetime import datetime
 from glob import glob
 
-APP_VERSION = "1.85.2"
-APP_DATE = "2026-09-15"
+APP_VERSION = "1.86.0"
+APP_DATE = "2026-09-25"
 
 # Force line-buffered output to prevent out-of-order logs when redirected (e.g. in cron)
 if hasattr(sys.stdout, 'reconfigure'):
@@ -754,6 +754,7 @@ group_global.add_argument("--outbase", type=str, default=def_outbase, help=f"Roo
 group_global.add_argument("--skip-wizard", action="store_true", help="Skip configuration confirmation prompt")
 group_global.add_argument("--force", action="store_true", help="Force execution even if collection fails (ignored in --ping-matrix/--diff)")
 group_global.add_argument("--check-deps", action="store_true", help="Verify all system and Python dependencies and exit")
+group_global.add_argument("--retention-days", type=int, help="Override global retention window in days (prunes runs older than N days)")
 
 group_auth = parser.add_argument_group("Authentication (ignored in --offline/--diff)")
 group_auth.add_argument("--user", type=str, help="SSH Username (required for automated auth)")
@@ -795,6 +796,11 @@ group_f.add_argument("--topo-locations", type=str, default=def_topo_locations, h
 group_f.add_argument("--topo-theme", type=str, default=def_topo_theme, help=f"Theme/Layout option for the topology generator (default: {def_topo_theme})")
 
 args = parser.parse_args()
+
+if args.retention_days is not None:
+    if "retention" not in json_config: json_config["retention"] = {}
+    if "global" not in json_config["retention"]: json_config["retention"]["global"] = {}
+    json_config["retention"]["global"]["max_days"] = args.retention_days
 
 # --- PRE-FLIGHT DEPENDENCY CHECK ---
 if args.check_deps:

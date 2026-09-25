@@ -2,7 +2,7 @@
   <h1>🌐 Network Data Extractor</h1>
   <p><strong>The Ultimate Multivendor NOC Orchestrator & Autonomous Discovery Engine</strong></p>
   
-  ![Version](https://img.shields.io/badge/version-1.85.2-blue.svg)
+  ![Version](https://img.shields.io/badge/version-1.86.0-blue.svg)
   ![Python](https://img.shields.io/badge/python-3.8%2B-green.svg)
 </div>
 
@@ -26,6 +26,7 @@ Beyond simple command execution, it acts as an **intelligence layer**—parsing 
 - **🛡️ Selective ICMP Diagnostics (Ping Matrix)**: Architecture-aware rules engine (`mode: "selective"`) filters out non-routable cross-tier pings before SSH execution, reducing ICMP load by up to ~80% (including optimized metro-to-edge rules and `:same_site` scoping). Includes dynamic column pruning (`Hide Out-of-Scope 🚫`) in visual heatmaps.
 - **🩺 Pre-flight Dependency Diagnostics**: Proactively validates Python modules and system tools (`--check-deps`) prior to execution, halting with actionable guidance to prevent corrupted or interrupted runs.
 - **📈 Historical Telemetry (Ping History)**: Tracks latency, packet loss, jitter, and node availability over time to identify chronic degradation trends and trigger anomaly warnings.
+- **🗄️ Automated Data Lifecycle & Retention Management**: Enforces configurable sliding-window retention (default 30-day / 30-collection window) and dynamic ICMP history sanitization. Automatically purges unneeded out-of-scope link files and prunes obsolete snapshots, keeping storage lightweight without operator intervention.
 - **🗺️ Dijkstra Route Analysis**: State-expanded simulator that computes the shortest, hierarchically compliant (valley-free) path between network nodes based on active latency and loss telemetry.
 - **⚠️ Topology Fault Isolation**: Actively maps connection failures, proactively warning the operator when a router loses its logical LLDP adjacencies.
 
@@ -307,6 +308,14 @@ Audit your operating system, Python libraries, and tools before running collecti
 python3 network-data-extractor.py --check-deps           # Validates core & topology packages
 ```
 
+### [G] Data Retention & Storage Lifecycle
+Manage snapshot storage, enforce historical retention windows, and sanitize legacy datasets:
+```bash
+python3 network-data-extractor.py --retention-days 30    # Enforces a 30-day retention window on collection
+python3 tools/manage_runs_retention.py --days 30 --apply # Standalone run archiver & snapshot pruner
+python3 tools/sanitize_history.py --apply               # Standalone out-of-scope ICMP history link sanitizer
+```
+
 ---
 
 ## 🔗 Interactive Inter-Dashboard Navigation
@@ -414,13 +423,16 @@ At the root of the output directory (e.g., `infos/`), you will find the static c
 
 ## 🛡️ Unified Retention & Storage Policies
 
-You can easily configure automatic data and dashboard pruning inside `config/settings.json` under the `"retention"` block. Setting any parameter to `null` disables that specific limit.
+You can easily configure automatic data and dashboard pruning inside `config/settings.json` under the `"retention"` block. The engine automatically rotates obsolete runs and purges out-of-scope link history files during every collection or re-index cycle. Setting any parameter to `null` disables that specific limit.
 
 ```json
     "retention": {
         "global": {
-            "max_collections": null, // Deletes the entire run folder if exceeded
-            "max_days": null
+            "max_collections": 30, // Retains up to 30 most recent runs (deletes older runs)
+            "max_days": 30         // Retains runs within the last 30 days
+        },
+        "ping_history": {
+            "auto_purge_out_of_scope": true // Automatically cleans out-of-scope link history files
         },
         "components": {
             "collect": { "max_collections": 40, "max_days": 30 }, // Deletes raw commands
@@ -433,6 +445,11 @@ You can easily configure automatic data and dashboard pruning inside `config/set
             "topology": { "max_collections": 40, "max_days": 30 }
         }
     }
+```
+
+You can also dynamically override the retention window via CLI without modifying `settings.json`:
+```bash
+python3 network-data-extractor.py --retention-days 15
 ```
 
 ---

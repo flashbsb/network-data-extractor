@@ -79,6 +79,11 @@ class PingHistoryGenerator:
         self.thr_loss = hist_cfg.get("thr_loss", 1.0)       # %
         self.thr_jitter = hist_cfg.get("thr_jitter", 5.0)     # ms
         self.thr_avail = hist_cfg.get("thr_avail", 99.5)     # %
+        
+        # Lifecycle retention for out-of-scope links
+        self.json_config = json_config
+        ret_cfg = json_config.get("retention", {}).get("ping_history", {})
+        self.auto_purge_out_of_scope = ret_cfg.get("auto_purge_out_of_scope", True)
 
     def run(self, force_rebuild=False):
         print(f"[*] Starting Ping History aggregation in: {self.ping_matrix_dir}")
@@ -332,18 +337,32 @@ class PingHistoryGenerator:
         print("[*] Recomputing statistical rankings and baselines...")
         
         # Load all link histories from disk to compute rankings over full history
+        from core.ping_matrix import is_pair_allowed
         all_links = {}
         link_files = glob.glob(os.path.join(self.links_dir, "*.json"))
+        purged_links = 0
         for fpath in link_files:
             fname = os.path.basename(fpath)
             parts = fname.replace(".json", "").split("_")
             if len(parts) == 2:
                 o, d = parts[0], parts[1]
+                if self.auto_purge_out_of_scope and not is_pair_allowed(o, d, self.json_config):
+                    try:
+                        os.remove(fpath)
+                        js_file = fpath[:-5] + ".js"
+                        if os.path.isfile(js_file):
+                            os.remove(js_file)
+                        purged_links += 1
+                    except Exception:
+                        pass
+                    continue
                 try:
                     with open(fpath, 'r', encoding='utf-8') as f:
                         all_links[f"{o}|{d}"] = json.load(f)
                 except:
                     pass
+        if purged_links > 0:
+            print(f"[*] Auto-purged {purged_links} out-of-scope link history files.")
 
         # Calculations
         top_worst = []

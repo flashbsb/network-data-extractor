@@ -185,8 +185,12 @@
     "retention": {
         "_help_retention": "Hierarchical retention policy. If global rules trigger, the entire run folder and its HTML portal files are deleted. Component rules prune specific subfolders/archives and dashboard data.",
         "global": {
-            "max_collections": null,
-            "max_days": null
+            "max_collections": 30,
+            "max_days": 30
+        },
+        "ping_history": {
+            "_help_ping_history_retention": "Automatically purge out-of-scope link history files (e.g. SWAC) during ping history aggregation.",
+            "auto_purge_out_of_scope": true
         },
         "components": {
             "collect": {
