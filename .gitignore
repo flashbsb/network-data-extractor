@@ -41,3 +41,13 @@ Thumbs.db
 *.pem
 .env
 *.log
+
+# Demo Public Mock Showcase (Explicitly allowed for GitHub Pages)
+!demo/
+!demo/**
+!demo/**/*.csv
+!demo/**/*.json
+!demo/**/*.drawio
+!demo/**/*.js
+!demo/**/*.html
+!demo/.nojekyll

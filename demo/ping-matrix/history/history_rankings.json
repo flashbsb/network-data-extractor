@@ -1,0 +1,172 @@
+{
+    "top_worst_circuits": [
+        {
+            "origin": "RT-CORE-SPO-01",
+            "dest": "RT-CORE-FOR-01",
+            "avg_loss": 0.0,
+            "avg_latency": 43.7
+        },
+        {
+            "origin": "RT-CORE-FOR-01",
+            "dest": "RT-CORE-SPO-01",
+            "avg_loss": 0.0,
+            "avg_latency": 43.7
+        },
+        {
+            "origin": "RT-CORE-FOR-01",
+            "dest": "RT-CORE-BSB-01",
+            "avg_loss": 0.0,
+            "avg_latency": 34.4
+        },
+        {
+            "origin": "RT-CORE-BSB-01",
+            "dest": "RT-CORE-FOR-01",
+            "avg_loss": 0.0,
+            "avg_latency": 34.4
+        },
+        {
+            "origin": "RT-CORE-BSB-01",
+            "dest": "RT-CORE-RJO-01",
+            "avg_loss": 0.0,
+            "avg_latency": 16.3
+        },
+        {
+            "origin": "RT-CORE-RJO-01",
+            "dest": "RT-CORE-BSB-01",
+            "avg_loss": 0.0,
+            "avg_latency": 16.3
+        },
+        {
+            "origin": "RT-CORE-BSB-01",
+            "dest": "RT-CORE-SPO-01",
+            "avg_loss": 0.0,
+            "avg_latency": 14.7
+        },
+        {
+            "origin": "RT-CORE-SPO-01",
+            "dest": "RT-CORE-BSB-01",
+            "avg_loss": 0.0,
+            "avg_latency": 14.7
+        },
+        {
+            "origin": "RT-CORE-SPO-01",
+            "dest": "RT-CORE-RJO-01",
+            "avg_loss": 0.0,
+            "avg_latency": 7.4
+        },
+        {
+            "origin": "RT-CORE-RJO-01",
+            "dest": "RT-CORE-SPO-01",
+            "avg_loss": 0.0,
+            "avg_latency": 7.4
+        }
+    ],
+    "worsening_trend": [],
+    "anomaly_events": [],
+    "rankings_by_origin": {
+        "RT-CORE-SPO-01": {
+            "avg_latency": 21.9,
+            "avg_loss": 0.0,
+            "success_pct": 100.0
+        },
+        "RT-CORE-FOR-01": {
+            "avg_latency": 39.0,
+            "avg_loss": 0.0,
+            "success_pct": 100.0
+        },
+        "RT-CORE-BSB-01": {
+            "avg_latency": 21.8,
+            "avg_loss": 0.0,
+            "success_pct": 100.0
+        },
+        "RT-CORE-RJO-01": {
+            "avg_latency": 11.9,
+            "avg_loss": 0.0,
+            "success_pct": 100.0
+        }
+    },
+    "rankings_by_dest": {
+        "RT-CORE-FOR-01": {
+            "avg_latency": 39.0,
+            "avg_loss": 0.0,
+            "success_pct": 100.0
+        },
+        "RT-CORE-BSB-01": {
+            "avg_latency": 21.8,
+            "avg_loss": 0.0,
+            "success_pct": 100.0
+        },
+        "RT-CORE-RJO-01": {
+            "avg_latency": 11.9,
+            "avg_loss": 0.0,
+            "success_pct": 100.0
+        },
+        "RT-CORE-SPO-01": {
+            "avg_latency": 21.9,
+            "avg_loss": 0.0,
+            "success_pct": 100.0
+        }
+    },
+    "rankings_by_stability": [
+        {
+            "origin": "RT-CORE-SPO-01",
+            "dest": "RT-CORE-FOR-01",
+            "std_dev": 0.15,
+            "avg": 43.7
+        },
+        {
+            "origin": "RT-CORE-FOR-01",
+            "dest": "RT-CORE-BSB-01",
+            "std_dev": 0.15,
+            "avg": 34.4
+        },
+        {
+            "origin": "RT-CORE-SPO-01",
+            "dest": "RT-CORE-RJO-01",
+            "std_dev": 0.15,
+            "avg": 7.4
+        },
+        {
+            "origin": "RT-CORE-BSB-01",
+            "dest": "RT-CORE-SPO-01",
+            "std_dev": 0.15,
+            "avg": 14.7
+        },
+        {
+            "origin": "RT-CORE-RJO-01",
+            "dest": "RT-CORE-SPO-01",
+            "std_dev": 0.15,
+            "avg": 7.4
+        },
+        {
+            "origin": "RT-CORE-FOR-01",
+            "dest": "RT-CORE-SPO-01",
+            "std_dev": 0.15,
+            "avg": 43.7
+        },
+        {
+            "origin": "RT-CORE-BSB-01",
+            "dest": "RT-CORE-RJO-01",
+            "std_dev": 0.15,
+            "avg": 16.3
+        },
+        {
+            "origin": "RT-CORE-BSB-01",
+            "dest": "RT-CORE-FOR-01",
+            "std_dev": 0.15,
+            "avg": 34.4
+        },
+        {
+            "origin": "RT-CORE-SPO-01",
+            "dest": "RT-CORE-BSB-01",
+            "std_dev": 0.15,
+            "avg": 14.7
+        },
+        {
+            "origin": "RT-CORE-RJO-01",
+            "dest": "RT-CORE-BSB-01",
+            "std_dev": 0.15,
+            "avg": 16.3
+        }
+    ]
+}

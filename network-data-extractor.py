@@ -795,7 +795,23 @@ group_f.add_argument("--topo-elements", type=str, default=def_topo_elements, hel
 group_f.add_argument("--topo-locations", type=str, default=def_topo_locations, help=f"Path to locations.csv (default: {def_topo_locations})")
 group_f.add_argument("--topo-theme", type=str, default=def_topo_theme, help=f"Theme/Layout option for the topology generator (default: {def_topo_theme})")
 
+group_demo = parser.add_argument_group("Mode G: Demo Showcase & Maintenance")
+group_demo.add_argument("--update-demo", action="store_true", help="Refresh web views in 'demo/' using tools/generate_demo_dataset.py --refresh-views")
+group_demo.add_argument("--rebuild-demo", action="store_true", help="Rebuild full synthetic demo dataset from scratch using tools/generate_demo_dataset.py --rebuild")
+
 args = parser.parse_args()
+
+# --- DEMO SHOWCASE SHORTCUT HOOK ---
+if getattr(args, "update_demo", False) or getattr(args, "rebuild_demo", False):
+    import subprocess
+    cmd = [sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools", "generate_demo_dataset.py")]
+    if getattr(args, "rebuild_demo", False):
+        cmd.append("--rebuild")
+    else:
+        cmd.append("--refresh-views")
+    ret = subprocess.call(cmd)
+    sys.exit(ret)
+
 
 if args.retention_days is not None:
     if "retention" not in json_config: json_config["retention"] = {}

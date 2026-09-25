@@ -1014,13 +1014,21 @@ function loadData() {
     buildHeader(); renderMatrix(); buildAnalytics();
 }
 function buildHeader() {
-    let md = globalData.metadata;
-    let html = `<span style="color:#5eff84">&#10003; Loaded Successfully</span> | <b>Run Date:</b> ${md.datetime}`;
+    let md = globalData.metadata || {};
+    let runDate = md.datetime || 'N/A';
+    let html = `<span style="color:#5eff84">&#10003; Loaded Successfully</span> | <b>Run Date:</b> ${runDate}`;
+    let cfg = md.config || {};
+    let threads = cfg.threads !== undefined ? cfg.threads : 10;
+    let size = cfg.datagram_size !== undefined ? cfg.datagram_size : 100;
     if (md.execution_metrics) {
         let em = md.execution_metrics;
-        html += `<br><span style="font-size:12px; color:#64748b; margin-top:4px; display:inline-block;"><b>Scope:</b> ${em.total_origins} Nodes &nbsp;|&nbsp; <b>Total Tests:</b> ${em.total_pings_expected} &nbsp;|&nbsp; <b>Threads:</b> ${md.config.threads} &nbsp;|&nbsp; <b>Time Taken:</b> ${em.actual_duration_seconds}s (Est: ${em.estimated_duration_seconds}s)</span>`;
+        let totalOrigins = em.total_origins !== undefined ? em.total_origins : (md.nodes_connected || 0);
+        let totalTests = em.total_pings_expected !== undefined ? em.total_pings_expected : (md.total_pings || 0);
+        let actualSec = em.actual_duration_seconds !== undefined ? em.actual_duration_seconds : 0;
+        let estSec = em.estimated_duration_seconds !== undefined ? em.estimated_duration_seconds : 0;
+        html += `<br><span style="font-size:12px; color:#64748b; margin-top:4px; display:inline-block;"><b>Scope:</b> ${totalOrigins} Nodes &nbsp;|&nbsp; <b>Total Tests:</b> ${totalTests} &nbsp;|&nbsp; <b>Threads:</b> ${threads} &nbsp;|&nbsp; <b>Time Taken:</b> ${actualSec}s (Est: ${estSec}s)</span>`;
     } else {
-        html += ` | Size: ${md.config.datagram_size}B | Threads: ${md.config.threads}`;
+        html += ` | Size: ${size}B | Threads: ${threads}`;
     }
     document.getElementById('sub-header').innerHTML = html;
 }

@@ -1,0 +1,112 @@
+window.ping_history_manifest = [
+    {
+        "id": "20260826_141209",
+        "timestamp": "2026-08-26 14:12:09",
+        "nodes": 30,
+        "availability": 100.0,
+        "avg_latency": 11.1,
+        "avg_loss": 0.0,
+        "avg_jitter": 1.1,
+        "critical_links_count": 0,
+        "dead_links_count": 0
+    },
+    {
+        "id": "20260830_130509",
+        "timestamp": "2026-08-30 13:05:09",
+        "nodes": 30,
+        "availability": 100.0,
+        "avg_latency": 11.3,
+        "avg_loss": 0.0,
+        "avg_jitter": 1.1,
+        "critical_links_count": 0,
+        "dead_links_count": 0
+    },
+    {
+        "id": "20260902_115809",
+        "timestamp": "2026-09-02 11:58:09",
+        "nodes": 30,
+        "availability": 100.0,
+        "avg_latency": 12.1,
+        "avg_loss": 0.05,
+        "avg_jitter": 1.9,
+        "critical_links_count": 0,
+        "dead_links_count": 0
+    },
+    {
+        "id": "20260905_135109",
+        "timestamp": "2026-09-05 13:51:09",
+        "nodes": 30,
+        "availability": 100.0,
+        "avg_latency": 11.1,
+        "avg_loss": 0.27,
+        "avg_jitter": 1.4,
+        "critical_links_count": 0,
+        "dead_links_count": 0
+    },
+    {
+        "id": "20260909_124409",
+        "timestamp": "2026-09-09 12:44:09",
+        "nodes": 30,
+        "availability": 100.0,
+        "avg_latency": 11.3,
+        "avg_loss": 0.0,
+        "avg_jitter": 1.1,
+        "critical_links_count": 0,
+        "dead_links_count": 0
+    },
+    {
+        "id": "20260912_113709",
+        "timestamp": "2026-09-12 11:37:09",
+        "nodes": 30,
+        "availability": 97.3,
+        "avg_latency": 10.8,
+        "avg_loss": 2.7,
+        "avg_jitter": 1.1,
+        "critical_links_count": 0,
+        "dead_links_count": 2
+    },
+    {
+        "id": "20260915_133009",
+        "timestamp": "2026-09-15 13:30:09",
+        "nodes": 30,
+        "availability": 100.0,
+        "avg_latency": 11.1,
+        "avg_loss": 0.0,
+        "avg_jitter": 1.1,
+        "critical_links_count": 0,
+        "dead_links_count": 0
+    },
+    {
+        "id": "20260919_122309",
+        "timestamp": "2026-09-19 12:23:09",
+        "nodes": 30,
+        "availability": 100.0,
+        "avg_latency": 11.3,
+        "avg_loss": 0.27,
+        "avg_jitter": 1.1,
+        "critical_links_count": 0,
+        "dead_links_count": 0
+    },
+    {
+        "id": "20260922_111609",
+        "timestamp": "2026-09-22 11:16:09",
+        "nodes": 30,
+        "availability": 100.0,
+        "avg_latency": 10.9,
+        "avg_loss": 0.0,
+        "avg_jitter": 1.1,
+        "critical_links_count": 0,
+        "dead_links_count": 0
+    },
+    {
+        "id": "20260925_140909",
+        "timestamp": "2026-09-25 14:09:09",
+        "nodes": 30,
+        "availability": 100.0,
+        "avg_latency": 11.1,
+        "avg_loss": 0.0,
+        "avg_jitter": 1.1,
+        "critical_links_count": 0,
+        "dead_links_count": 0
+    }
+];

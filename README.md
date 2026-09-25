@@ -2,11 +2,47 @@
   <h1>🌐 Network Data Extractor</h1>
   <p><strong>The Ultimate Multivendor NOC Orchestrator & Autonomous Discovery Engine</strong></p>
   
-  ![Version](https://img.shields.io/badge/version-1.86.0-blue.svg)
+  ![Version](https://img.shields.io/badge/version-1.87.0-blue.svg)
   ![Python](https://img.shields.io/badge/python-3.8%2B-green.svg)
+  [![Live Demo](https://img.shields.io/badge/Live_Demo-GitHub_Pages-0ea5e9?style=flat&logo=github)](https://flashbsb.github.io/network-data-extractor/)
 </div>
 
 <br />
+
+## 🌐 Live Interactive Demo (Online & Offline)
+
+Explore the full Network Operations Center portal live in your browser without cloning or running Python:
+
+<div align="center">
+  <a href="https://flashbsb.github.io/network-data-extractor/">
+    <img src="https://img.shields.io/badge/🚀_LAUNCH_LIVE_DEMO-GitHub_Pages-38bdf8?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Launch Live Demo" />
+  </a>
+</div>
+
+The bundled **[demo/](demo/)** workspace provides an authentic nationwide Brazilian backbone scenario (30 elements across Core, Aggregation, Metro Distribution, Peering, and Optical DWDM) spanning 30 days and 10 chronological snapshot collections:
+- **📦 Global Inventory**: Multivendor hardware inventory, transceivers, and interface operational statuses.
+- **⚖️ Drift Analysis (Diff)**: Configuration drift, interface state changes, and BGP peering updates.
+- **⚡ Ping Monitoring**: SLA heatmaps, Chart.js 30-day degradation trends, and Dijkstra route analysis.
+- **🕸️ Topology Viewer**: Interactive Draw.io diagrams rendered with official Cisco 2019 stencils and direct straight links across 3 layouts: **Geographic** (Brazilian coordinates), **Circular** (4 concentric functional orbital rings: Core, Aggregation, Distribution, Peering/DWDM), and **Organic** (regional clustered topology).
+
+### Exploring Locally
+To run the demo web portal locally on your workstation:
+```bash
+python3 -m http.server 8000 --directory demo
+# Open in your browser: http://localhost:8000
+```
+
+### Updating the Demo Portal
+When core engine templates or styles evolve, refresh the demo views in ~3 seconds:
+```bash
+python3 network-data-extractor.py --update-demo
+```
+Or rebuild the entire synthetic dataset from scratch:
+```bash
+python3 network-data-extractor.py --rebuild-demo
+```
+
+---
 
 ## 📖 What is the Network Data Extractor?
 
@@ -158,13 +194,16 @@ end
 %% MAINTENANCE
 %% ==========================================================
 
-subgraph L5["⑤ Maintenance"]
+subgraph L5["⑤ Maintenance & Demo"]
 
 REBUILD["Master Rebuild"]:::engine
 
 TASKS["Maintenance Tasks"]:::process
 
+DEMO["Demo Showcase Engine<br/>(--update-demo / --rebuild-demo)"]:::engine
+
 MODE -->|--rebuild-index| REBUILD
+MODE -->|--update-demo| DEMO
 
 REBUILD --> TASKS
 
@@ -210,11 +249,13 @@ end
 %% ROOT
 %% ==========================================================
 
-subgraph L7["⑦ Navigation"]
+subgraph L7["⑦ Navigation & Live Demo"]
 
 ROOT["Root Navigation Portal"]:::process
 
 INDEX["🏠 infos/index.html"]:::web
+
+PAGES["🌐 GitHub Pages Live Demo<br/>(demo/index.html)"]:::web
 
 INVHTML --> ROOT
 DIFFHTML --> ROOT
@@ -222,6 +263,8 @@ TOPOHTML --> ROOT
 PINGHTML --> ROOT
 
 ROOT --> INDEX
+
+DEMO --> PAGES
 
 end
 ```

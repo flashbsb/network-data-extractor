@@ -2,6 +2,46 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.87.1] - 2026-09-25
+### Fixed
+- **Ping Matrix Dashboard Loading & Metadata Schema**:
+  - Resolved blank page on `ping-matrix/index.html` caused by `TypeError: Cannot read properties of undefined (reading 'datagram_size')` in `buildHeader()`.
+  - Added full metadata payload generation (`config`, `execution_metrics`, and `node_stats`) to `tools/generate_demo_dataset.py`.
+  - Implemented defensive null-safe property access in `core/ping_matrix.py` so dashboards gracefully fall back to sensible defaults.
+  - Adjusted `demo/ping-matrix/index.html` and `core/ping_master_dashboard.py` to keep the historical sidebar open by default on desktop while auto-selecting and loading the latest snapshot run without delay.
+
+### Changed
+- **Draw.io Topology Visualization Overhaul**:
+  - Upgraded node representations to industry-standard Cisco 2019 stencils (`shape=mxgraph.cisco19.rect` with `prIcon=router`, `l2_switch`, and `optical_transport`) with high-contrast external bottom labels (`verticalLabelPosition=bottom;verticalAlign=top;fontColor=#0f172a;`).
+  - Switched link edges to direct straight lines (`edgeStyle=none;rounded=0;curved=0;html=1;endArrow=none;endFill=0;`), eliminating curved corner artifacts.
+  - Redesigned Circular Layout into functional concentric orbital tiers:
+    - Inner Core Ring ($R=220$px): Core Routers (`RT-CORE-*`).
+    - Middle Ring ($R=460$px): Regional Aggregation Routers (`RT-AGGR-*`).
+    - Outer Ring ($R=700$px): Metro Distribution Switches (`SW-DIST-*`).
+    - Perimeter Ring ($R=940$px): Peering IX & Optical DWDM (`PTT-IX-*`, `DW-OPT-*`).
+  - Added Regional Clustered Organic Layout (`topology.connections.SUM_organico.drawio`) grouping devices around central hubs (BSB, SPO, RJO, FOR).
+  - Deprecated and completely removed the hierarchical layout (`hierarquico`).
+  - Updated `tools/test_web_navigation.py` to validate `SUM_organico.drawio` across all runs.
+
+## [1.87.0] - 2026-09-25
+### Added
+- **Synthetic Backbone Dataset & Live GitHub Pages Demo Portal**:
+  - Implemented `tools/generate_demo_dataset.py`, synthesizing a realistic 30-element nationwide Brazilian backbone network (Core, Aggregation, Distribution, Peering, DWDM) across 30 days and 10 chronological snapshot runs.
+  - Realistic propagation latency matrix reflecting Brazilian geography (e.g. SPO-RJO 7.2ms, BSB-SPO 14.5ms, SPO-FOR 43.5ms, BSB-MAO 52.4ms) and simulated operational events (transceiver degradation, interface flap, configuration drift, OS upgrade, transient packet loss).
+  - Automated generation of native Draw.io topology diagrams (Geographic, Circular, Hierarchical) for every snapshot run.
+  - Automated GitHub Actions deployment workflow (`.github/workflows/deploy-pages.yml`) and `.nojekyll` integration, publishing the live demonstration portal to GitHub Pages on repository push.
+- **Zero Production Data Leakage Gatekeeper (`tools/verify_zero_leakage.py`)**:
+  - Standalone security auditor ensuring zero production credentials, private IP addresses, or production hostnames are ever committed to Git or published in demo artifacts.
+  - Validates full compliance with IANA documentation/test subnets (RFC 5737 and RFC 3849).
+- **Web Navigation QA Test Suite (`tools/test_web_navigation.py`)**:
+  - Automated test suite verifying strict relative URL compliance across all web files and testing live HTTP responses (HTTP 200 OK) for all portal dashboards, manifests, charts, and diagrams.
+- **Demo Lifecycle CLI Shortcuts in Main Extractor**:
+  - Added Mode G flags to `network-data-extractor.py`:
+    - `--update-demo`: Instantly re-renders all web views and dashboards in `demo/` (~3 seconds) using existing snapshot telemetry.
+    - `--rebuild-demo`: Fully wipes and re-synthesizes the 30-day mock dataset and all 10 runs from scratch.
+- **Modularized Master Ping Dashboard (`core/ping_master_dashboard.py`)**:
+  - Decoupled `generate_master_dashboard` into a standalone, reusable core module.
+
 ## [1.86.0] - 2026-09-25
 ### Added
 - **Automated Data Lifecycle & Retention Management**:
