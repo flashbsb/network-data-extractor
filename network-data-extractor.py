@@ -252,25 +252,6 @@ def prune_old_runs(outbase, json_config):
                         print(f"  {C_RED}[!] Error removing {path}: {e}{C_RESET}")
                     globally_deleted.add(run_id)
                 
-                # Delete presentation caches
-                inv_js = os.path.join(outbase, "inventory", "data", f"{run_id}.js")
-                if os.path.isfile(inv_js):
-                    try:
-                        os.remove(inv_js)
-                    except Exception: pass
-                diff_js = os.path.join(outbase, "diff", "data", f"{run_id}.js")
-                if os.path.isfile(diff_js):
-                    try:
-                        os.remove(diff_js)
-                    except Exception: pass
-                reports_dir = os.path.join(outbase, "diff", "reports")
-                if os.path.isdir(reports_dir):
-                    for rf in os.listdir(reports_dir):
-                        if run_id in rf:
-                            try:
-                                os.remove(os.path.join(reports_dir, rf))
-                            except Exception: pass
-                
     # 3. Process Granular Component Retention rules
     if has_comps:
         for comp_name, comp_rule in comp_cfg.items():
@@ -958,7 +939,10 @@ if args.rebuild_index:
         rebuild_storage_mgr = None
         try:
             from core.storage.manager import StorageManager
-            rebuild_storage_mgr = StorageManager.from_settings(outbase=args.outbase)
+            rebuild_storage_mgr = StorageManager.from_settings(
+                outbase=args.outbase,
+                custom_mode=args.storage_mode
+            )
         except Exception:
             rebuild_storage_mgr = None
 

@@ -207,30 +207,30 @@
                 "max_days": 7
             },
             "connections": {
-                "max_collections": 120,
-                "max_days": 90
+                "max_collections": null,
+                "max_days": 365
             },
             "inventory": {
-                "max_collections": 120,
-                "max_days": 90
+                "max_collections": null,
+                "max_days": 365
             },
             "drift": {
-                "max_collections": 120,
-                "max_days": 90
+                "max_collections": null,
+                "max_days": 365
             },
             "ping-matrix": {
-                "max_collections": 120,
-                "max_days": 90
+                "max_collections": null,
+                "max_days": 365
             },
             "topology": {
-                "max_collections": 120,
-                "max_days": 90
+                "max_collections": null,
+                "max_days": 365
             }
         }
     },
     "storage": {
         "_help_storage": "Persistence and storage engine configuration. Modes: 'files_only' (default legacy behavior), 'db_only' (stores exclusively in DB), 'hybrid' (stores both).",
-        "mode": "files_only",
+        "mode": "hybrid",
         "backend": "sqlite",
         "sqlite": {
             "_help_sqlite": "SQLite engine parameters. Database path is resolved dynamically relative to outbase ({outbase}/database/network_data.db).",
@@ -244,12 +244,12 @@
             "_help_retention": "Decoupled retention policies for files and database.",
             "files": {
                 "raw_collect_days": 7,
-                "runs_days": 30,
-                "history_links_days": 90
+                "runs_days": 14,
+                "history_links_days": 365
             },
             "database": {
                 "enabled": true,
-                "max_runs": 90,
+                "max_runs": 365,
                 "raw_collections_days": 30,
                 "metrics_days": 365,
                 "sla_history_days": 730,
