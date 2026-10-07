@@ -60,7 +60,7 @@ def detect_anomaly(values, current_val):
     return is_anomaly, mean, std_dev
 
 class PingHistoryGenerator:
-    def __init__(self, outbase):
+    def __init__(self, outbase, storage_mgr=None):
         self.outbase = os.path.abspath(outbase)
         self.ping_matrix_dir = os.path.join(self.outbase, "ping-matrix")
         self.history_dir = os.path.join(self.ping_matrix_dir, "history")
@@ -84,6 +84,15 @@ class PingHistoryGenerator:
         self.json_config = json_config
         ret_cfg = json_config.get("retention", {}).get("ping_history", {})
         self.auto_purge_out_of_scope = ret_cfg.get("auto_purge_out_of_scope", True)
+
+        # Storage Abstraction Layer (SAL)
+        self.storage_mgr = storage_mgr
+        if self.storage_mgr is None:
+            try:
+                from core.storage.manager import StorageManager
+                self.storage_mgr = StorageManager.from_settings(outbase=self.outbase)
+            except Exception:
+                self.storage_mgr = None
 
     def run(self, force_rebuild=False):
         print(f"[*] Starting Ping History aggregation in: {self.ping_matrix_dir}")
@@ -133,20 +142,35 @@ class PingHistoryGenerator:
             processed_runs = set()
             print(f"{C_CYAN}[*] Running FULL historical rebuild.{C_RESET}")
 
-        # 2. Scan all snapshot directories under runs/
-        run_dirs = sorted(glob.glob(os.path.join(self.outbase, "runs", "20*_*")))
+        # 2. Scan snapshot sources (Primary: Database if enabled; Fallback: Filesystem)
         new_runs = []
-        for run_dir in run_dirs:
-            if not os.path.isdir(run_dir):
-                continue
-            run_id = os.path.basename(run_dir)
-            if run_id not in processed_runs:
-                # Validate the snapshot has the JSON file (check new and old locations)
-                json_file = os.path.join(run_dir, "ping-matrix", "resume", "ping_matrix_list.json")
-                if not os.path.isfile(json_file):
-                    json_file = os.path.join(run_dir, "resume", "ping_matrix_list.json")
-                if os.path.isfile(json_file):
-                    new_runs.append((run_id, json_file))
+        if self.storage_mgr and self.storage_mgr.is_db_enabled():
+            try:
+                conn = self.storage_mgr.db_driver._get_connection()
+                cur = conn.cursor()
+                cur.execute("SELECT DISTINCT run_id FROM ping_tests ORDER BY run_id ASC;")
+                db_runs = [r[0] for r in cur.fetchall()]
+                for rid in db_runs:
+                    if rid not in processed_runs:
+                        new_runs.append((rid, "db"))
+                if new_runs:
+                    print(f"[*] Querying {len(new_runs)} new run(s) from Database (Index-accelerated).")
+            except Exception as e:
+                print(f"{C_YELLOW}[!] Warning: DB query failed in PingHistoryGenerator: {e}. Falling back to files.{C_RESET}")
+
+        if not new_runs:
+            run_dirs = sorted(glob.glob(os.path.join(self.outbase, "runs", "20*_*")))
+            for run_dir in run_dirs:
+                if not os.path.isdir(run_dir):
+                    continue
+                run_id = os.path.basename(run_dir)
+                if run_id not in processed_runs:
+                    # Validate the snapshot has the JSON file (check new and old locations)
+                    json_file = os.path.join(run_dir, "ping-matrix", "resume", "ping_matrix_list.json")
+                    if not os.path.isfile(json_file):
+                        json_file = os.path.join(run_dir, "resume", "ping_matrix_list.json")
+                    if os.path.isfile(json_file):
+                        new_runs.append((run_id, json_file))
 
         if not new_runs:
             print(f"{C_GREEN}[+] History is already up to date. No new snapshots found.{C_RESET}")
@@ -158,24 +182,29 @@ class PingHistoryGenerator:
         print(f"[*] Found {len(new_runs)} new snapshot(s) to process.")
 
         # 3. Process new runs chronologically
-        # We need to load/create link histories. Since loading all link files one by one
-        # can be slow during loops, we cache them in memory.
         link_histories = {} 
         
         # Load existing link histories for incremental updates
         if not force_rebuild:
             print("[*] Pre-loading active link historical caches...")
-            # We'll load them dynamically on first access, then write them back at the end.
 
         # Process each run
-        for run_id, json_file in new_runs:
+        for run_id, source in new_runs:
             print(f"  • Processing run: {run_id} ... ", end="", flush=True)
             try:
-                with open(json_file, 'r', encoding='utf-8') as f:
-                    run_payload = json.load(f)
-                
-                metadata = run_payload.get("metadata", {})
-                run_data = run_payload.get("data", [])
+                if source == "db":
+                    run_data = self.storage_mgr.get_ping_tests(run_id)
+                    for r in run_data:
+                        r["avg"] = r.get("avg_rtt", 0.0)
+                        r["min"] = r.get("min_rtt", 0.0)
+                        r["max"] = r.get("max_rtt", 0.0)
+                    dt_str = f"{run_id[:4]}-{run_id[4:6]}-{run_id[6:8]} {run_id[9:11]}:{run_id[11:13]}:{run_id[13:15]}" if len(run_id) >= 15 else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    metadata = {"datetime": dt_str}
+                else:
+                    with open(source, 'r', encoding='utf-8') as f:
+                        run_payload = json.load(f)
+                    metadata = run_payload.get("metadata", {})
+                    run_data = run_payload.get("data", [])
                 
                 if not run_data:
                     print("Empty. Skipped.")

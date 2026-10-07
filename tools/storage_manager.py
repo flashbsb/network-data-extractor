@@ -505,12 +505,12 @@ def handle_audit(args):
     print(f"[*] SQLite Path         : {health['database_path']}")
     print(f"[*] Database Integrity  : {C_GREEN if health['integrity'] == 'ok' else C_RED}{health['integrity']}{C_RESET}")
     print(f"[*] Database Size       : {health['size_mb']} MB ({health['size_bytes']} bytes)")
-    print(f"[*] Table Statistics:")
+    print("[*] Table Statistics:")
     for tbl, count in health["row_counts"].items():
         print(f"    • {tbl:22s}: {count:>8} rows")
 
     if args.deep_verify:
-        print(f"\n[*] Running deep SHA-256 hash checks on raw collections...")
+        print("\n[*] Running deep SHA-256 hash checks on raw collections...")
         conn = driver._get_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT id, output_hash, raw_output, is_compressed FROM raw_collections LIMIT 500;")
@@ -612,6 +612,34 @@ def handle_restore(args):
     print(f"\n{C_GREEN}[+] Database restored successfully from backup!{C_RESET}\n")
 
 
+def handle_purge(args):
+    print(f"\n{C_CYAN}=== STORAGE RETENTION PURGE ==={C_RESET}")
+    outbase = os.path.abspath(args.outbase)
+    driver = resolve_driver(outbase, args.db_path)
+    policy = {
+        "max_runs": args.max_runs,
+        "raw_collections_days": args.raw_days,
+        "metrics_days": args.metrics_days,
+        "auto_vacuum": not args.no_vacuum,
+    }
+    policy = {k: v for k, v in policy.items() if v is not None}
+
+    if args.dry_run:
+        print(f"[*] Mode: {C_YELLOW}DRY-RUN (No changes applied){C_RESET}")
+        print(f"[*] Target Database : {driver.db_path}")
+        print(f"[*] Policy parameters: {policy}")
+        print(f"{C_GREEN}[+] Dry-run simulation completed.{C_RESET}\n")
+        return
+
+    res = driver.purge_retention(policy=policy)
+    print(f"{C_GREEN}[+] Database retention applied successfully!{C_RESET}")
+    print(f"  • Database path          : {driver.db_path}")
+    print(f"  • Pruned runs            : {res.get('pruned_runs', 0)}")
+    print(f"  • Pruned raw collections : {res.get('pruned_raw_collections', 0)}")
+    print(f"  • Vacuum executed        : {res.get('vacuum_executed', False)}")
+    print()
+
+
 # ============================================================================
 # MAIN CLI ENTRYPOINT
 # ============================================================================
@@ -669,6 +697,13 @@ def main():
     p_restore.add_argument("--input", required=True, help="Backup archive file path")
     p_restore.add_argument("--force", action="store_true", help="Skip interactive confirmation")
 
+    # purge
+    p_purge = subparsers.add_parser("purge", parents=[common_parser], help="Prune historical database records and vacuum space")
+    p_purge.add_argument("--max-runs", type=int, help="Maximum number of historical runs to retain")
+    p_purge.add_argument("--raw-days", type=int, help="Maximum retention days for raw CLI output collections")
+    p_purge.add_argument("--metrics-days", type=int, help="Maximum retention days for metrics and interfaces")
+    p_purge.add_argument("--no-vacuum", action="store_true", help="Skip physical incremental vacuum / vacuum")
+
     args = parser.parse_args()
 
     cmd_map = {
@@ -679,6 +714,7 @@ def main():
         "audit": handle_audit,
         "backup": handle_backup,
         "restore": handle_restore,
+        "purge": handle_purge,
     }
 
     cmd_map[args.command](args)

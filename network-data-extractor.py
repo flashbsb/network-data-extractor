@@ -5,8 +5,8 @@
 ============================================================
            NETWORK DATA EXTRACTOR ORCHESTRATOR           
 ============================================================
- * Version : 1.86.0
- * Date    : 2026-09-25
+ * Version : 1.88.0
+ * Date    : 2026-10-07
  * Author  : flashbsb (and contributors) 
  
 """
@@ -23,8 +23,8 @@ import types
 from datetime import datetime
 from glob import glob
 
-APP_VERSION = "1.86.0"
-APP_DATE = "2026-09-25"
+APP_VERSION = "1.88.0"
+APP_DATE = "2026-10-07"
 
 # Force line-buffered output to prevent out-of-order logs when redirected (e.g. in cron)
 if hasattr(sys.stdout, 'reconfigure'):
@@ -763,6 +763,8 @@ group_global.add_argument("--skip-wizard", action="store_true", help="Skip confi
 group_global.add_argument("--force", action="store_true", help="Force execution even if collection fails (ignored in --ping-matrix/--diff)")
 group_global.add_argument("--check-deps", action="store_true", help="Verify all system and Python dependencies and exit")
 group_global.add_argument("--retention-days", type=int, help="Override global retention window in days (prunes runs older than N days)")
+group_global.add_argument("--storage-mode", "--storage_mode", choices=["files_only", "db_only", "hybrid"], help="Persistence storage mode override (files_only, db_only, hybrid)")
+group_global.add_argument("--database-path", "--database_path", type=str, default=None, help="Explicit path to SQLite database")
 
 group_auth = parser.add_argument_group("Authentication (ignored in --offline/--diff)")
 group_auth.add_argument("--user", type=str, help="SSH Username (required for automated auth)")
@@ -923,11 +925,18 @@ if args.rebuild_index:
         print(f"\n{C_CYAN}--- Rebuilding All Master Dashboards ---{C_RESET}")
         prune_old_runs(args.outbase, json_config)
         
+        rebuild_storage_mgr = None
+        try:
+            from core.storage.manager import StorageManager
+            rebuild_storage_mgr = StorageManager.from_settings(outbase=args.outbase)
+        except Exception:
+            rebuild_storage_mgr = None
+
         # 1. Ping Matrix & History
         print("[*] Rebuilding Ping Matrix Index and History...")
         try:
             from core.ping_history_generator import PingHistoryGenerator
-            PingHistoryGenerator(args.outbase).run(force_rebuild=True)
+            PingHistoryGenerator(args.outbase, storage_mgr=rebuild_storage_mgr).run(force_rebuild=True)
         except Exception as e:
             print(f"{C_RED}[!] Failed to rebuild Ping History: {e}{C_RESET}")
         generate_master_dashboard(args.outbase)
@@ -936,7 +945,7 @@ if args.rebuild_index:
         print("[*] Rebuilding Inventory Dashboard...")
         try:
             from core.inventory_engine import InventoryEngine
-            InventoryEngine(args.outbase).run(force_rebuild=True)
+            InventoryEngine(args.outbase, storage_mgr=rebuild_storage_mgr).run(force_rebuild=True)
         except Exception as e:
             print(f"{C_YELLOW}    └─> Skipped (No data): {e}{C_RESET}")
             
@@ -944,7 +953,7 @@ if args.rebuild_index:
         print("[*] Rebuilding Drift Analysis Dashboard...")
         try:
             from core.diff_engine import DiffEngine
-            DiffEngine(args.outbase).run(force_rebuild=True)
+            DiffEngine(args.outbase, storage_mgr=rebuild_storage_mgr).run(force_rebuild=True)
         except Exception as e:
             print(f"{C_YELLOW}    └─> Skipped (Requires 2+ snapshots): {e}{C_RESET}")
             
@@ -1053,6 +1062,7 @@ if args.offline:
         print(f"{C_RED}ERROR: Offline directory '{args.offline}' not found.{C_RESET}")
         sys.exit(1)
         
+    DIR_SUFFIX = os.path.basename(TIMESTAMP_DIR.rstrip("/"))
     _dirs = _init_run_dirs(TIMESTAMP_DIR, create_connections=True)
     LOG_DIR         = _dirs.log
     COLLECT_DIR     = _dirs.collect
@@ -1066,6 +1076,26 @@ if args.offline:
 
     start_time = datetime.now()
     log_orchestrator(f"Offline Processing Started. Target Root: {TIMESTAMP_DIR}")
+
+    # Storage Abstraction Layer (SAL)
+    storage_mgr = None
+    try:
+        from core.storage.manager import StorageManager
+        storage_mgr = StorageManager.from_settings(
+            outbase=args.outbase,
+            custom_settings_path=args.settings,
+            custom_db_path=args.database_path,
+            custom_mode=args.storage_mode,
+        )
+        storage_mgr.create_run(
+            DIR_SUFFIX,
+            started_at=start_time,
+            metadata={"mode": storage_mgr.get_mode(), "outbase": args.outbase, "offline": True}
+        )
+    except Exception as e:
+        storage_mgr = None
+        log_orchestrator(f"StorageManager initialization warning: {e}")
+
     print(f"{C_CYAN}")
     print("============================================================")
     print("           NETWORK DATA EXTRACTOR ORCHESTRATOR           ")
@@ -1075,8 +1105,10 @@ if args.offline:
     print("============================================================")
     print(f"{C_RESET}")
     print(f"Start: {start_time.strftime('%Y-%m-%d %H:%M:%S')} {C_YELLOW}(OFFLINE MODE){C_RESET}")
-    print(f"Target Root: {TIMESTAMP_DIR}\n")
-    print(f"{C_CYAN}----------------------------------------{C_RESET}")
+    print(f"Target Root: {TIMESTAMP_DIR}")
+    if storage_mgr and storage_mgr.is_db_enabled():
+        print(f"Storage Mode: {C_GREEN}{storage_mgr.get_mode().upper()}{C_RESET} (DB: {storage_mgr.get_database_path()})")
+    print(f"\n{C_CYAN}----------------------------------------{C_RESET}")
     print("Offline processing initializing...")
     print("")
 
@@ -1099,6 +1131,32 @@ else:
 
     start_time = datetime.now()
     log_orchestrator(f"Extraction Started. Output Root: {TIMESTAMP_DIR}")
+
+    # Storage Abstraction Layer (SAL)
+    storage_mgr = None
+    try:
+        from core.storage.manager import StorageManager
+        storage_mgr = StorageManager.from_settings(
+            outbase=args.outbase,
+            custom_settings_path=args.settings,
+            custom_db_path=args.database_path,
+            custom_mode=args.storage_mode,
+        )
+        storage_mgr.create_run(
+            DIR_SUFFIX,
+            started_at=start_time,
+            metadata={
+                "mode": storage_mgr.get_mode(),
+                "outbase": args.outbase,
+                "offline": False,
+                "ping_matrix": bool(args.ping_matrix),
+                "discovery": bool(args.discovery),
+            }
+        )
+    except Exception as e:
+        storage_mgr = None
+        log_orchestrator(f"StorageManager initialization warning: {e}")
+
     print(f"{C_CYAN}")
     print("============================================================")
     print("           NETWORK DATA EXTRACTOR ORCHESTRATOR           ")
@@ -1108,7 +1166,10 @@ else:
     print("============================================================")
     print(f"{C_RESET}")
     print(f"Start: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"Output Root: {TIMESTAMP_DIR}\n")
+    print(f"Output Root: {TIMESTAMP_DIR}")
+    if storage_mgr and storage_mgr.is_db_enabled():
+        print(f"Storage Mode: {C_GREEN}{storage_mgr.get_mode().upper()}{C_RESET} (DB: {storage_mgr.get_database_path()})")
+    print("")
 
     if not args.skip_wizard:
         print(f"{C_CYAN}--- Interactive Configuration Wizard ---{C_RESET}")
@@ -1451,6 +1512,12 @@ while True:
                 cmd.append("--randomize")
             else:
                 cmd.append("--no-randomize")
+            if storage_mgr:
+                cmd.extend(["--run_id", DIR_SUFFIX, "--outbase", args.outbase])
+                if args.storage_mode:
+                    cmd.extend(["--storage_mode", args.storage_mode])
+                if args.database_path:
+                    cmd.extend(["--database_path", args.database_path])
             print(f">>> {C_CYAN}core/commands.py{C_RESET} is running. Extracted data goes to: collect/")
             try:
                 # Let standard bounds stay active for user password inputs, but pass our modified env
@@ -1552,6 +1619,12 @@ while True:
             ])
             if args.offline:
                 cmd.append("--offline_mode")
+            if storage_mgr:
+                cmd.extend(["--run_id", DIR_SUFFIX, "--outbase", args.outbase])
+                if args.storage_mode:
+                    cmd.extend(["--storage_mode", args.storage_mode])
+                if args.database_path:
+                    cmd.extend(["--database_path", args.database_path])
             safe_name = "ping_matrix"
 
             # Auth environment
@@ -1901,7 +1974,68 @@ else:
     print("  └─> View full report in: resume/status.elements.csv")
     if isolated_count > 0:
         print("  └─> View isolation in  : resume/topology_warnings.isolated.csv")
-print("=" * 60)
+# --- DATABASE PERSISTENCE CONSOLIDATION ---
+if storage_mgr and storage_mgr.is_db_enabled():
+    try:
+        # 1. Ingest interfaces
+        ifaces_csv = os.path.join(RESUME_DIR, "interfaces_all.csv")
+        if os.path.isfile(ifaces_csv):
+            with open(ifaces_csv, "r", encoding="utf-8") as f:
+                ifaces = list(csv.DictReader(f, delimiter=";"))
+                storage_mgr.save_interfaces(DIR_SUFFIX, ifaces)
+                log_orchestrator(f"Persisted {len(ifaces)} interfaces to DB")
+
+        # 2. Ingest topology connections
+        conn_csv = os.path.join(CONNECTIONS_DIR, "topology.connections.csv")
+        if os.path.isfile(conn_csv):
+            with open(conn_csv, "r", encoding="utf-8") as f:
+                conns = list(csv.DictReader(f, delimiter=";"))
+                storage_mgr.save_topology_connections(DIR_SUFFIX, conns)
+                log_orchestrator(f"Persisted {len(conns)} topology connections to DB")
+
+        # 3. Ingest elements status
+        if os.path.isfile(status_csv_path):
+            with open(status_csv_path, "r", encoding="utf-8") as f:
+                elem_st = list(csv.DictReader(f, delimiter=";"))
+                storage_mgr.save_elements_status(DIR_SUFFIX, elem_st)
+
+        # 4. Finalize run in DB
+        tot_elems = ok_count + fail_count
+        succ_elems = ok_count
+        run_status = "SUCCESS" if (fail_count == 0 or ok_count > 0) else "PARTIAL"
+        storage_mgr.finish_run(
+            DIR_SUFFIX,
+            finished_at=end_time,
+            status=run_status,
+            total_elements=tot_elems,
+            successful_elements=succ_elems,
+            failed_elements=fail_count,
+        )
+        print(f"  * DB Persistence   : {C_GREEN}[SYNC COMPLETED]{C_RESET} ({storage_mgr.get_mode().upper()})")
+
+        # In db_only mode, purge temporary raw text files in collect/ to reclaim inodes and disk space
+        if storage_mgr.get_mode() == "db_only":
+            if os.path.isdir(COLLECT_DIR):
+                try:
+                    import shutil
+                    shutil.rmtree(COLLECT_DIR)
+                    print(f"  * DB-Only Inode Free: {C_GREEN}[PURGED collect/]{C_RESET} (Inodes reclaimed, 100% raw data stored in DB)")
+                except Exception as e:
+                    print(f"  * DB-Only Inode Free: {C_YELLOW}[WARNING - {e}]{C_RESET}")
+
+        # Apply database retention policy
+        try:
+            ret_res = storage_mgr.apply_retention()
+            if ret_res.get("status") == "success":
+                pruned_runs = ret_res.get("pruned_runs", 0)
+                pruned_raw = ret_res.get("pruned_raw_collections", 0)
+                if pruned_runs > 0 or pruned_raw > 0:
+                    print(f"  * DB Retention     : {C_GREEN}[PURGED]{C_RESET} ({pruned_runs} old runs, {pruned_raw} raw blobs pruned)")
+        except Exception as e:
+            log_orchestrator(f"DB retention error: {e}")
+    except Exception as e:
+        print(f"  * DB Persistence   : {C_YELLOW}[WARNING - {e}]{C_RESET}")
+        log_orchestrator(f"StorageManager finalization warning: {e}")
 
 log_orchestrator("Extraction Ended")
 print("\n" + "-" * 60)
@@ -1924,7 +2058,7 @@ if (args.inventory or (not args.offline and not args.ping_matrix and not args.di
         from core.inventory_engine import InventoryEngine
         # Use explicit inventory path if provided, otherwise default to outbase
         inv_path = args.outbase if (not args.inventory or args.inventory == 'DEFAULT') else args.inventory
-        inv_engine = InventoryEngine(inv_path)
+        inv_engine = InventoryEngine(inv_path, storage_mgr=storage_mgr)
         inv_engine.run()
     except Exception as e:
         print(f"{C_RED}[!] Failed to update Inventory Dashboard: {e}{C_RESET}")
@@ -1936,7 +2070,7 @@ if args.diff:
     try:
         from core.diff_engine import DiffEngine
         diff_path = args.outbase if args.diff == 'DEFAULT' else args.diff
-        diff_engine = DiffEngine(diff_path)
+        diff_engine = DiffEngine(diff_path, storage_mgr=storage_mgr)
         diff_engine.run()
     except Exception as e:
         print(f"{C_RED}[!] Failed to update Drift Analysis Workspace: {e}{C_RESET}")
@@ -1947,7 +2081,7 @@ if args.rebuild_index or args.ping_matrix:
     print(f"\n{C_CYAN}--- Rebuilding Ping Matrix Master Index & History ---{C_RESET}")
     try:
         from core.ping_history_generator import PingHistoryGenerator
-        PingHistoryGenerator(args.outbase).run(force_rebuild=bool(args.rebuild_index))
+        PingHistoryGenerator(args.outbase, storage_mgr=storage_mgr).run(force_rebuild=bool(args.rebuild_index))
     except Exception as e:
         print(f"{C_RED}[!] Failed to update Ping History Database: {e}{C_RESET}")
     try:

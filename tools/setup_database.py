@@ -138,10 +138,10 @@ def main():
     print(f"{C_GREEN}✔ DATABASE SETUP COMPLETED: 100% READY FOR PRODUCTION{C_RESET}")
     print(f"{C_CYAN}============================================================{C_RESET}")
     print(f"  • SQLite Database : {driver.db_path}")
-    print(f"  • WAL Mode Active : YES (High concurrency reads)")
+    print("  • WAL Mode Active : YES (High concurrency reads)")
     print(f"  • Tables Ready    : {health['tables_count']}")
     print(f"  • Seeded Nodes    : {seeded_count}")
-    print(f"\nTo run your first extraction:")
+    print("\nTo run your first extraction:")
     print(f"  {C_GREEN}python network-data-extractor.py --outbase {outbase}{C_RESET}\n")
 
 

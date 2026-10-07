@@ -340,3 +340,11 @@ class FilesystemDriver(StorageDriver):
             "runs_count": count,
             "status": "OK" if os.path.isdir(self.outbase) else "NOT_FOUND",
         }
+
+    def purge_retention(
+        self,
+        policy: Dict[str, Any],
+        reference_now: Optional[datetime] = None,
+    ) -> Dict[str, Any]:
+        """Filesystem retention is handled by orchestrator prune_old_runs."""
+        return {"pruned_runs": 0, "pruned_raw_collections": 0, "driver": "FilesystemDriver"}

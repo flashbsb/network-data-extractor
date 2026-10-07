@@ -823,3 +823,141 @@ class SQLiteDriver(StorageDriver):
             }
 
         return self._execute_with_retry(_op)
+
+    def purge_retention(
+        self,
+        policy: Dict[str, Any],
+        reference_now: Optional[datetime] = None,
+    ) -> Dict[str, Any]:
+        """Prunes historical database records based on retention policy and reclaims space."""
+        def _op(conn: sqlite3.Connection):
+            cursor = conn.cursor()
+            pruned_runs = 0
+            pruned_raw = 0
+
+            max_runs = policy.get("max_runs")
+            raw_days = policy.get("raw_collections_days")
+            metrics_days = policy.get("metrics_days") or policy.get("runs_days")
+            auto_vacuum = policy.get("auto_vacuum", True)
+
+            now_param = reference_now.strftime("%Y-%m-%d %H:%M:%S") if reference_now else None
+
+            with conn:
+                # 1. Prune raw_collections older than raw_collections_days
+                if raw_days is not None and int(raw_days) > 0:
+                    days_int = int(raw_days)
+                    if now_param:
+                        count_sql = """
+                            SELECT COUNT(*) FROM raw_collections
+                            WHERE run_id IN (
+                                SELECT run_id FROM runs WHERE started_at < datetime(?, '-' || ? || ' days')
+                            );
+                        """
+                        cursor.execute(count_sql, (now_param, days_int))
+                        pruned_raw = cursor.fetchone()[0]
+
+                        del_raw_sql = """
+                            DELETE FROM raw_collections
+                            WHERE run_id IN (
+                                SELECT run_id FROM runs WHERE started_at < datetime(?, '-' || ? || ' days')
+                            );
+                        """
+                        cursor.execute(del_raw_sql, (now_param, days_int))
+
+                        del_keys_sql = """
+                            DELETE FROM successful_keys
+                            WHERE run_id IN (
+                                SELECT run_id FROM runs WHERE started_at < datetime(?, '-' || ? || ' days')
+                            );
+                        """
+                        cursor.execute(del_keys_sql, (now_param, days_int))
+                    else:
+                        count_sql = """
+                            SELECT COUNT(*) FROM raw_collections
+                            WHERE run_id IN (
+                                SELECT run_id FROM runs WHERE started_at < datetime('now', '-' || ? || ' days')
+                            );
+                        """
+                        cursor.execute(count_sql, (days_int,))
+                        pruned_raw = cursor.fetchone()[0]
+
+                        del_raw_sql = """
+                            DELETE FROM raw_collections
+                            WHERE run_id IN (
+                                SELECT run_id FROM runs WHERE started_at < datetime('now', '-' || ? || ' days')
+                            );
+                        """
+                        cursor.execute(del_raw_sql, (days_int,))
+
+                        del_keys_sql = """
+                            DELETE FROM successful_keys
+                            WHERE run_id IN (
+                                SELECT run_id FROM runs WHERE started_at < datetime('now', '-' || ? || ' days')
+                            );
+                        """
+                        cursor.execute(del_keys_sql, (days_int,))
+
+                # 2. Prune complete runs older than metrics_days
+                if metrics_days is not None and int(metrics_days) > 0:
+                    m_days_int = int(metrics_days)
+                    if now_param:
+                        find_runs_sql = """
+                            SELECT run_id FROM runs
+                            WHERE started_at < datetime(?, '-' || ? || ' days');
+                        """
+                        cursor.execute(find_runs_sql, (now_param, m_days_int))
+                    else:
+                        find_runs_sql = """
+                            SELECT run_id FROM runs
+                            WHERE started_at < datetime('now', '-' || ? || ' days');
+                        """
+                        cursor.execute(find_runs_sql, (m_days_int,))
+                    
+                    old_run_ids = [r[0] for r in cursor.fetchall()]
+                    for rid in old_run_ids:
+                        cursor.execute("DELETE FROM runs WHERE run_id = ?;", (rid,))
+                        pruned_runs += 1
+
+                # 3. Prune runs exceeding max_runs (keep newest max_runs)
+                if max_runs is not None and int(max_runs) > 0:
+                    max_int = int(max_runs)
+                    cursor.execute(
+                        """
+                        SELECT run_id FROM runs
+                        ORDER BY started_at DESC
+                        LIMIT -1 OFFSET ?;
+                        """,
+                        (max_int,)
+                    )
+                    excess_run_ids = [r[0] for r in cursor.fetchall()]
+                    for rid in excess_run_ids:
+                        cursor.execute("DELETE FROM runs WHERE run_id = ?;", (rid,))
+                        pruned_runs += 1
+
+            # 4. Reclaim physical disk space
+            vacuum_executed = False
+            if auto_vacuum:
+                try:
+                    cursor = conn.cursor()
+                    cursor.execute("PRAGMA auto_vacuum;")
+                    av_row = cursor.fetchone()
+                    av_mode = av_row[0] if av_row else 0
+                    if av_mode in (1, 2):
+                        cursor.execute("PRAGMA incremental_vacuum;")
+                        vacuum_executed = True
+                    else:
+                        old_iso = conn.isolation_level
+                        conn.isolation_level = None
+                        conn.execute("VACUUM;")
+                        conn.isolation_level = old_iso
+                        vacuum_executed = True
+                except Exception as e:
+                    logger.warning(f"Error executing vacuum during retention purge: {e}")
+
+            return {
+                "pruned_runs": pruned_runs,
+                "pruned_raw_collections": pruned_raw,
+                "vacuum_executed": vacuum_executed,
+            }
+
+        return self._execute_with_retry(_op)

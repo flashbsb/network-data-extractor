@@ -247,9 +247,12 @@
                 "history_links_days": 90
             },
             "database": {
+                "enabled": true,
+                "max_runs": 90,
                 "raw_collections_days": 30,
                 "metrics_days": 365,
-                "sla_history_days": 730
+                "sla_history_days": 730,
+                "auto_vacuum": true
             }
         }
     },

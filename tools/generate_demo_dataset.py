@@ -615,7 +615,7 @@ def run_presentation_engines(outbase: Path):
     (outbase / ".nojekyll").write_text("# Disable Jekyll processing on GitHub Pages\n", encoding="utf-8")
 
     # 1. Inventory Engine
-    print(f"  • Updating Inventory Engine...")
+    print("  • Updating Inventory Engine...")
     try:
         from core.inventory_engine import InventoryEngine
         InventoryEngine(str(outbase)).run(force_rebuild=True)
@@ -623,7 +623,7 @@ def run_presentation_engines(outbase: Path):
         print(f"    {C_RED}[!] InventoryEngine failed: {e}{C_RESET}")
 
     # 2. Diff Engine
-    print(f"  • Updating Diff Engine...")
+    print("  • Updating Diff Engine...")
     try:
         from core.diff_engine import DiffEngine
         DiffEngine(str(outbase)).run(force_rebuild=True)
@@ -631,7 +631,7 @@ def run_presentation_engines(outbase: Path):
         print(f"    {C_RED}[!] DiffEngine failed: {e}{C_RESET}")
 
     # 3. Ping Matrix History & Master Index
-    print(f"  • Updating Ping History & Master Dashboard...")
+    print("  • Updating Ping History & Master Dashboard...")
     try:
         from core.ping_history_generator import PingHistoryGenerator
         PingHistoryGenerator(str(outbase)).run(force_rebuild=True)
@@ -645,7 +645,7 @@ def run_presentation_engines(outbase: Path):
         print(f"    {C_RED}[!] generate_master_dashboard failed: {e}{C_RESET}")
 
     # 4. Topology Engine
-    print(f"  • Updating Topology Engine...")
+    print("  • Updating Topology Engine...")
     try:
         # If offline viewer assets are available locally in infos/topology, copy them to demo/topology
         local_viewer_js = REPO_ROOT / "infos" / "topology" / "viewer-static.min.js"
@@ -664,7 +664,7 @@ def run_presentation_engines(outbase: Path):
         print(f"    {C_RED}[!] TopologyEngine failed: {e}{C_RESET}")
 
     # 5. Root Navigation Portal
-    print(f"  • Updating Root Master Navigation Portal...")
+    print("  • Updating Root Master Navigation Portal...")
     try:
         from core.root_portal_engine import generate_root_portal
         generate_root_portal(str(outbase))
@@ -731,7 +731,7 @@ def main():
 
     # Default action
     if not has_existing_runs:
-        print(f"[*] No existing demo data found. Generating synthetic backbone from scratch...")
+        print("[*] No existing demo data found. Generating synthetic backbone from scratch...")
         build_demo_runs(outbase)
     else:
         print(f"[*] Found existing runs in {runs_dir}. Re-rendering presentation engines...")

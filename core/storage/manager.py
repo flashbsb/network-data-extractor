@@ -26,12 +26,13 @@ class StorageManager:
         outbase: str = "infos",
         settings: Optional[Dict[str, Any]] = None,
         custom_db_path: Optional[str] = None,
+        custom_mode: Optional[str] = None,
     ):
         self.outbase: str = outbase
         self.settings: Dict[str, Any] = settings or {}
         storage_cfg = self.settings.get("storage", {})
 
-        self.mode: str = storage_cfg.get("mode", "files_only").lower()
+        self.mode: str = (custom_mode or storage_cfg.get("mode", "files_only")).lower()
         if self.mode not in ("files_only", "db_only", "hybrid"):
             logger.warning(f"Unknown storage mode '{self.mode}', defaulting to 'files_only'")
             self.mode = "files_only"
@@ -60,12 +61,13 @@ class StorageManager:
         outbase: str,
         custom_settings_path: Optional[str] = None,
         custom_db_path: Optional[str] = None,
+        custom_mode: Optional[str] = None,
     ) -> "StorageManager":
         """Factory method loading settings from settings.json."""
         from core.utils_shared import load_settings
 
         cfg = load_settings(custom_settings_path)
-        return cls(outbase=outbase, settings=cfg, custom_db_path=custom_db_path)
+        return cls(outbase=outbase, settings=cfg, custom_db_path=custom_db_path, custom_mode=custom_mode)
 
     # --- Mode Inspection ---
 
@@ -321,3 +323,29 @@ class StorageManager:
             "database": self.db_driver.health_check() if self.db_driver else None,
         }
         return report
+
+    def apply_retention(
+        self,
+        policy: Optional[Dict[str, Any]] = None,
+        reference_now: Optional[datetime] = None,
+    ) -> Dict[str, Any]:
+        """Applies configured database retention policies to purge stale data and reclaim space."""
+        if not self.is_db_enabled():
+            return {"status": "skipped", "reason": "database_not_enabled"}
+
+        if policy is None:
+            retention_cfg = self.settings.get("storage", {}).get("retention", {}).get("database", {})
+            if not retention_cfg:
+                retention_cfg = self.settings.get("retention", {}).get("database", {})
+            policy = retention_cfg or {}
+
+        if not policy.get("enabled", True):
+            return {"status": "skipped", "reason": "retention_disabled"}
+
+        try:
+            result = self.db_driver.purge_retention(policy, reference_now=reference_now)
+            result["status"] = "success"
+            return result
+        except Exception as e:
+            logger.error(f"Error applying database retention: {e}")
+            return {"status": "error", "error": str(e)}

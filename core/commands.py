@@ -159,6 +159,10 @@ def main():
     parser.add_argument("--randomize", action="store_true", default=True, help="Randomize the connection order (default: True)")
     parser.add_argument("--resumedir", help="Directory for consolidated/summary reports (e.g. successful_keys.csv)")
     parser.add_argument("--no-randomize", dest="randomize", action="store_false", help="Keep the connection order exactly as in the elements file")
+    parser.add_argument("--run-id", "--run_id", dest="run_id", default=None, help="Extraction run identifier")
+    parser.add_argument("--outbase", default=None, help="Root directory for outputs")
+    parser.add_argument("--storage-mode", "--storage_mode", dest="storage_mode", default=None, help="Storage persistence mode override")
+    parser.add_argument("--database-path", "--database_path", dest="database_path", default=None, help="Explicit path to database")
     args = parser.parse_args()
 
     log_file = os.path.join(args.logdir, 'commands.log')
@@ -211,6 +215,28 @@ def main():
     files_written = 0
     files_written_lock = threading.Lock()
 
+    # Storage Abstraction Layer initialization
+    storage_mgr = None
+    if args.run_id:
+        try:
+            proj_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            if proj_root not in sys.path:
+                sys.path.insert(0, proj_root)
+            from core.storage.manager import StorageManager
+            resolved_outbase = args.outbase or os.path.dirname(os.path.dirname(os.path.abspath(args.outdir)))
+            storage_mgr = StorageManager.from_settings(
+                outbase=resolved_outbase,
+                custom_db_path=args.database_path,
+                custom_mode=args.storage_mode,
+            )
+            if storage_mgr.is_db_enabled():
+                logging.info(f"StorageManager initialized for commands.py: mode={storage_mgr.get_mode()} (DB enabled)")
+        except Exception as e:
+            logging.warning(f"Could not initialize StorageManager in commands.py: {e}")
+
+    save_fs = (storage_mgr is None) or storage_mgr.is_files_enabled() or (storage_mgr.get_mode() == "db_only")
+    save_db = (storage_mgr is not None) and storage_mgr.is_db_enabled()
+
     def process_element(elem):
         nonlocal counter
         nonlocal files_written
@@ -259,25 +285,59 @@ def main():
                     # If we reached here, connection worked. Now try to execute.
                     outputs = execute_commands_shell(client, cmds)
                     
-                    # Save files
+                    # Save files (Filesystem Driver)
                     for cmd, out in outputs.items():
-                        fname = f"{host}.{timestamp}.{sanitize_filename(cmd)}.txt"
-                        try:
-                            with open(os.path.join(args.outdir, fname), 'w', encoding='utf-8') as f:
-                                f.write(f"# Host: {host}\n# IP: {current_ip}\n# Command: {cmd}\n# Date: {timestamp}\n\n")
-                                f.write(out)
-                            with files_written_lock:
-                                files_written += 1
-                        except Exception as e:
-                            logging.error(f"Error saving '{fname}': {e}")
+                        if save_fs:
+                            fname = f"{host}.{timestamp}.{sanitize_filename(cmd)}.txt"
+                            try:
+                                with open(os.path.join(args.outdir, fname), 'w', encoding='utf-8') as f:
+                                    f.write(f"# Host: {host}\n# IP: {current_ip}\n# Command: {cmd}\n# Date: {timestamp}\n\n")
+                                    f.write(out)
+                                with files_written_lock:
+                                    files_written += 1
+                            except Exception as e:
+                                logging.error(f"Error saving '{fname}': {e}")
+
+                        # Stream immediately to Database (fail-open)
+                        if save_db:
+                            try:
+                                cmd_dt = datetime.datetime.strptime(timestamp, '%d%m%y%H%M%S')
+                            except Exception:
+                                cmd_dt = datetime.datetime.now()
+                            try:
+                                storage_mgr.save_raw_collection(
+                                    run_id=args.run_id,
+                                    hostname=host,
+                                    ip=current_ip,
+                                    command=cmd,
+                                    raw_output=out,
+                                    collected_at=cmd_dt,
+                                )
+                                if not save_fs:
+                                    with files_written_lock:
+                                        files_written += 1
+                            except Exception as e:
+                                logging.warning(f"Error persisting raw collection to DB for {host} {cmd}: {e}")
                     
                     # Log the successful key for element_status.py to consume.
                     # IMPORTANT: Must be written to outdir (collect_dir), because
                     # element_status.py reads it from collect_dir (not resumedir).
-                    success_keys_file = os.path.join(args.outdir, "successful_keys.csv")
-                    with files_written_lock:
-                        with open(success_keys_file, 'a', encoding='utf-8') as skf:
-                            skf.write(f"{host};{current_ip};{current_key}\n")
+                    if save_fs:
+                        success_keys_file = os.path.join(args.outdir, "successful_keys.csv")
+                        with files_written_lock:
+                            with open(success_keys_file, 'a', encoding='utf-8') as skf:
+                                skf.write(f"{host};{current_ip};{current_key}\n")
+
+                    if save_db:
+                        try:
+                            storage_mgr.save_successful_key(
+                                run_id=args.run_id,
+                                hostname=host,
+                                ip=current_ip,
+                                key=current_key,
+                            )
+                        except Exception as e:
+                            logging.warning(f"Error saving successful key to DB for {host}: {e}")
 
                     success = True
                     logging.info(f"Session finished for {host} using IP {current_ip} and key '{current_key}'")

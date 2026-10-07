@@ -230,6 +230,10 @@ def main():
     parser.add_argument("--ping_format", default="csv")
     parser.add_argument("--offline_mode", action="store_true")
     parser.add_argument("--timestamp", default="")
+    parser.add_argument("--run-id", "--run_id", dest="run_id", default=None, help="Extraction run identifier")
+    parser.add_argument("--outbase", default=None, help="Root directory for outputs")
+    parser.add_argument("--storage-mode", "--storage_mode", dest="storage_mode", default=None, help="Storage persistence mode override")
+    parser.add_argument("--database-path", "--database_path", dest="database_path", default=None, help="Explicit path to database")
     args = parser.parse_args()
 
     # Load Settings
@@ -669,6 +673,23 @@ def main():
         with open(html_path, 'w', encoding='utf-8') as f:
             f.write(html_content)
         print(f"Done. Interactive HTML saved to {html_path}")
+
+    # Storage Abstraction Layer Persistence
+    if args.run_id:
+        try:
+            from core.storage.manager import StorageManager
+            resolved_outbase = args.outbase or os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(args.resume_dir))))
+            storage_mgr = StorageManager.from_settings(
+                outbase=resolved_outbase,
+                custom_db_path=args.database_path,
+                custom_mode=args.storage_mode,
+            )
+            if storage_mgr.is_db_enabled():
+                storage_mgr.save_ping_tests(args.run_id, final_output_data)
+                print(f"Done. Persisted {len(final_output_data)} ping test results to Database.")
+        except Exception as e:
+            logging.warning(f"Error persisting ping matrix results to DB: {e}")
+            print(f"Warning: Failed to save ping tests to DB: {e}")
 
 def render_ping_matrix_html(json_payload):
     html_template = """<!DOCTYPE html>

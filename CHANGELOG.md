@@ -2,6 +2,32 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.88.0] - 2026-10-07
+### Added
+- **Enterprise Storage Layer & SQLite Persistence (`core/storage/`)**:
+  - Implemented decoupled Storage Abstraction Layer (SAL) supporting three configurable operating modes:
+    - `files_only`: 100% legacy behavior storing flat files in `runs/` (zero database dependencies).
+    - `hybrid`: Dual-persistence writing to filesystem and SQLite concurrently for seamless transition.
+    - `db_only`: Stores raw telemetry and parsed structures exclusively in SQLite with automatic inode reclamation.
+  - Zero-dependency `SQLiteDriver` with Write-Ahead Logging (`WAL`), `NORMAL` synchronous mode, busy timeout handling (60s), zlib compression for raw CLI outputs, and idempotent migration management.
+  - Relational schema covering `runs`, `elements`, `raw_collections`, `successful_keys`, `interfaces`, `topology_connections`, `ping_tests`, and `elements_status` with `ON DELETE CASCADE` integrity.
+- **Multifunctional Storage Management CLI (`tools/storage_manager.py`)**:
+  - Subcommands: `init`, `import`, `export`, `sync`, `audit`, `backup`, `restore`, and `purge`.
+  - Transparent decompression of `collect.zip` and `collect.tar.gz` during ingestion.
+  - Mandatory overwrite protection (`--overwrite`) during database-to-filesystem exports.
+  - Bidirectional reconciliation engine with configurable conflict resolution strategies (`newest-wins`, `db-wins`, `files-wins`, `skip`, `abort`).
+- **Interactive Database Setup Wizard (`tools/setup_database.py`)**:
+  - Frictionless onboarding script supporting both interactive CLI prompts and headless non-interactive mode (`-y`).
+- **Autonomous Database Retention Engine (`DBRetentionEngine`)**:
+  - Configurable retention policies (`raw_collections_days`, `metrics_days`, `max_runs`) in `config/settings.json`.
+  - Automatic `PRAGMA incremental_vacuum` / `VACUUM` execution to reclaim physical disk space after record pruning.
+- **DB-Accelerated Dashboard Engines**:
+  - Refactored `PingHistoryGenerator`, `InventoryEngine`, and `DiffEngine` to query indexed SQLite tables directly when available.
+  - Achieved sub-second incremental verification while preserving 100% static HTML/JS payload compatibility for offline `file:///` browsing.
+- **Comprehensive Test & Audit Suite**:
+  - Added test suites: `tools/test_storage_layer.py`, `tools/test_storage_manager.py`, `tools/test_hybrid_pipeline.py`, `tools/test_dashboard_db_acceleration.py`, and `tools/test_db_only_mode.py`.
+  - Updated `tools/verify_zero_leakage.py` with database pattern auditing to ensure zero leakage of production databases into Git.
+
 ## [1.87.1] - 2026-09-25
 ### Fixed
 - **Ping Matrix Dashboard Loading & Metadata Schema**:

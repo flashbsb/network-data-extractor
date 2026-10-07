@@ -2,7 +2,7 @@
   <h1>🌐 Network Data Extractor</h1>
   <p><strong>The Ultimate Multivendor NOC Orchestrator & Autonomous Discovery Engine</strong></p>
   
-  ![Version](https://img.shields.io/badge/version-1.87.0-blue.svg)
+  ![Version](https://img.shields.io/badge/version-1.88.0-blue.svg)
   ![Python](https://img.shields.io/badge/python-3.8%2B-green.svg)
   [![Live Demo](https://img.shields.io/badge/Live_Demo-GitHub_Pages-0ea5e9?style=flat&logo=github)](https://flashbsb.github.io/network-data-extractor/)
 </div>
@@ -56,6 +56,7 @@ Beyond simple command execution, it acts as an **intelligence layer**—parsing 
 
 - **🚀 Massive Concurrency**: Multi-threaded SSH polling reduces collection windows from hours to seconds.
 - **🧭 Autonomous LLDP Discovery**: Recursively hops through the network, discovering missing devices and generating new inventory targets on the fly.
+- **🗃️ Enterprise Storage Abstraction Layer (SAL)**: Decoupled three-mode persistence (`files_only`, `hybrid`, `db_only`) backed by zero-dependency SQLite with Write-Ahead Logging (`WAL`), compressed raw CLI blobs, and autonomous retention vacuuming.
 - **🧩 Universal Multivendor Parsing**: Regex-based "Blind Analyzer" bypasses human typos in descriptions to seamlessly map logical and physical topologies across different vendors.
 - **📊 Local-First Dashboards**: Generates High-Performance SPAs (Single Page Applications) embedded directly in HTML. Works 100% offline without CORS issues.
 - **🔍 Network Drift Analysis**: Instantly compares historical snapshots to detect port status changes, bandwidth variations, and missing links.
@@ -357,6 +358,27 @@ Manage snapshot storage, enforce historical retention windows, and sanitize lega
 python3 network-data-extractor.py --retention-days 30    # Enforces a 30-day retention window on collection
 python3 tools/manage_runs_retention.py --days 30 --apply # Standalone run archiver & snapshot pruner
 python3 tools/sanitize_history.py --apply               # Standalone out-of-scope ICMP history link sanitizer
+```
+
+### [H] Enterprise Storage & Database Persistence (SQLite WAL)
+Configurable storage modes (`files_only`, `hybrid`, `db_only`) backed by zero-dependency SQLite with Write-Ahead Logging (`WAL`), compressed raw CLI blobs, and autonomous retention vacuuming:
+```bash
+# 1. Frictionless Onboarding Wizard
+python3 tools/setup_database.py                       # Interactive database setup wizard
+python3 tools/setup_database.py -y                    # Headless non-interactive setup
+
+# 2. CLI Storage Manager Utilities
+python3 tools/storage_manager.py init                 # Initialize SQLite schema and seed elements
+python3 tools/storage_manager.py import               # Ingest legacy filesystem runs into SQLite
+python3 tools/storage_manager.py export --run <RUN>   # Export run from DB to filesystem
+python3 tools/storage_manager.py sync                 # Bidirectional sync between files and database
+python3 tools/storage_manager.py audit --deep-verify  # Audit database integrity and row statistics
+python3 tools/storage_manager.py backup               # Create transactional compressed backup archive
+python3 tools/storage_manager.py purge --max-runs 90  # Prune old runs and vacuum SQLite space
+
+# 3. Running Extractor with Storage Flags
+python3 network-data-extractor.py --storage-mode hybrid  # Persist to filesystem and SQLite simultaneously
+python3 network-data-extractor.py --storage-mode db_only # Store exclusively in DB & reclaim raw text inodes
 ```
 
 ---

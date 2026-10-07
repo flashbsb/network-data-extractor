@@ -59,6 +59,7 @@ FORBIDDEN_FILE_PATTERNS = [
     re.compile(r".*\.pem$", re.IGNORECASE),
     re.compile(r"^\.env.*", re.IGNORECASE),
     re.compile(r".*\.log$", re.IGNORECASE),
+    re.compile(r".*\.(db|sqlite|sqlite3)$", re.IGNORECASE),
 ]
 
 def run_git_cmd(args):

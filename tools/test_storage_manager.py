@@ -54,7 +54,7 @@ def test_storage_manager_lifecycle():
         os.makedirs(runs_dir, exist_ok=True)
 
         # 1. Test 'init'
-        print(f"\n[*] Testing 'storage_manager.py init'...")
+        print("\n[*] Testing 'storage_manager.py init'...")
         out = run_cmd(["tools/storage_manager.py", "init", "--outbase", outbase])
         assert "Database initialization completed successfully" in out
         db_path = os.path.join(outbase, "database", "network_data.db")
@@ -86,20 +86,20 @@ def test_storage_manager_lifecycle():
             zf.writestr("RTAC-POA01-01.051026100000.show.interfaces.txt", "GigabitEthernet0/0 is up\nDescription: TEST_LINK")
 
         # 3. Test 'import' (Filesystem -> DB)
-        print(f"\n[*] Testing 'storage_manager.py import' (with transparent collect.zip extraction)...")
+        print("\n[*] Testing 'storage_manager.py import' (with transparent collect.zip extraction)...")
         out = run_cmd(["tools/storage_manager.py", "import", "--outbase", outbase])
         assert "[SUCCESS]" in out or "Import Summary: 1 imported" in out
         print(f"  • Import from filesystem (including collect.zip) {C_GREEN}[PASS]{C_RESET}")
 
         # 4. Test 'audit'
-        print(f"\n[*] Testing 'storage_manager.py audit --deep-verify'...")
+        print("\n[*] Testing 'storage_manager.py audit --deep-verify'...")
         out = run_cmd(["tools/storage_manager.py", "audit", "--outbase", outbase, "--deep-verify"])
         assert "Database Integrity" in out and "ok" in out
         assert "Deep verify passed" in out
         print(f"  • Audit with deep verification {C_GREEN}[PASS]{C_RESET}")
 
         # 5. Test 'export' with --overwrite safety check
-        print(f"\n[*] Testing 'storage_manager.py export' with --overwrite protection...")
+        print("\n[*] Testing 'storage_manager.py export' with --overwrite protection...")
         export_target = os.path.join(temp_dir, "export_dest")
         os.makedirs(os.path.join(export_target, mock_run_id), exist_ok=True)
 
@@ -117,7 +117,7 @@ def test_storage_manager_lifecycle():
         print(f"  • Export with --overwrite {C_GREEN}[PASS]{C_RESET}")
 
         # 6. Test 'backup' and 'restore'
-        print(f"\n[*] Testing 'storage_manager.py backup' and 'restore'...")
+        print("\n[*] Testing 'storage_manager.py backup' and 'restore'...")
         backup_file = os.path.join(temp_dir, "test_backup.tar.gz")
         out = run_cmd(["tools/storage_manager.py", "backup", "--outbase", outbase, "--output", backup_file])
         assert "Backup snapshot created successfully" in out
@@ -129,7 +129,7 @@ def test_storage_manager_lifecycle():
         print(f"  • Backup and Restore cycle {C_GREEN}[PASS]{C_RESET}")
 
         # 7. Test 'setup_database.py' non-interactive execution
-        print(f"\n[*] Testing 'setup_database.py' wizard...")
+        print("\n[*] Testing 'setup_database.py' wizard...")
         out = run_cmd(["tools/setup_database.py", "--non-interactive", "--outbase", outbase])
         assert "DATABASE SETUP COMPLETED: 100% READY FOR PRODUCTION" in out
         print(f"  • setup_database.py wizard {C_GREEN}[PASS]{C_RESET}")

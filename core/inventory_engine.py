@@ -6,7 +6,7 @@ import csv
 from glob import glob
 
 class InventoryEngine:
-    def __init__(self, base_path):
+    def __init__(self, base_path, storage_mgr=None):
         self.base_path = base_path
         # Store the inventory workspace inside the base collection folder
         self.inventory_dir = os.path.join(base_path, "inventory")
@@ -38,6 +38,15 @@ class InventoryEngine:
             except Exception as e:
                 print(f"Warning: Failed to load settings.json in InventoryEngine: {e}")
 
+        # Storage Abstraction Layer (SAL)
+        self.storage_mgr = storage_mgr
+        if self.storage_mgr is None:
+            try:
+                from core.storage.manager import StorageManager
+                self.storage_mgr = StorageManager.from_settings(outbase=self.base_path)
+            except Exception:
+                self.storage_mgr = None
+
     def run(self, force_rebuild=False):
         print(f"[*] Base path: {self.base_path}")
         self._ensure_dirs()
@@ -52,7 +61,7 @@ class InventoryEngine:
         manifest = []
         for col in collections:
             target_js = os.path.join(self.data_dir, f"{col['id']}.js")
-            has_raw = os.path.exists(os.path.join(col['path'], "resume"))
+            has_raw = os.path.exists(os.path.join(col['path'], "resume")) or (self.storage_mgr and self.storage_mgr.is_db_enabled())
             
             if os.path.exists(target_js) and (not force_rebuild or not has_raw):
                 manifest.append({
@@ -155,23 +164,48 @@ class InventoryEngine:
             print(f"{self.C_YELLOW}[*] Pruned {pruned_count} orphaned inventory data files.{self.C_RESET}")
 
     def _scan_collections(self):
-        dirs = sorted(glob(os.path.join(self.base_path, "runs", "20*_*")), reverse=True)
         results = []
-        for d in dirs:
-            basename = os.path.basename(d)
-            json_file = os.path.join(d, "resume", "ping_matrix_list.json")
-            date_str = basename
-            if os.path.exists(json_file):
-                try:
-                    with open(json_file, 'r') as f:
-                        data = json.load(f)
-                        date_str = data.get("metadata", {}).get("datetime", basename)
-                except: pass
-            
-            results.append({"id": basename, "path": d, "date": date_str})
+        if self.storage_mgr and self.storage_mgr.is_db_enabled():
+            try:
+                db_runs = self.storage_mgr.list_runs()
+                for r in db_runs:
+                    rid = r["run_id"]
+                    dt_str = r.get("started_at", rid)
+                    results.append({
+                        "id": rid,
+                        "path": os.path.join(self.base_path, "runs", rid),
+                        "date": dt_str,
+                        "source": "db",
+                    })
+            except Exception as e:
+                print(f"Warning: Failed to list runs from DB in InventoryEngine: {e}")
+
+        # Fallback to filesystem if DB returned no runs or DB is not enabled
+        if not results:
+            dirs = sorted(glob(os.path.join(self.base_path, "runs", "20*_*")), reverse=True)
+            for d in dirs:
+                basename = os.path.basename(d)
+                json_file = os.path.join(d, "resume", "ping_matrix_list.json")
+                date_str = basename
+                if os.path.exists(json_file):
+                    try:
+                        with open(json_file, 'r') as f:
+                            data = json.load(f)
+                            date_str = data.get("metadata", {}).get("datetime", basename)
+                    except: pass
+                
+                results.append({"id": basename, "path": d, "date": date_str, "source": "fs"})
         return results
 
     def _extract_interfaces(self, col):
+        if col.get("source") == "db" or (self.storage_mgr and self.storage_mgr.is_db_enabled()):
+            try:
+                ifaces = self.storage_mgr.get_interfaces(col['id'])
+                if ifaces:
+                    return ifaces
+            except Exception:
+                pass
+
         sources = [
             os.path.join(col['path'], "resume", "interfaces_all.json"),
             os.path.join(col['path'], "resume", "interfaces_all.csv"),
@@ -207,6 +241,22 @@ class InventoryEngine:
         return None
 
     def _extract_connections(self, col):
+        if col.get("source") == "db" or (self.storage_mgr and self.storage_mgr.is_db_enabled()):
+            try:
+                conns = self.storage_mgr.get_topology_connections(col['id'])
+                if conns:
+                    res = []
+                    for c in conns:
+                        res.append({
+                            "endpoint_a": c.get("endpoint_a", ""),
+                            "endpoint_b": c.get("endpoint_b", ""),
+                            "connection_text": f"{c.get('interface_a', '')} <-> {c.get('interface_b', '')}",
+                            "dashed": ""
+                        })
+                    return res
+            except Exception:
+                pass
+
         sum_csv = os.path.join(col['path'], "connections", "topology.connections.SUM.csv")
         if not os.path.exists(sum_csv):
             # Try detailed one if SUM is not there

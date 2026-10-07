@@ -168,3 +168,12 @@ class StorageDriver(ABC):
     def health_check(self) -> Dict[str, Any]:
         """Performs a diagnostic check and returns backend status."""
         pass
+
+    @abstractmethod
+    def purge_retention(
+        self,
+        policy: Dict[str, Any],
+        reference_now: Optional[datetime] = None,
+    ) -> Dict[str, Any]:
+        """Prunes historical database records based on retention policy and reclaims space."""
+        pass
