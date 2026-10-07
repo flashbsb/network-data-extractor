@@ -616,11 +616,18 @@ def handle_purge(args):
     print(f"\n{C_CYAN}=== STORAGE RETENTION PURGE ==={C_RESET}")
     outbase = os.path.abspath(args.outbase)
     driver = resolve_driver(outbase, args.db_path)
+    
+    cfg = load_settings()
+    db_ret = cfg.get("storage", {}).get("retention", {}).get("database", {})
+    if not db_ret:
+        db_ret = cfg.get("retention", {}).get("database", {})
+    db_ret = db_ret or {}
+
     policy = {
-        "max_runs": args.max_runs,
-        "raw_collections_days": args.raw_days,
-        "metrics_days": args.metrics_days,
-        "auto_vacuum": not args.no_vacuum,
+        "max_runs": args.max_runs if args.max_runs is not None else db_ret.get("max_runs"),
+        "raw_collections_days": args.raw_days if args.raw_days is not None else db_ret.get("raw_collections_days", 30),
+        "metrics_days": args.metrics_days if args.metrics_days is not None else db_ret.get("metrics_days", 365),
+        "auto_vacuum": not args.no_vacuum if args.no_vacuum else db_ret.get("auto_vacuum", True),
     }
     policy = {k: v for k, v in policy.items() if v is not None}
 

@@ -202,12 +202,14 @@ def prune_old_runs(outbase, json_config):
     
     total_runs = len(run_dirs)
     now = datetime.now()
+    retained_topology_runs = set()
     globally_deleted = set()
     
     # 2. Process Global Retention rules
     if has_global:
         g_max_days = global_cfg.get("max_days")
         g_max_cols = global_cfg.get("max_collections")
+        preserve_topo = global_cfg.get("preserve_topology", True)
         
         for idx, (run_id, path) in enumerate(run_dirs):
             rank_from_newest = total_runs - idx
@@ -221,11 +223,34 @@ def prune_old_runs(outbase, json_config):
                 should_delete = True
                 
             if should_delete:
-                print(f"{C_YELLOW}[*] Pruning run globally (Retention expired): {run_id}{C_RESET}")
-                try:
-                    shutil.rmtree(path)
-                except Exception as e:
-                    print(f"  {C_RED}[!] Error removing {path}: {e}{C_RESET}")
+                topo_dir = os.path.join(path, "topology")
+                has_topo = (
+                    preserve_topo
+                    and os.path.isdir(topo_dir)
+                    and any(f.endswith(".drawio") for f in os.listdir(topo_dir))
+                ) if os.path.isdir(topo_dir) else False
+
+                if has_topo:
+                    print(f"{C_YELLOW}[*] Pruning run globally (Preserving topology): {run_id}{C_RESET}")
+                    try:
+                        for entry in os.listdir(path):
+                            if entry == "topology":
+                                continue
+                            entry_path = os.path.join(path, entry)
+                            if os.path.isdir(entry_path):
+                                shutil.rmtree(entry_path)
+                            else:
+                                os.remove(entry_path)
+                        retained_topology_runs.add(run_id)
+                    except Exception as e:
+                        print(f"  {C_RED}[!] Error pruning non-topology files in {path}: {e}{C_RESET}")
+                else:
+                    print(f"{C_YELLOW}[*] Pruning run globally (Retention expired): {run_id}{C_RESET}")
+                    try:
+                        shutil.rmtree(path)
+                    except Exception as e:
+                        print(f"  {C_RED}[!] Error removing {path}: {e}{C_RESET}")
+                    globally_deleted.add(run_id)
                 
                 # Delete presentation caches
                 inv_js = os.path.join(outbase, "inventory", "data", f"{run_id}.js")
@@ -245,8 +270,6 @@ def prune_old_runs(outbase, json_config):
                             try:
                                 os.remove(os.path.join(reports_dir, rf))
                             except Exception: pass
-                            
-                globally_deleted.add(run_id)
                 
     # 3. Process Granular Component Retention rules
     if has_comps:
@@ -259,6 +282,8 @@ def prune_old_runs(outbase, json_config):
                 
             for idx, (run_id, path) in enumerate(run_dirs):
                 if run_id in globally_deleted:
+                    continue
+                if run_id in retained_topology_runs and comp_name != "topology":
                     continue
                     
                 rank_from_newest = total_runs - idx
@@ -288,6 +313,11 @@ def prune_old_runs(outbase, json_config):
                                 os.remove(zip_file)
                             except Exception as e:
                                 print(f"  {C_RED}[!] Error: {e}{C_RESET}")
+                        
+                        if os.path.isdir(path) and not os.listdir(path):
+                            try:
+                                os.rmdir(path)
+                            except Exception: pass
                                 
                     elif comp_name == "inventory":
                         inv_js = os.path.join(outbase, "inventory", "data", f"{run_id}.js")

@@ -164,7 +164,7 @@ class SQLiteDriver(StorageDriver):
                 run_id TEXT PRIMARY KEY,
                 started_at TIMESTAMP NOT NULL,
                 finished_at TIMESTAMP,
-                status TEXT NOT NULL CHECK(status IN ('IN_PROGRESS', 'SUCCESS', 'FAILED', 'INTERRUPTED')),
+                status TEXT NOT NULL CHECK(status IN ('IN_PROGRESS', 'SUCCESS', 'FAILED', 'INTERRUPTED', 'PARTIAL')),
                 storage_mode TEXT NOT NULL,
                 total_elements INTEGER DEFAULT 0,
                 successful_elements INTEGER DEFAULT 0,
@@ -323,6 +323,9 @@ class SQLiteDriver(StorageDriver):
         failed_elements: int = 0,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> None:
+        valid_statuses = {"IN_PROGRESS", "SUCCESS", "FAILED", "INTERRUPTED", "PARTIAL"}
+        normalized_status = status.upper() if status and status.upper() in valid_statuses else "SUCCESS"
+
         def _op(conn):
             with conn:
                 meta_json = json.dumps(metadata) if metadata is not None else None
@@ -340,7 +343,7 @@ class SQLiteDriver(StorageDriver):
                         """,
                         (
                             finished_at.strftime("%Y-%m-%d %H:%M:%S"),
-                            status,
+                            normalized_status,
                             total_elements,
                             successful_elements,
                             failed_elements,
@@ -361,7 +364,7 @@ class SQLiteDriver(StorageDriver):
                         """,
                         (
                             finished_at.strftime("%Y-%m-%d %H:%M:%S"),
-                            status,
+                            normalized_status,
                             total_elements,
                             successful_elements,
                             failed_elements,
