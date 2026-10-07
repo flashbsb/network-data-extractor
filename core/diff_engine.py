@@ -510,8 +510,10 @@ class DiffEngine:
         .progress-bar-fill { background: var(--accent); height: 100%; width: 0%; transition: width 0.1s ease-out; }
 
     </style>
-    <script>window.run_data = {};</script>
-    <script src="manifest.js"></script>
+    <script>
+        window.run_data = {};
+        document.write('<script src="manifest.js?v=' + Date.now() + '"></' + 'script>');
+    </script>
 </head>
 <body>
     <div class="sidebar collapsed" id="sidebar">

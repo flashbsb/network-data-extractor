@@ -934,7 +934,6 @@ if args.rebuild_index:
     
     if is_standalone:
         print(f"\n{C_CYAN}--- Rebuilding All Master Dashboards ---{C_RESET}")
-        prune_old_runs(args.outbase, json_config)
         
         rebuild_storage_mgr = None
         try:

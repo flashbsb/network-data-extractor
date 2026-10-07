@@ -71,10 +71,10 @@ class InventoryEngine:
                 })
                 continue
 
-            interfaces = self._extract_interfaces(col)
-            connections = self._extract_connections(col)
+            interfaces = self._extract_interfaces(col) or []
+            connections = self._extract_connections(col) or []
             
-            if interfaces:
+            if interfaces or connections:
                 # Gather unique device hostnames and precompute ranks
                 unique_devices = set()
                 for interface in interfaces:
@@ -499,8 +499,10 @@ class InventoryEngine:
         .spinner { width: 50px; height: 50px; border: 4px solid rgba(56, 189, 248, 0.1); border-top: 4px solid var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
-    <script>window.inv_data = {};</script>
-    <script src="manifest.js"></script>
+    <script>
+        window.inv_data = {};
+        document.write('<script src="manifest.js?v=' + Date.now() + '"></' + 'script>');
+    </script>
 </head>
 <body>
     <div class="sidebar collapsed" id="sidebar">
@@ -706,8 +708,13 @@ class InventoryEngine:
             document.getElementById('dashSubTitle').innerText = formatDate(id);
             applyFilters();
             
-            if(currentTab === 'interfaces') renderInterfaces();
-            else renderConnections();
+            if (filteredInterfaces.length === 0 && (currentData.connections || []).length > 0) {
+                switchTab('connections');
+            } else if (currentTab === 'interfaces') {
+                renderInterfaces();
+            } else {
+                renderConnections();
+            }
 
             document.getElementById('dashboardOverlay').style.display = 'flex';
         }

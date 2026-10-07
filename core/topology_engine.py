@@ -307,8 +307,10 @@ class TopologyEngine:
         .btn-header-link { background: rgba(6, 182, 212, 0.1); border: 1px solid rgba(6, 182, 212, 0.3); color: var(--accent); text-decoration: none; padding: 6px 12px; border-radius: 6px; font-weight: 700; font-size: 0.75rem; transition: all 0.2s; text-transform: uppercase; }
         .btn-header-link:hover { background: var(--accent); color: var(--bg-dark); }
     </style>
-    <script>window.topo_manifest = [];</script>
-    <script src="manifest.js"></script>
+    <script>
+        window.topo_manifest = [];
+        document.write('<script src="manifest.js?v=' + Date.now() + '"></' + 'script>');
+    </script>
 </head>
 <body>
     <div class="sidebar collapsed" id="sidebar">
