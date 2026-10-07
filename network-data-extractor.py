@@ -104,6 +104,14 @@ def check_system_dependencies(args=None, standalone=False):
         else:
             print(f"  • {'zip archive':15s}: {C_RED}[MISSING]{C_RESET} (Zip archive format not available)")
 
+        print(f"\n{C_CYAN}[Storage Abstraction Layer (SAL)]{C_RESET}")
+        try:
+            import sqlite3
+            sqlite_ver = getattr(sqlite3, "sqlite_version", "installed")
+            print(f"  • {'sqlite3':15s}: {C_GREEN}[OK]{C_RESET} (v{sqlite_ver}, WAL support)")
+        except ImportError:
+            print(f"  • {'sqlite3':15s}: {C_RED}[MISSING]{C_RESET} - Required for database storage")
+
         print(f"\n{C_CYAN}------------------------------------------------------------{C_RESET}")
         if missing_core or missing_topo or not zip_supported:
             print(f"{C_YELLOW}[!] Some optional or mandatory dependencies are missing.{C_RESET}")

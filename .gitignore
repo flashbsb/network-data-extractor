@@ -42,6 +42,15 @@ Thumbs.db
 .env
 *.log
 
+# Database & SQLite Artifacts (Blindagem contra vazamento no Git)
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+database/
+**/database/
+
 # Demo Public Mock Showcase (Explicitly allowed for GitHub Pages)
 !demo/
 !demo/**

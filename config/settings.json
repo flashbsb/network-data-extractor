@@ -227,6 +227,32 @@
             }
         }
     },
+    "storage": {
+        "_help_storage": "Persistence and storage engine configuration. Modes: 'files_only' (default legacy behavior), 'db_only' (stores exclusively in DB), 'hybrid' (stores both).",
+        "mode": "files_only",
+        "backend": "sqlite",
+        "sqlite": {
+            "_help_sqlite": "SQLite engine parameters. Database path is resolved dynamically relative to outbase ({outbase}/database/network_data.db).",
+            "database_name": "network_data.db",
+            "journal_mode": "WAL",
+            "synchronous": "NORMAL",
+            "busy_timeout_ms": 60000,
+            "compression_enabled": true
+        },
+        "retention": {
+            "_help_retention": "Decoupled retention policies for files and database.",
+            "files": {
+                "raw_collect_days": 7,
+                "runs_days": 30,
+                "history_links_days": 90
+            },
+            "database": {
+                "raw_collections_days": 30,
+                "metrics_days": 365,
+                "sla_history_days": 730
+            }
+        }
+    },
     "topology_generator": {
         "_help_topology_generator": "Default paths and options for the external network-topology-generator integration.",
         "generator_path": "../network-topology-generator/network-topology-generator.py",
