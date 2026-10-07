@@ -281,6 +281,21 @@ def handle_import(args):
             except Exception:
                 pass
 
+        # Fallback to diff/data/{rid}.js if interfaces is empty
+        if not interfaces:
+            diff_js = os.path.join(outbase, "diff", "data", f"{rid}.js")
+            if os.path.isfile(diff_js):
+                try:
+                    with open(diff_js, "r", encoding="utf-8") as f:
+                        s = f.read()
+                        idx = s.find("'] = [")
+                        if idx != -1:
+                            start = idx + 4
+                            end = s.rfind("]")
+                            interfaces = json.loads(s[start:end+1])
+                except Exception:
+                    pass
+
         # Load Topology Connections
         connections = []
         conn_csv = os.path.join(conn_dir, "topology.connections.csv")
@@ -288,6 +303,24 @@ def handle_import(args):
             try:
                 with open(conn_csv, "r", encoding="utf-8") as f:
                     connections = list(csv.DictReader(f, delimiter=";"))
+            except Exception:
+                pass
+
+        # Fallback to inventory/data/{rid}.js for connections or interfaces
+        inv_js = os.path.join(outbase, "inventory", "data", f"{rid}.js")
+        if os.path.isfile(inv_js):
+            try:
+                with open(inv_js, "r", encoding="utf-8") as f:
+                    s = f.read()
+                    idx = s.find("'] = {")
+                    if idx != -1:
+                        start = idx + 4
+                        end = s.rfind("}")
+                        inv_obj = json.loads(s[start:end+1])
+                        if not interfaces and inv_obj.get("interfaces"):
+                            interfaces = inv_obj["interfaces"]
+                        if not connections and inv_obj.get("connections"):
+                            connections = inv_obj["connections"]
             except Exception:
                 pass
 
