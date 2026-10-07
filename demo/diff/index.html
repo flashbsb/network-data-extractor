@@ -490,10 +490,19 @@
 
         async function loadRunData(id, file) {
             return new Promise((resolve) => {
-                if (window.run_data[id]) return resolve(window.run_data[id]);
+                if (window.run_data && window.run_data[id]) return resolve(window.run_data[id]);
                 const s = document.createElement('script');
-                s.src = file;
-                s.onload = () => resolve(window.run_data[id]);
+                const cb = window.location.protocol === 'file:' ? '' : `?_=${Date.now()}`;
+                s.src = `${file}${cb}`;
+                s.onload = () => {
+                    s.remove();
+                    resolve(window.run_data && window.run_data[id] ? window.run_data[id] : null);
+                };
+                s.onerror = () => {
+                    s.remove();
+                    console.error(`Failed to load diff dataset: ${file}`);
+                    resolve(null);
+                };
                 document.head.appendChild(s);
             });
         }
@@ -513,6 +522,13 @@
             
             const [dataOld, dataNew] = await Promise.all(items.map(it => loadRunData(it.dataset.id, it.dataset.file)));
             
+            if (!dataOld || !dataNew) {
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('welcome').style.display = 'flex';
+                alert(`⚠️ Não foi possível carregar um dos datasets selecionados para comparação.\\nO arquivo pode ter sido removido por retenção ou a coleta foi interrompida.`);
+                return;
+            }
+
             document.getElementById('compareSubTitle').innerText = `${formatDate(items[0].dataset.id)} (Base) ➔ ${formatDate(items[1].dataset.id)} (Comparison)`;
             performDiff(dataOld, dataNew);
             

@@ -782,8 +782,17 @@
             return new Promise((resolve) => {
                 if (window.inv_data && window.inv_data[id]) return resolve(window.inv_data[id]);
                 const s = document.createElement('script');
-                s.src = `../inventory/data/${id}.js`;
-                s.onload = () => resolve(window.inv_data[id]);
+                const cb = window.location.protocol === 'file:' ? '' : `?_=${Date.now()}`;
+                s.src = `../inventory/data/${id}.js${cb}`;
+                s.onload = () => {
+                    s.remove();
+                    resolve(window.inv_data && window.inv_data[id] ? window.inv_data[id] : null);
+                };
+                s.onerror = () => {
+                    s.remove();
+                    console.error(`Failed to load snapshot: ${id}`);
+                    resolve(null);
+                };
                 document.head.appendChild(s);
             });
         }

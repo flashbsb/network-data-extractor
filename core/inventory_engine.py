@@ -691,8 +691,17 @@ class InventoryEngine:
             document.getElementById('loader').style.display = 'block';
 
             currentData = await loadRunData(id, file);
-            if (currentData) currentData.id = id;
-            
+            document.getElementById('loader').style.display = 'none';
+
+            if (!currentData || (!currentData.interfaces && !currentData.connections)) {
+                document.getElementById('dashTitle').innerText = '📡 Inventory Dashboard';
+                document.getElementById('dashSubTitle').innerText = `${formatDate(id)} - (Dados Indisponíveis)`;
+                alert(`⚠️ Não foi possível carregar os dados para a execução ${id}.\nO arquivo pode ter sido removido por política de retenção ou a coleta foi interrompida.`);
+                document.getElementById('welcome').style.display = 'flex';
+                return;
+            }
+
+            currentData.id = id;
             document.getElementById('dashTitle').innerText = '📡 Inventory Dashboard';
             document.getElementById('dashSubTitle').innerText = formatDate(id);
             applyFilters();
@@ -700,18 +709,24 @@ class InventoryEngine:
             if(currentTab === 'interfaces') renderInterfaces();
             else renderConnections();
 
-            setTimeout(() => {
-                document.getElementById('loader').style.display = 'none';
-                document.getElementById('dashboardOverlay').style.display = 'flex';
-            }, 200);
+            document.getElementById('dashboardOverlay').style.display = 'flex';
         }
 
         async function loadRunData(id, file) {
             return new Promise((resolve) => {
-                if (window.inv_data[id]) return resolve(window.inv_data[id]);
+                if (window.inv_data && window.inv_data[id]) return resolve(window.inv_data[id]);
                 const s = document.createElement('script');
-                s.src = file;
-                s.onload = () => resolve(window.inv_data[id]);
+                const cb = window.location.protocol === 'file:' ? '' : `?_=${Date.now()}`;
+                s.src = `${file}${cb}`;
+                s.onload = () => {
+                    s.remove();
+                    resolve(window.inv_data && window.inv_data[id] ? window.inv_data[id] : null);
+                };
+                s.onerror = () => {
+                    s.remove();
+                    console.error(`Failed to load dataset: ${file}`);
+                    resolve(null);
+                };
                 document.head.appendChild(s);
             });
         }
