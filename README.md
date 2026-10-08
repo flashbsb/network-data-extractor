@@ -2,7 +2,7 @@
   <h1>🌐 Network Data Extractor</h1>
   <p><strong>The Ultimate Multivendor NOC Orchestrator & Autonomous Discovery Engine</strong></p>
   
-  ![Version](https://img.shields.io/badge/version-1.89.0-blue.svg)
+  ![Version](https://img.shields.io/badge/version-1.90.0-blue.svg)
   ![Python](https://img.shields.io/badge/python-3.8%2B-green.svg)
   [![Live Demo](https://img.shields.io/badge/Live_Demo-GitHub_Pages-0ea5e9?style=flat&logo=github)](https://flashbsb.github.io/network-data-extractor/)
 </div>
@@ -23,7 +23,7 @@ The bundled **[demo/](demo/)** workspace provides an authentic nationwide Brazil
 - **📦 Global Inventory**: Multivendor hardware inventory, transceivers, and interface operational statuses.
 - **⚖️ Drift Analysis (Diff)**: Configuration drift, interface state changes, and BGP peering updates.
 - **⚡ Ping Monitoring**: SLA heatmaps, Chart.js 30-day degradation trends, and Dijkstra route analysis.
-- **🕸️ Topology Viewer**: Interactive Draw.io diagrams rendered with official Cisco 2019 stencils and direct straight links across 3 layouts: **Geographic** (Brazilian coordinates), **Circular** (4 concentric functional orbital rings: Core, Aggregation, Distribution, Peering/DWDM), and **Organic** (regional clustered topology).
+- **🕸️ Native Interactive Topology & Graph Viewer**: High-performance HTML5 Canvas & Vector SVG interactive network graph with **Concentric Orbital**, **Organic**, and **Site-Grouped** layouts, live multi-tier filtering, instant hostname search, sliding telemetry drawer, client-side **Topological Drift Comparator** (highlighting added/removed elements), and 1-click **Client-Side Draw.io (.drawio) Export**. Also includes backward-compatible Draw.io embedded view.
 
 ### Exploring Locally
 To run the demo web portal locally on your workstation:
@@ -60,6 +60,7 @@ Beyond simple command execution, it acts as an **intelligence layer**—parsing 
 - **🧩 Universal Multivendor Parsing**: Regex-based "Blind Analyzer" bypasses human typos in descriptions to seamlessly map logical and physical topologies across different vendors.
 - **📊 Local-First Dashboards**: Generates High-Performance SPAs (Single Page Applications) embedded directly in HTML. Works 100% offline without CORS issues.
 - **🎨 Universal Visual Theming System**: Seamless one-click switching between **Dark (NOC Obsidian)**, **Light (Clean Enterprise / Day Mode)**, and **HighText (WCAG AAA High Contrast)** across all dashboards, with zero-FOUC pre-render initialization, cross-tab synchronization, and full iframe support.
+- **🕸️ Native Interactive Topology & Temporal Drift Engine**: Zero-CORS, high-performance HTML5 canvas graph engine with concentric orbital hierarchy mapping (`routing_hierarchy`), real-time physics stabilization, multi-tier filtering, temporal snapshot diffing (+new/-removed elements highlight), and instantaneous client-side `.drawio` diagram export.
 - **🔍 Network Drift Analysis**: Instantly compares historical snapshots to detect port status changes, bandwidth variations, and missing links.
 - **🛡️ Selective ICMP Diagnostics (Ping Matrix)**: Architecture-aware rules engine (`mode: "selective"`) filters out non-routable cross-tier pings before SSH execution, reducing ICMP load by up to ~80% (including optimized metro-to-edge rules and `:same_site` scoping). Includes dynamic column pruning (`Hide Out-of-Scope 🚫`) in visual heatmaps.
 - **🩺 Pre-flight Dependency Diagnostics**: Proactively validates Python modules and system tools (`--check-deps`) prior to execution, halting with actionable guidance to prevent corrupted or interrupted runs.

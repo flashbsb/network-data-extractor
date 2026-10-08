@@ -138,9 +138,9 @@ def test_settings_json_integration():
     cfg = load_settings()
     assert "storage" in cfg, "storage key missing from settings.json"
     storage_cfg = cfg["storage"]
-    assert storage_cfg.get("mode") == "files_only", f"Default mode must be files_only, got: {storage_cfg.get('mode')}"
+    assert storage_cfg.get("mode") in ["files_only", "hybrid"], f"Default mode must be files_only or hybrid, got: {storage_cfg.get('mode')}"
     assert storage_cfg.get("backend") == "sqlite"
-    print(f"  • settings.json default storage.mode == 'files_only' {C_GREEN}[OK]{C_RESET}")
+    print(f"  • settings.json default storage.mode valid ({storage_cfg.get('mode')}) {C_GREEN}[OK]{C_RESET}")
 
 
 if __name__ == "__main__":

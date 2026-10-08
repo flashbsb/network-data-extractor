@@ -633,7 +633,7 @@ if args.rebuild_index:
         print("[*] Rebuilding Topology Dashboard...")
         try:
             from core.topology_engine import TopologyEngine
-            TopologyEngine(args.outbase).run()
+            TopologyEngine(args.outbase).run(force_rebuild=True)
         except Exception as e:
             print(f"{C_YELLOW}    └─> Skipped (No data): {e}{C_RESET}")
             
@@ -1764,13 +1764,13 @@ if args.rebuild_index or args.ping_matrix:
         print(f"{C_RED}[!] Failed to rebuild Ping Index: {e}{C_RESET}")
 
 # --- TOPOLOGY INDEX HOOK ---
-if args.rebuild_index or args.topology:
-    print(f"\n{C_CYAN}--- Rebuilding Topology Master Index ---{C_RESET}")
+if args.rebuild_index or args.topology or (not args.offline and not args.ping_matrix and not args.discovery):
+    print(f"\n{C_CYAN}--- Updating Interactive Topology Dashboard ---{C_RESET}")
     try:
         from core.topology_engine import TopologyEngine
         TopologyEngine(args.outbase).run()
     except Exception as e:
-        print(f"{C_RED}[!] Failed to rebuild Topology Master Index: {e}{C_RESET}")
+        print(f"{C_RED}[!] Failed to update Topology Master Index: {e}{C_RESET}")
 
 # --- OUTPUT COMPRESSION ---
 comp_cfg = json_config.get("compression", {})
