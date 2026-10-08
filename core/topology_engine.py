@@ -11,6 +11,7 @@
 import os
 import json
 from glob import glob
+from core.theme_system import THEME_HEAD_INIT, THEME_CSS, THEME_SWITCHER_HTML, THEME_SCRIPT_JS
 
 class TopologyEngine:
     def __init__(self, base_path):
@@ -162,19 +163,9 @@ class TopologyEngine:
     <meta property="og:title" content="Network Topology Dashboard">
     <title>Network Topology Portal</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+<!-- THEME_HEAD_INIT -->
     <style>
-        :root {
-            --bg-dark: #020617;
-            --sidebar-bg: #0f172a;
-            --accent: #06b6d4; /* Vibrant Cyan */
-            --accent-hover: #0891b2;
-            --text: #f8fafc;
-            --text-dim: #94a3b8;
-            --success: #10b981;
-            --border: #1e293b;
-            --glass: rgba(15, 23, 42, 0.7);
-        }
-
+/* THEME_CSS */
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Inter', sans-serif; background-color: var(--bg-dark); color: var(--text); display: flex; height: 100vh; overflow: hidden; width: 100vw; max-width: 100%; }
 
@@ -195,7 +186,7 @@ class TopologyEngine:
         .run-id { font-size: 0.7rem; color: var(--text-dim); font-family: monospace; margin-top: 2px; }
 
         /* Main Content */
-        .main-content { flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative; background: radial-gradient(circle at top right, #0f172a, #020617); overflow: hidden; }
+        .main-content { flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative; background: var(--bg-dark); overflow: hidden; }
         
         .hud-header {
             display: flex;
@@ -203,7 +194,7 @@ class TopologyEngine:
             align-items: center;
             border-bottom: 1px solid var(--border);
             padding: 15px 25px;
-            background: rgba(15, 23, 42, 0.4);
+            background: var(--glass);
             backdrop-filter: blur(10px);
             position: relative;
             z-index: 300;
@@ -225,11 +216,10 @@ class TopologyEngine:
             letter-spacing: 1px;
             margin-top: 2px;
         }
-        .sidebar-toggle-btn { background: var(--glass); backdrop-filter: blur(10px); color: white; border: 1px solid var(--border); padding: 8px 12px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s; font-size: 0.85rem; }
+        .sidebar-toggle-btn { background: var(--card-bg); color: var(--text); border: 1px solid var(--border); padding: 8px 12px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s; font-size: 0.85rem; }
         .sidebar-toggle-btn:hover { border-color: var(--accent); color: var(--accent); }
         .back-portal {
-            background: var(--glass);
-            backdrop-filter: blur(10px);
+            background: var(--card-bg);
             color: var(--accent);
             border: 1px solid var(--border);
             padding: 8px 12px;
@@ -245,7 +235,7 @@ class TopologyEngine:
         }
         .back-portal:hover {
             border-color: var(--accent);
-            color: #fff;
+            color: var(--text);
             background: rgba(6, 182, 212, 0.15);
             box-shadow: 0 0 10px rgba(6, 182, 212, 0.2);
         }
@@ -258,39 +248,39 @@ class TopologyEngine:
         #dashboardOverlay { display: none; flex-direction: column; flex: 1; padding: 20px 25px; overflow: hidden; min-height: 0; }
         
         /* Topology Selector Panel */
-        .topo-controls { display: flex; justify-content: space-between; align-items: center; background: rgba(15, 23, 42, 0.8); border: 1px solid var(--border); padding: 12px 20px; border-radius: 6px; margin-bottom: 15px; flex-wrap: wrap; gap: 15px; }
+        .topo-controls { display: flex; justify-content: space-between; align-items: center; background: var(--card-bg); border: 1px solid var(--border); padding: 12px 20px; border-radius: 6px; margin-bottom: 15px; flex-wrap: wrap; gap: 15px; }
         
         .topo-tabs { display: flex; gap: 10px; }
-        .tab-btn { background: transparent; border: 1px solid var(--border); color: var(--text-dim); padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.85rem; }
+        .tab-btn { background: var(--card-bg); border: 1px solid var(--border); color: var(--text-dim); padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.85rem; }
         .tab-btn.active { background: rgba(6, 182, 212, 0.1); border-color: var(--accent); color: var(--accent); }
-        .tab-btn:hover:not(.active) { background: rgba(255, 255, 255, 0.05); color: var(--text); }
+        .tab-btn:hover:not(.active) { background: var(--card-hover); color: var(--text); }
 
         .layout-options { display: flex; gap: 8px; align-items: center; }
         .layout-label { font-size: 0.8rem; color: var(--text-dim); font-weight: 600; text-transform: uppercase; margin-right: 5px; }
-        .layout-btn { background: #020617; border: 1px solid var(--border); color: var(--text-dim); padding: 8px 14px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .layout-btn { background: var(--card-bg); border: 1px solid var(--border); color: var(--text-dim); padding: 8px 14px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
         .layout-btn:hover:not(.active) { border-color: var(--accent); color: var(--text); }
         .layout-btn.active { background: var(--accent); color: var(--bg-dark); font-weight: 700; border-color: var(--accent); box-shadow: 0 0 10px rgba(6, 182, 212, 0.3); }
 
         /* Viewer Frame area */
-        .viewer-container { flex: 1; border: 1px solid var(--border); border-radius: 6px; background: #000; overflow: hidden; position: relative; display: flex; flex-direction: column; }
+        .viewer-container { flex: 1; border: 1px solid var(--border); border-radius: 6px; background: var(--card-bg); overflow: hidden; position: relative; display: flex; flex-direction: column; }
         iframe#drawio-viewer { width: 100%; height: 100%; border: none; background: #ffffff; overflow: hidden; position: relative; }
 
         /* Controls to Maximize */
         .expand-controls { display: flex; gap: 8px; position: absolute; top: 15px; right: 15px; z-index: 1000; }
-        .expand-btn { background: rgba(15, 23, 42, 0.85); border: 1px solid var(--border); color: var(--accent); padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 600; backdrop-filter: blur(10px); transition: all 0.2s ease; display: flex; align-items: center; gap: 6px; border-style: solid; }
+        .expand-btn { background: var(--card-bg); border: 1px solid var(--border); color: var(--accent); padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 600; backdrop-filter: blur(10px); transition: all 0.2s ease; display: flex; align-items: center; gap: 6px; border-style: solid; }
         .expand-btn:hover { border-color: var(--accent); background: var(--accent); color: var(--bg-dark); box-shadow: 0 0 10px rgba(6, 182, 212, 0.4); }
 
         /* Theater Mode CSS */
         body.theater-mode .sidebar { display: none !important; }
         body.theater-mode .hud-header { display: none !important; }
         body.theater-mode #dashboardOverlay { padding: 0 !important; margin: 0 !important; position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 99999 !important; background: var(--bg-dark); }
-        body.theater-mode .topo-controls { position: absolute; top: 15px; left: 15px; z-index: 1000; background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(10px); box-shadow: 0 4px 20px rgba(0,0,0,0.5); width: auto; max-width: calc(100% - 300px); }
+        body.theater-mode .topo-controls { position: absolute; top: 15px; left: 15px; z-index: 1000; background: var(--card-bg); backdrop-filter: blur(10px); box-shadow: 0 4px 20px rgba(0,0,0,0.5); width: auto; max-width: calc(100% - 300px); }
 
         /* Fallback offline panel */
-        .offline-fallback { display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px; height: 100%; background: rgba(15, 23, 42, 0.95); z-index: 10; overflow-y: auto; }
+        .offline-fallback { display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px; height: 100%; background: var(--card-bg); z-index: 10; overflow-y: auto; }
         .offline-fallback h3 { font-family: 'Outfit'; font-size: 1.6rem; color: #f59e0b; margin-bottom: 15px; }
         .offline-fallback p { max-width: 600px; color: var(--text-dim); line-height: 1.6; margin-bottom: 25px; font-size: 0.95rem; }
-        .offline-fallback code { background: #020617; padding: 6px 12px; border-radius: 4px; border: 1px solid var(--border); color: #10b981; font-family: monospace; font-size: 0.9rem; }
+        .offline-fallback code { background: var(--bg-dark); padding: 6px 12px; border-radius: 4px; border: 1px solid var(--border); color: var(--accent); font-family: monospace; font-size: 0.9rem; }
         
         .btn-group-download { display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; margin-top: 15px; }
         .btn-action { text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 700; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; }
@@ -313,7 +303,7 @@ class TopologyEngine:
     </script>
 </head>
 <body>
-    <div class="sidebar collapsed" id="sidebar">
+    <div class="sidebar" id="sidebar">
         <div class="header">
             <div class="header-text">
                 <h2>🕸️ TOPOLOGY</h2>
@@ -337,6 +327,7 @@ class TopologyEngine:
                 </div>
             </div>
             <div style="display: flex; align-items: center; gap: 10px;">
+                <!-- THEME_SWITCHER_HTML -->
                 <a id="headerDownloadBtn" class="btn-header-link" style="display:none;" href="#" onclick="downloadCurrentDiagram(event)">Download .drawio File</a>
                 <a class="back-portal" href="../index.html">← Network Portal</a>
             </div>
@@ -679,17 +670,25 @@ class TopologyEngine:
 
         window.addEventListener('DOMContentLoaded', () => {
             renderList();
-            if(manifest.length > 0 && window.innerWidth >= 768) {
-                // Auto select newest
-                document.querySelector('.run-item').click();
-            } else if (window.innerWidth < 768) {
-                document.getElementById('sidebar').classList.remove('collapsed');
+            if (window.innerWidth < 1024) {
+                document.getElementById('sidebar').classList.add('collapsed');
+            }
+            if(manifest.length > 0) {
+                const firstItem = document.querySelector('.run-item');
+                if (firstItem && window.innerWidth >= 1024) firstItem.click();
             }
         });
+
+        /* THEME_SCRIPT_JS */
     </script>
 </body>
 </html>
 """
+        html_content = html_content.replace("<!-- THEME_HEAD_INIT -->", THEME_HEAD_INIT)
+        html_content = html_content.replace("/* THEME_CSS */", THEME_CSS)
+        html_content = html_content.replace("<!-- THEME_SWITCHER_HTML -->", THEME_SWITCHER_HTML)
+        html_content = html_content.replace("/* THEME_SCRIPT_JS */", THEME_SCRIPT_JS)
+
         with open(os.path.join(self.topology_dir, "index.html"), 'w', encoding='utf-8') as f:
             f.write(html_content)
 
@@ -700,6 +699,7 @@ class TopologyEngine:
     <meta name="description" content="Network Topology Interactive Viewer">
     <meta property="og:title" content="Network Topology Viewer">
     <title>Draw.io Offline Viewer</title>
+<!-- THEME_HEAD_INIT -->
     <style>
         html, body {
             margin: 0;
@@ -741,6 +741,14 @@ class TopologyEngine:
             white-space: nowrap;
             scrollbar-width: none; /* Firefox */
         }
+        :root[data-theme="light"] #page-tabs-bar {
+            background-color: #f1f5f9;
+            border-top: 1px solid #cbd5e1;
+        }
+        :root[data-theme="hightext"] #page-tabs-bar {
+            background-color: #000000;
+            border-top: 2px solid #ffffff;
+        }
         #page-tabs-bar::-webkit-scrollbar {
             display: none; /* Chrome/Safari */
         }
@@ -765,7 +773,37 @@ class TopologyEngine:
             background: #2563eb;
             color: #ffffff;
             border-color: #3b82f6;
-            box-shadow: 0 0 10px rgba(37, 99, 235, 0.3);
+            box-shadow: 0 0 10px rgba(37, 99, 255, 0.3);
+        }
+        :root[data-theme="light"] .page-tab {
+            background: #e2e8f0;
+            border-color: #cbd5e1;
+            color: #475569;
+        }
+        :root[data-theme="light"] .page-tab:hover {
+            background: #cbd5e1;
+            color: #0f172a;
+        }
+        :root[data-theme="light"] .page-tab.active {
+            background: #0284c7;
+            color: #ffffff;
+            border-color: #0284c7;
+            box-shadow: 0 0 8px rgba(2, 132, 199, 0.3);
+        }
+        :root[data-theme="hightext"] .page-tab {
+            background: #000000;
+            border: 1px solid #ffffff;
+            color: #ffffff;
+        }
+        :root[data-theme="hightext"] .page-tab:hover {
+            background: #222222;
+            color: #ffff00;
+        }
+        :root[data-theme="hightext"] .page-tab.active {
+            background: #ffff00;
+            color: #000000;
+            border: 2px solid #ffffff;
+            font-weight: bold;
         }
 
         /* Force cursor during dragging */
@@ -786,7 +824,11 @@ class TopologyEngine:
 
         window.addEventListener('message', function(event) {
             try {
-                const data = JSON.parse(event.data);
+                const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+                const newTheme = (data && data.theme) ? data.theme : null;
+                if (newTheme) {
+                    document.documentElement.setAttribute('data-theme', newTheme);
+                }
                 if (data.action === 'load' && data.xml) {
                     activeXmlContent = data.xml;
                     activePageIndex = 0;
@@ -794,6 +836,12 @@ class TopologyEngine:
                     renderPageTabs(activeXmlContent);
                 }
             } catch (e) {}
+        });
+
+        window.addEventListener('storage', function(e) {
+            if ((e.key === 'ndx_theme' || e.key === 'nde_theme') && e.newValue) {
+                document.documentElement.setAttribute('data-theme', e.newValue);
+            }
         });
 
         function parseDiagramPages(xmlString) {
@@ -1020,6 +1068,8 @@ class TopologyEngine:
     </script>
 </body>
 </html>"""
+        viewer_html_content = viewer_html_content.replace("<!-- THEME_HEAD_INIT -->", THEME_HEAD_INIT)
+
         with open(os.path.join(self.topology_dir, "viewer.html"), 'w', encoding='utf-8') as f:
             f.write(viewer_html_content)
 

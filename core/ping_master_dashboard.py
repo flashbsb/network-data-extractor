@@ -12,6 +12,7 @@ import json
 import shutil
 from glob import glob
 from pathlib import Path
+from core.theme_system import THEME_HEAD_INIT, THEME_CSS, THEME_SWITCHER_HTML, THEME_SCRIPT_JS
 
 # Terminal Colors
 C_CYAN = '\033[96m'
@@ -129,15 +130,17 @@ def generate_master_dashboard(outbase):
     <meta property="og:title" content="Ping Matrix Master Index">
     <title>Ping Matrix Master Index</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+<!-- THEME_HEAD_INIT -->
     <style>
+/* THEME_CSS */
         * { box-sizing: border-box; }
-        body { margin: 0; padding: 0; font-family: 'Inter', sans-serif; display: flex; height: 100vh; background: #020617; color: #e2e8f0; overflow: hidden; }
+        body { margin: 0; padding: 0; font-family: 'Inter', sans-serif; display: flex; height: 100vh; background: var(--bg-dark); color: var(--text); overflow: hidden; }
         
         /* Sidebar */
         .sidebar { 
             width: 320px; min-width: 320px;
-            background: #0f172a; 
-            border-right: 1px solid rgba(255,255,255,0.05); 
+            background: var(--sidebar-bg); 
+            border-right: 1px solid var(--border); 
             display: flex; flex-direction: column;
             box-shadow: 10px 0 30px rgba(0,0,0,0.5);
             z-index: 10;
@@ -192,16 +195,16 @@ def generate_master_dashboard(outbase):
         .nodes-badge { float: right; font-size: 10px; background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; color: #94a3b8; }
         
         /* Main View */
-        .main-content { flex-grow: 1; display: flex; flex-direction: column; height: 100vh; position: relative; }
-        iframe { width: 100%; height: 100%; border: none; background: #020617; }
+        .main-content { flex-grow: 1; display: flex; flex-direction: column; height: 100vh; position: relative; background: var(--bg-dark); }
+        iframe { width: 100%; height: 100%; border: none; background: transparent; }
         
         .hud-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
+            border-bottom: 1px solid var(--border);
             padding: 15px 25px;
-            background: rgba(15, 23, 42, 0.4);
+            background: var(--glass);
             backdrop-filter: blur(8px);
             position: sticky;
             top: 0;
@@ -211,36 +214,36 @@ def generate_master_dashboard(outbase):
         .hud-title h1 {
             font-size: 1.5rem;
             font-weight: 800;
-            color: #38bdf8;
+            color: var(--accent);
             font-family: 'Outfit', sans-serif;
             margin: 0;
         }
         .hud-title p {
             font-size: 0.7rem;
-            color: #64748b;
+            color: var(--text-dim);
             text-transform: uppercase;
             letter-spacing: 1px;
             margin-top: 2px;
         }
         .back-portal {
-            background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(8px);
-            border: 1px solid rgba(56,189,248,0.3); color: #38bdf8;
+            background: var(--card-bg); backdrop-filter: blur(8px);
+            border: 1px solid var(--border); color: var(--accent);
             padding: 8px 12px; border-radius: 8px; cursor: pointer;
             font-size: 14px; font-weight: 600; text-decoration: none;
             transition: all 0.2s; display: flex; align-items: center; gap: 8px;
         }
-        .back-portal:hover { background: rgba(15, 23, 42, 1); border-color: #38bdf8; box-shadow: 0 0 10px rgba(56,189,248,0.2); }
+        .back-portal:hover { background: var(--card-hover); border-color: var(--accent); box-shadow: 0 0 10px rgba(56,189,248,0.2); }
         
         #placeholder {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             text-align: center; transition: opacity 0.3s ease;
         }
-        #placeholder h2 { font-family: 'Outfit', sans-serif; font-size: 28px; margin-bottom: 10px; color: #1e293b; }
-        #placeholder p { color: #0f172a; font-weight: 600; }
+        #placeholder h2 { font-family: 'Outfit', sans-serif; font-size: 28px; margin-bottom: 10px; color: var(--text); }
+        #placeholder p { color: var(--text-dim); font-weight: 600; }
         
         .footer-logo {
-            padding: 15px; text-align: center; font-size: 11px; color: #334155;
-            border-top: 1px solid rgba(255,255,255,0.03);
+            padding: 15px; text-align: center; font-size: 11px; color: var(--text-dim);
+            border-top: 1px solid var(--border);
         }
     </style>
 </head>
@@ -280,7 +283,10 @@ def generate_master_dashboard(outbase):
                     <p>Historical Analysis Portal</p>
                 </div>
             </div>
-            <a class="back-portal" href="../index.html">← Network Portal</a>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <!-- THEME_SWITCHER_HTML -->
+                <a class="back-portal" href="../index.html">← Network Portal</a>
+            </div>
         </div>
         <iframe id="viewer" src="about:blank"></iframe>
         <div id="placeholder">
@@ -309,7 +315,14 @@ def generate_master_dashboard(outbase):
             
             iframeUrl += '?' + iframeParams.toString();
 
-            document.getElementById('viewer').src = iframeUrl;
+            const viewer = document.getElementById('viewer');
+            viewer.onload = () => {
+                const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+                try {
+                    viewer.contentWindow.postMessage(JSON.stringify({ event: 'theme_change', theme: currentTheme }), '*');
+                } catch(e) {}
+            };
+            viewer.src = iframeUrl;
             document.getElementById('placeholder').style.display = 'none';
             document.querySelectorAll('.run-item').forEach(item => item.classList.remove('active'));
             if(el) el.classList.add('active');
@@ -344,10 +357,16 @@ def generate_master_dashboard(outbase):
                 setTimeout(() => runToSelect.click(), 50);
             }
         };
+        /* THEME_SCRIPT_JS */
     </script>
 </body>
 </html>
 """
+    html = html.replace("<!-- THEME_HEAD_INIT -->", THEME_HEAD_INIT)
+    html = html.replace("/* THEME_CSS */", THEME_CSS)
+    html = html.replace("<!-- THEME_SWITCHER_HTML -->", THEME_SWITCHER_HTML)
+    html = html.replace("/* THEME_SCRIPT_JS */", THEME_SCRIPT_JS)
+
     try:
         with open(index_path, 'w', encoding='utf-8') as f:
             f.write(html)

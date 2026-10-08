@@ -1,9 +1,8 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 import os
 import json
 import csv
 from glob import glob
+from core.theme_system import THEME_HEAD_INIT, THEME_CSS, THEME_SWITCHER_HTML, THEME_SCRIPT_JS
 
 class InventoryEngine:
     def __init__(self, base_path, storage_mgr=None):
@@ -290,21 +289,9 @@ class InventoryEngine:
     <meta property="og:title" content="Network Inventory Portal">
     <title>Network Inventory & Connections</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+<!-- THEME_HEAD_INIT -->
     <style>
-        :root {
-            --bg-dark: #020617;
-            --sidebar-bg: #0f172a;
-            --accent: #38bdf8;
-            --accent-hover: #0ea5e9;
-            --text: #f8fafc;
-            --text-dim: #94a3b8;
-            --success: #22c55e;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --border: #1e293b;
-            --glass: rgba(15, 23, 42, 0.7);
-        }
-
+/* THEME_CSS */
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Inter', sans-serif; background-color: var(--bg-dark); color: var(--text); display: flex; height: 100vh; overflow: hidden; width: 100vw; max-width: 100%; }
 
@@ -325,7 +312,7 @@ class InventoryEngine:
         .run-id { font-size: 0.7rem; color: var(--text-dim); font-family: monospace; margin-top: 2px; }
 
         /* Main Content */
-        .main-content { flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative; background: radial-gradient(circle at top right, #0f172a, #020617); overflow-y: auto; overflow-x: hidden; }
+        .main-content { flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative; background: var(--bg-dark); overflow-y: auto; overflow-x: hidden; }
         .sidebar.collapsed ~ .main-content { width: 100vw; }
         .hud-header {
             display: flex;
@@ -333,7 +320,7 @@ class InventoryEngine:
             align-items: center;
             border-bottom: 1px solid var(--border);
             padding: 15px 25px;
-            background: rgba(15, 23, 42, 0.4);
+            background: var(--glass);
             backdrop-filter: blur(10px);
             position: sticky;
             top: 0;
@@ -356,10 +343,10 @@ class InventoryEngine:
             letter-spacing: 1px;
             margin-top: 2px;
         }
-        .sidebar-toggle-btn { background: var(--glass); backdrop-filter: blur(10px); color: white; border: 1px solid var(--border); padding: 8px 12px; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s; }
+        .sidebar-toggle-btn { background: var(--card-bg); backdrop-filter: blur(10px); color: var(--text); border: 1px solid var(--border); padding: 8px 12px; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s; }
         .sidebar-toggle-btn:hover { border-color: var(--accent); color: var(--accent); }
         .back-portal {
-            background: var(--glass);
+            background: var(--card-bg);
             backdrop-filter: blur(10px);
             color: var(--accent);
             border: 1px solid var(--border);
@@ -377,7 +364,7 @@ class InventoryEngine:
         .back-portal:hover {
             border-color: var(--accent);
             color: #fff;
-            background: rgba(56, 189, 248, 0.15);
+            background: var(--accent);
         }
 
         #welcome { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px; animation: fadeIn 1s; }
@@ -392,14 +379,14 @@ class InventoryEngine:
 
         /* Metrics Box */
         .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
-        .metric-card { background: var(--glass); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
+        .metric-card { background: var(--card-bg); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
         .metric-card h3 { font-size: 0.8rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
         .metric-card .val { font-family: 'Outfit'; font-size: 2.5rem; color: var(--text); font-weight: 800; }
         .metric-card .val.up, .up { color: var(--success); text-shadow: 0 0 15px rgba(34,197,94,0.3); }
         .metric-card .val.down, .down { color: var(--danger); text-shadow: 0 0 15px rgba(239,68,68,0.3); }
 
         /* Controls / Tabs */
-        .controls-bar { display: flex; justify-content: space-between; align-items: center; background: rgba(15,23,42,0.8); border: 1px solid var(--border); padding: 15px 25px; border-radius: 12px; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;}
+        .controls-bar { display: flex; justify-content: space-between; align-items: center; background: var(--card-bg); border: 1px solid var(--border); padding: 15px 25px; border-radius: 12px; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;}
         
         .tabs { display: flex; gap: 10px; }
         .tab-btn { background: transparent; border: 1px solid var(--border); color: var(--text-dim); padding: 8px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
@@ -422,19 +409,19 @@ class InventoryEngine:
         .help-tooltip strong { color: var(--accent); }
         .help-tooltip code { background: rgba(255,255,255,0.1); padding: 2px 4px; border-radius: 4px; color: #4ade80; }
         
-        .input-styled { background: #020617; border: 1px solid var(--border); color: white; padding: 10px 15px; border-radius: 8px; font-size: 0.85rem; outline: none; min-width: 250px; transition: border-color 0.2s; }
+        .input-styled { background: var(--bg-dark); border: 1px solid var(--border); color: var(--text); padding: 10px 15px; border-radius: 8px; font-size: 0.85rem; outline: none; min-width: 250px; transition: border-color 0.2s; }
         .input-styled:focus { border-color: var(--accent); }
         .status-filter { display: flex; gap: 10px; }
         .status-filter label { font-size: 0.8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 5px; color: var(--text-dim); }
         .status-filter input { accent-color: var(--accent); cursor: pointer; }
 
         /* Tables */
-        .table-container { background: var(--sidebar-bg); border-radius: 12px; border: 1px solid var(--border); overflow-x: auto; overflow-y: auto; box-shadow: 0 15px 40px rgba(0,0,0,0.4); max-height: calc(100vh - 350px); display: none; width: 100%; max-width: 100%; }
+        .table-container { background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); overflow-x: auto; overflow-y: auto; box-shadow: 0 15px 40px rgba(0,0,0,0.2); max-height: calc(100vh - 350px); display: none; width: 100%; max-width: 100%; }
         .table-container.active { display: block; }
         table { width: 100%; border-collapse: collapse; min-width: 900px; }
-        th { background: rgba(30,41,59,0.9); text-align: left; padding: 15px 20px; font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; font-weight: 800; position: sticky; top: 0; z-index: 10; backdrop-filter: blur(5px); border-bottom: 2px solid var(--border); white-space: nowrap;}
-        td { padding: 15px 20px; border-bottom: 1px solid var(--border); font-size: 0.85rem; color: #cbd5e1; vertical-align: middle; white-space: nowrap;}
-        tr:hover td { background: rgba(255,255,255,0.02); }
+        th { background: var(--sidebar-bg); text-align: left; padding: 15px 20px; font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; font-weight: 800; position: sticky; top: 0; z-index: 10; backdrop-filter: blur(5px); border-bottom: 2px solid var(--border); white-space: nowrap;}
+        td { padding: 15px 20px; border-bottom: 1px solid var(--border); font-size: 0.85rem; color: var(--text); vertical-align: middle; white-space: nowrap;}
+        tr:hover td { background: rgba(56,189,248,0.05); }
         tr:last-child td { border-bottom: none; }
 
         .tag { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 800; text-transform: uppercase; display: inline-block; }
@@ -528,7 +515,10 @@ class InventoryEngine:
                     <p id="dashSubTitle">Select a Snapshot from the sidebar</p>
                 </div>
             </div>
-            <a class="back-portal" href="../index.html">← Network Portal</a>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <!-- THEME_SWITCHER_HTML -->
+                <a class="back-portal" href="../index.html">← Network Portal</a>
+            </div>
         </div>
 
         <div id="welcome">
@@ -1091,10 +1081,15 @@ class InventoryEngine:
                 document.getElementById('sidebar').classList.remove('collapsed');
             }
         });
+        /* THEME_SCRIPT_JS */
     </script>
 </body>
 </html>
 """
+        template = template.replace("<!-- THEME_HEAD_INIT -->", THEME_HEAD_INIT)
+        template = template.replace("/* THEME_CSS */", THEME_CSS)
+        template = template.replace("<!-- THEME_SWITCHER_HTML -->", THEME_SWITCHER_HTML)
+        template = template.replace("/* THEME_SCRIPT_JS */", THEME_SCRIPT_JS)
         with open(os.path.join(self.inventory_dir, "index.html"), 'w', encoding='utf-8') as f:
             f.write(template)
 

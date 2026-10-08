@@ -2,6 +2,7 @@ import os
 import json
 import csv
 from glob import glob
+from core.theme_system import THEME_HEAD_INIT, THEME_CSS, THEME_SWITCHER_HTML, THEME_SCRIPT_JS
 
 class DiffEngine:
     def __init__(self, base_path, storage_mgr=None):
@@ -271,21 +272,9 @@ class DiffEngine:
     <meta property="og:title" content="Network Drift Analyzer">
     <title>Network Drift Analysis Workspace</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+<!-- THEME_HEAD_INIT -->
     <style>
-        :root {
-            --bg-dark: #0f172a;
-            --sidebar-bg: #1e293b;
-            --accent: #38bdf8;
-            --accent-hover: #0ea5e9;
-            --text: #f8fafc;
-            --text-dim: #94a3b8;
-            --success: #22c55e;
-            --warning: #ea580c;
-            --danger: #ef4444;
-            --border: #334155;
-            --glass: rgba(30, 41, 59, 0.7);
-        }
-
+/* THEME_CSS */
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Inter', sans-serif; background-color: var(--bg-dark); color: var(--text); display: flex; height: 100vh; overflow: hidden; }
 
@@ -516,7 +505,7 @@ class DiffEngine:
     </script>
 </head>
 <body>
-    <div class="sidebar collapsed" id="sidebar">
+    <div class="sidebar" id="sidebar">
         <div class="header">
             <div class="header-text">
                 <h2>📡 HISTORY</h2>
@@ -546,7 +535,10 @@ class DiffEngine:
                     <button class="tab-btn" id="tabTimeline" onclick="switchTab('timeline')">⏱️ Interface Timeline Tracker</button>
                 </div>
             </div>
-            <a class="back-portal" href="../index.html">← Network Portal</a>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <!-- THEME_SWITCHER_HTML -->
+                <a class="back-portal" href="../index.html">← Network Portal</a>
+            </div>
         </div>
 
         <div id="welcome">
@@ -1355,6 +1347,11 @@ class DiffEngine:
         // Initialize
         window.addEventListener('DOMContentLoaded', () => {
             renderList();
+            if (window.innerWidth < 1024) {
+                document.getElementById('sidebar').classList.add('collapsed');
+            } else {
+                document.getElementById('sidebar').classList.remove('collapsed');
+            }
             
             // Auto-select two latest snapshots
             const items = document.querySelectorAll('.run-item');
@@ -1446,9 +1443,15 @@ class DiffEngine:
             const menu = document.getElementById('deviceContextMenu');
             if (menu) menu.style.display = 'none';
         });
+        /* THEME_SCRIPT_JS */
     </script>
 </body>
 </html>
 """
+        template = template.replace("<!-- THEME_HEAD_INIT -->", THEME_HEAD_INIT)
+        template = template.replace("/* THEME_CSS */", THEME_CSS)
+        template = template.replace("<!-- THEME_SWITCHER_HTML -->", THEME_SWITCHER_HTML)
+        template = template.replace("/* THEME_SCRIPT_JS */", THEME_SCRIPT_JS)
+
         with open(os.path.join(self.diff_dir, "index.html"), 'w', encoding='utf-8') as f:
             f.write(template)

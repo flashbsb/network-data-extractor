@@ -24,6 +24,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Huawei RTT: "round-trip min/avg/max = 1/2/3 ms"
 
 from core.utils_shared import load_settings
+from core.theme_system import THEME_HEAD_INIT, THEME_CSS, THEME_SWITCHER_HTML, THEME_SCRIPT_JS
 
 json_config = load_settings()
 ping_cfg = json_config.get("ping_matrix", {})
@@ -700,15 +701,71 @@ def render_ping_matrix_html(json_payload):
 <meta property="og:title" content="Network Ping Matrix">
 <title>Ping Matrix Dashboard - PRO</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+<!-- THEME_HEAD_INIT -->
 <style>
+/* THEME_CSS */
 /* Base Theme & Glassmorphism */
 body { 
-    background: radial-gradient(circle at top, #0f172a 0%, #020617 100%); 
-    color: #e2e8f0; 
+    background: var(--bg-dark); 
+    color: var(--text); 
     font-family: 'Inter', sans-serif; 
     margin: 0; 
     padding: 30px; 
     min-height: 100vh;
+}
+:root[data-theme="light"] .dashboard-metrics,
+:root[data-theme="light"] .analytics-panel,
+:root[data-theme="light"] .legend-panel {
+    background: #ffffff;
+    border-color: #e2e8f0;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+}
+:root[data-theme="light"] .matrix-wrapper {
+    background: #ffffff;
+    border-color: #cbd5e1;
+}
+:root[data-theme="light"] th {
+    background: #f1f5f9;
+    color: #334155;
+    border-color: #cbd5e1;
+}
+:root[data-theme="light"] th.col-head,
+:root[data-theme="light"] th.row-head {
+    border-color: #cbd5e1;
+}
+:root[data-theme="light"] td {
+    border-color: #e2e8f0;
+}
+:root[data-theme="light"] .controls input[type="text"],
+:root[data-theme="light"] .controls select {
+    background: #ffffff;
+    color: #0f172a;
+    border-color: #cbd5e1;
+}
+:root[data-theme="light"] .filter-group {
+    background: #f1f5f9;
+    border-color: #e2e8f0;
+}
+:root[data-theme="hightext"] .dashboard-metrics,
+:root[data-theme="hightext"] .analytics-panel,
+:root[data-theme="hightext"] .legend-panel,
+:root[data-theme="hightext"] .matrix-wrapper {
+    background: #000000;
+    border: 2px solid #ffffff;
+}
+:root[data-theme="hightext"] th {
+    background: #000000;
+    color: #ffff00;
+    border: 1px solid #ffffff;
+}
+:root[data-theme="hightext"] td {
+    border: 1px solid #ffffff;
+}
+:root[data-theme="hightext"] .controls input[type="text"],
+:root[data-theme="hightext"] .controls select {
+    background: #000000;
+    color: #ffffff;
+    border: 2px solid #ffffff;
 }
 h1, h2, h3, h4, .outfit { font-family: 'Outfit', sans-serif; }
 
@@ -935,7 +992,10 @@ td:hover { background-color: rgba(255,255,255,0.1) !important; transform: scale(
         <h1>📡 Network Ping Matrix</h1>
         <p id="sub-header">Loading local data...</p>
     </div>
-    <a class="back-portal" href="../../../../index.html">← Network Portal</a>
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <!-- THEME_SWITCHER_HTML -->
+        <a class="back-portal" href="../../../../index.html">← Network Portal</a>
+    </div>
 </div>
 <div class="dashboard-metrics" id="metricsbox"></div>
 <div class="controls" style="display: flex; flex-direction: column; gap: 15px; align-items: center;">
@@ -1647,10 +1707,15 @@ document.addEventListener('click', () => {
     if (menu) menu.style.display = 'none';
 });
 loadData();
+/* THEME_SCRIPT_JS */
 </script>
 <div id="globalTooltip"></div>
 </body>
 </html>"""
+    html_template = html_template.replace("<!-- THEME_HEAD_INIT -->", THEME_HEAD_INIT)
+    html_template = html_template.replace("/* THEME_CSS */", THEME_CSS)
+    html_template = html_template.replace("<!-- THEME_SWITCHER_HTML -->", THEME_SWITCHER_HTML)
+    html_template = html_template.replace("/* THEME_SCRIPT_JS */", THEME_SCRIPT_JS)
     return html_template.replace("__JSON_PAYLOAD_HERE__", json.dumps(json_payload, indent=None))
 
 if __name__ == "__main__":

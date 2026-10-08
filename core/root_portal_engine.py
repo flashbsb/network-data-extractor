@@ -1,4 +1,5 @@
 import os
+from core.theme_system import THEME_HEAD_INIT, THEME_CSS, THEME_SWITCHER_HTML, THEME_SCRIPT_JS
 
 def generate_root_portal(outbase):
     # Ensure outbase exists
@@ -52,24 +53,27 @@ def generate_root_portal(outbase):
     <meta property="og:title" content="Network Workspaces">
     <title>Network Data Extractor - Workspaces</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+{THEME_HEAD_INIT}
     <style>
-        body {{ margin: 0; padding: 0; font-family: 'Inter', sans-serif; background: #020617; color: #e2e8f0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }}
-        .container {{ max-width: 1000px; width: 90%; margin: 40px auto; }}
+{THEME_CSS}
+        body {{ margin: 0; padding: 0; font-family: 'Inter', sans-serif; background: var(--bg-dark); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }}
+        .container {{ max-width: 1000px; width: 90%; margin: 40px auto; position: relative; }}
+        .portal-top-bar {{ display: flex; justify-content: flex-end; margin-bottom: 20px; }}
         .header {{ text-align: center; margin-bottom: 50px; }}
-        .header h1 {{ font-family: 'Outfit', sans-serif; font-size: 42px; font-weight: 800; margin: 0; background: linear-gradient(90deg, #38bdf8, #818cf8); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }}
-        .header p {{ font-size: 16px; color: #94a3b8; margin-top: 10px; font-weight: 500; }}
+        .header h1 {{ font-family: 'Outfit', sans-serif; font-size: 42px; font-weight: 800; margin: 0; background: linear-gradient(90deg, var(--accent), #818cf8); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }}
+        .header p {{ font-size: 16px; color: var(--text-dim); margin-top: 10px; font-weight: 500; }}
         
         .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; }}
         
         .card {{ 
-            background: rgba(30, 41, 59, 0.4); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 30px; 
+            background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; padding: 30px; 
             text-decoration: none; color: inherit; display: flex; flex-direction: column; align-items: center; text-align: center; position: relative; overflow: hidden;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }}
         .card::before {{ content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: transparent; transition: all 0.3s; }}
         
-        .card.active {{ cursor: pointer; border-color: rgba(56,189,248,0.2); }}
-        .card.active:hover {{ background: rgba(30, 41, 59, 0.8); transform: translateY(-5px); box-shadow: 0 15px 35px rgba(0,0,0,0.4); border-color: rgba(56,189,248,0.4); }}
+        .card.active {{ cursor: pointer; border-color: var(--border); }}
+        .card.active:hover {{ background: var(--card-hover); transform: translateY(-5px); box-shadow: 0 15px 35px rgba(0,0,0,0.25); border-color: var(--accent); }}
         
         .card.active.inventory::before {{ background: #38bdf8; }}
         .card.active.diff::before {{ background: #f59e0b; }}
@@ -79,8 +83,8 @@ def generate_root_portal(outbase):
         .card.disabled {{ opacity: 0.5; filter: grayscale(1); cursor: not-allowed; }}
         
         .icon {{ font-size: 36px; margin-bottom: 20px; display: block; }}
-        .title {{ font-family: 'Outfit', sans-serif; font-size: 24px; font-weight: 700; color: #f8fafc; margin-bottom: 10px; }}
-        .desc {{ font-size: 14px; color: #94a3b8; line-height: 1.6; flex-grow: 1; }}
+        .title {{ font-family: 'Outfit', sans-serif; font-size: 24px; font-weight: 700; color: var(--text); margin-bottom: 10px; }}
+        .desc {{ font-size: 14px; color: var(--text-dim); line-height: 1.6; flex-grow: 1; }}
         
         .status {{ margin-top: 25px; font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 6px; display: inline-block; width: max-content; }}
         .status.avail {{ background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16,185,129,0.2); }}
@@ -90,9 +94,9 @@ def generate_root_portal(outbase):
         
         .sub-btn-group {{ margin-top: 20px; display: flex; flex-direction: column; gap: 8px; width: 100%; }}
         .sub-btn {{
-            background: rgba(0, 0, 0, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            color: #cbd5e1;
+            background: var(--card-hover);
+            border: 1px solid var(--border);
+            color: var(--text);
             padding: 8px 12px;
             font-size: 11px;
             font-weight: 700;
@@ -109,20 +113,23 @@ def generate_root_portal(outbase):
             pointer-events: none;
         }}
         .sub-btn:hover:not(.disabled) {{
-            background: rgba(30, 41, 59, 0.8);
-            border-color: var(--hover-color, #38bdf8);
+            background: var(--accent);
+            border-color: var(--accent);
             color: #fff;
-            box-shadow: 0 0 10px var(--hover-color-glow, rgba(56,189,248,0.2));
+            box-shadow: 0 0 10px rgba(56,189,248,0.2);
             transform: translateY(-2px);
         }}
         
-        .footer {{ margin-top: 60px; text-align: center; color: #64748b; font-size: 13px; font-weight: 500; }}
-        .footer a {{ color: #38bdf8; text-decoration: none; transition: color 0.2s; }}
-        .footer a:hover {{ color: #818cf8; text-decoration: underline; }}
+        .footer {{ margin-top: 60px; text-align: center; color: var(--text-dim); font-size: 13px; font-weight: 500; }}
+        .footer a {{ color: var(--accent); text-decoration: none; transition: color 0.2s; }}
+        .footer a:hover {{ color: var(--accent-hover); text-decoration: underline; }}
     </style>
 </head>
 <body>
     <div class="container">
+        <div class="portal-top-bar">
+{THEME_SWITCHER_HTML}
+        </div>
         <div class="header">
             <h1>🌐 Network Workspaces</h1>
             <p>Master Navigation Portal for Data Extractor Analytics</p>
@@ -176,6 +183,9 @@ def generate_root_portal(outbase):
             Check for updates and new versions on <a href="https://github.com/flashbsb/network-data-extractor" target="_blank">GitHub</a>
         </div>
     </div>
+    <script>
+{THEME_SCRIPT_JS}
+    </script>
 </body>
 </html>
 """

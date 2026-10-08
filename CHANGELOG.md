@@ -2,6 +2,31 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.89.0] - 2026-10-08
+### Added
+- **Universal Visual Theme Architecture (`core/theme_system.py`)**:
+  - Implemented multi-theme design token system supporting **Dark (NOC Default)**, **Light (Clean Enterprise / Day Mode)**, and **HighText (WCAG AAA High Contrast)** across all static HTML dashboards.
+  - Zero-FOUC (Flash of Unstyled Content) initialization via synchronous pre-render `<script>` in the document `<head>`.
+  - Accessible, pill-style floating theme switcher component (`🌙 Dark`, `☀️ Light`, `⚡ HighText`) integrated across all portal HUD headers.
+  - Multi-tab synchronization using browser `localStorage` (`ndx_theme` / `nde_theme`) and real-time cross-frame broadcast using `postMessage` for embedded `<iframe>` views.
+  - Automatic iframe context detection (`html.in-iframe` / `body.in-iframe`) that suppresses redundant theme switchers and portal links when pages are nested.
+
+### Fixed
+- **Theme Contrast & Text Readability**:
+  - Replaced hardcoded light hexadecimal colors (`#f8fafc`, `#94a3b8`, `#cbd5e1`, `color: white;`) with semantic CSS variables (`var(--text)`, `var(--text-dim)`, `var(--card-bg)`, etc.), eliminating unreadable white-on-white text in Light mode across root portal cards, metric tiles, and table headers.
+  - Added universal theme override rules ensuring high-contrast rendering for tags, badges, context menus, and status indicators.
+- **Inventory Theme Bleed & Persistence**:
+  - Removed hardcoded dark radial gradients and dark container backgrounds from `core/inventory_engine.py`, guaranteeing instant adaptation to Light and HighText themes.
+- **Drift Analyzer Layout & Sidebar Visibility (`core/diff_engine.py`)**:
+  - Resolved major layout displacement bug where an unclosed header `<div>` caused page contents (`#welcome`, `#compareOverlay`) to render as horizontal flex children shoved to the far right.
+  - Removed static `collapsed` class on desktop screens so historical snapshot list is immediately visible upon opening.
+- **Topology Viewer Styling (`core/topology_engine.py`)**:
+  - Replaced hardcoded dark canvas gradient with `var(--bg-dark)` and updated layout control buttons to use theme tokens.
+  - Made history sidebar open by default on desktop while preserving auto-collapse on mobile.
+- **Ping Matrix Portal Double Switcher & Template Unification**:
+  - Eliminated duplicate theme switchers in `/ping-matrix/index.html` by hiding nested iframe controls.
+  - Standardized `templates/ping-matrix/history.html` and `templates/ping-matrix/path.html` with the universal theme switcher and responsive `flex-wrap` HUD headers.
+
 ## [1.88.0] - 2026-10-07
 ### Added
 - **Enterprise Storage Layer & SQLite Persistence (`core/storage/`)**:

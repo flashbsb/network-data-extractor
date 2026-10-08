@@ -7,6 +7,18 @@
     <title>Ping Connectivity History - Swiss Cybernetic HUD</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;700;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
     <script src="chart.js"></script>
+    <script>
+        (function() {
+            try {
+                var t = localStorage.getItem('ndx_theme') || localStorage.getItem('nde_theme');
+                if (t === 'light' || t === 'hightext' || t === 'dark') {
+                    document.documentElement.setAttribute('data-theme', t);
+                } else {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                }
+            } catch(e) {}
+        })();
+    </script>
     <style>
         :root {
             --bg-darker: #020408;
@@ -25,6 +37,26 @@
             --color-action: #06b6d4;
             --font-display: 'Outfit', sans-serif;
             --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        :root[data-theme="light"] {
+            --bg-darker: #f8fafc;
+            --bg-dark: #f1f5f9;
+            --panel-bg: #ffffff;
+            --border-color: #cbd5e1;
+            --text-main: #0f172a;
+            --text-dim: #64748b;
+            --color-action: #0284c7;
+        }
+
+        :root[data-theme="hightext"] {
+            --bg-darker: #000000;
+            --bg-dark: #000000;
+            --panel-bg: #000000;
+            --border-color: #ffffff;
+            --text-main: #ffffff;
+            --text-dim: #ffff00;
+            --color-action: #ffff00;
         }
 
         * {
@@ -53,6 +85,62 @@
             border-bottom: 2px solid var(--border-color);
             padding-bottom: 15px;
             margin-bottom: 25px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        /* Standard Universal Theme Switcher */
+        .theme-switcher {
+            display: inline-flex;
+            align-items: center;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: 9999px;
+            padding: 3px;
+            gap: 2px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            flex-shrink: 0;
+        }
+        :root[data-theme="light"] .theme-switcher {
+            background: #e2e8f0;
+            border-color: #cbd5e1;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        :root[data-theme="hightext"] .theme-switcher {
+            background: #000000;
+            border: 2px solid #ffffff;
+        }
+        .theme-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-dim);
+            padding: 6px 12px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            font-family: inherit;
+        }
+        .theme-btn:hover {
+            color: var(--text-main);
+        }
+        .theme-btn.active {
+            background: var(--color-action);
+            color: #ffffff;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+        }
+        :root[data-theme="light"] .theme-btn.active {
+            background: #0284c7;
+            color: #ffffff;
+        }
+        :root[data-theme="hightext"] .theme-btn.active {
+            background: #facc15;
+            color: #000000;
         }
 
         .hud-title h1 {
@@ -543,7 +631,14 @@
             <h1>📡 p2p connectivity <span>history</span></h1>
             <p>Baseline Analysis, Anomalies, and Temporal Performance • Version 1.1 (Dynamic Load + Cache Busting)</p>
         </div>
-        <a class="back-portal" href="../index.html">← Network Portal</a>
+        <div class="header-actions" style="display: flex; align-items: center; gap: 15px; flex-shrink: 0;">
+            <div class="theme-switcher" id="themeSwitcher" role="group" aria-label="Theme Selector" title="Escolha o tema visual">
+                <button type="button" class="theme-btn" data-theme-val="dark" onclick="setAppTheme('dark')" aria-label="Dark Mode">🌙 Dark</button>
+                <button type="button" class="theme-btn" data-theme-val="light" onclick="setAppTheme('light')" aria-label="Light Mode">☀️ Light</button>
+                <button type="button" class="theme-btn" data-theme-val="hightext" onclick="setAppTheme('hightext')" aria-label="High Contrast">⚡ HighText</button>
+            </div>
+            <a class="back-portal" href="../index.html">← Network Portal</a>
+        </div>
     </div>
 
     <!-- Control Panel -->
@@ -1869,6 +1964,36 @@
                 selectLink(origin, dest);
             }
         };
+
+        function setAppTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            try { 
+                localStorage.setItem('ndx_theme', theme);
+                localStorage.setItem('nde_theme', theme);
+            } catch(e) {}
+            updateThemeButtons(theme);
+        }
+
+        function updateThemeButtons(theme) {
+            document.querySelectorAll('.theme-btn').forEach(btn => {
+                if (btn.getAttribute('data-theme-val') === theme) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+
+        window.addEventListener('storage', function(e) {
+            if ((e.key === 'ndx_theme' || e.key === 'nde_theme') && e.newValue) {
+                setAppTheme(e.newValue);
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const current = document.documentElement.getAttribute('data-theme') || localStorage.getItem('ndx_theme') || 'dark';
+            setAppTheme(current);
+        });
     </script>
 </body>
 </html>

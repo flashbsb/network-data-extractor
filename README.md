@@ -2,7 +2,7 @@
   <h1>🌐 Network Data Extractor</h1>
   <p><strong>The Ultimate Multivendor NOC Orchestrator & Autonomous Discovery Engine</strong></p>
   
-  ![Version](https://img.shields.io/badge/version-1.88.0-blue.svg)
+  ![Version](https://img.shields.io/badge/version-1.89.0-blue.svg)
   ![Python](https://img.shields.io/badge/python-3.8%2B-green.svg)
   [![Live Demo](https://img.shields.io/badge/Live_Demo-GitHub_Pages-0ea5e9?style=flat&logo=github)](https://flashbsb.github.io/network-data-extractor/)
 </div>
@@ -59,6 +59,7 @@ Beyond simple command execution, it acts as an **intelligence layer**—parsing 
 - **🗃️ Enterprise Storage Abstraction Layer (SAL)**: Decoupled three-mode persistence (`files_only`, `hybrid`, `db_only`) backed by zero-dependency SQLite with Write-Ahead Logging (`WAL`), compressed raw CLI blobs, and autonomous retention vacuuming.
 - **🧩 Universal Multivendor Parsing**: Regex-based "Blind Analyzer" bypasses human typos in descriptions to seamlessly map logical and physical topologies across different vendors.
 - **📊 Local-First Dashboards**: Generates High-Performance SPAs (Single Page Applications) embedded directly in HTML. Works 100% offline without CORS issues.
+- **🎨 Universal Visual Theming System**: Seamless one-click switching between **Dark (NOC Obsidian)**, **Light (Clean Enterprise / Day Mode)**, and **HighText (WCAG AAA High Contrast)** across all dashboards, with zero-FOUC pre-render initialization, cross-tab synchronization, and full iframe support.
 - **🔍 Network Drift Analysis**: Instantly compares historical snapshots to detect port status changes, bandwidth variations, and missing links.
 - **🛡️ Selective ICMP Diagnostics (Ping Matrix)**: Architecture-aware rules engine (`mode: "selective"`) filters out non-routable cross-tier pings before SSH execution, reducing ICMP load by up to ~80% (including optimized metro-to-edge rules and `:same_site` scoping). Includes dynamic column pruning (`Hide Out-of-Scope 🚫`) in visual heatmaps.
 - **🩺 Pre-flight Dependency Diagnostics**: Proactively validates Python modules and system tools (`--check-deps`) prior to execution, halting with actionable guidance to prevent corrupted or interrupted runs.
