@@ -37,5 +37,12 @@
             "swti"
         ],
         "hostname_format": "simple"
+    },
+    "web_admin": {
+        "_help_web_admin": "Embedded administration portal and REST API parameters.",
+        "enabled": true,
+        "host": "127.0.0.1",
+        "port": 8080,
+        "session_ttl_hours": 4
     }
 }

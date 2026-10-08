@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Data Extractor - Admin & Operations Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        // Synchronous theme pre-init
+        (function() {
+            var saved = localStorage.getItem('ndx_theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', saved);
+        })();
+    </script>
+    <style>
+        :root {
+            --bg-dark: #090d16;
+            --bg-card: #0f172a;
+            --bg-card-hover: #1e293b;
+            --border: rgba(56, 189, 248, 0.18);
+            --border-hover: rgba(56, 189, 248, 0.45);
+            --text: #f8fafc;
+            --text-dim: #94a3b8;
+            --accent: #38bdf8;
+            --accent-glow: rgba(56, 189, 248, 0.25);
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --sidebar-w: 260px;
+        }
+
+        [data-theme="light"] {
+            --bg-dark: #f8fafc;
+            --bg-card: #ffffff;
+            --bg-card-hover: #f1f5f9;
+            --border: #cbd5e1;
+            --border-hover: #94a3b8;
+            --text: #0f172a;
+            --text-dim: #64748b;
+            --accent: #0284c7;
+            --accent-glow: rgba(2, 132, 199, 0.15);
+        }
+
+        [data-theme="hightext"] {
+            --bg-dark: #000000;
+            --bg-card: #050505;
+            --bg-card-hover: #111111;
+            --border: #ffffff;
+            --border-hover: #ffff00;
+            --text: #ffffff;
+            --text-dim: #e2e8f0;
+            --accent: #ffff00;
+            --accent-glow: rgba(255, 255, 0, 0.3);
+            --success: #00ff66;
+            --warning: #ffcc00;
+            --danger: #ff3333;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Top Bar */
+        .top-navbar {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+        }
+        .brand-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .brand-logo {
+            font-size: 1.35rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+        .badge-mode {
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 999px;
+            background: rgba(56, 189, 248, 0.15);
+            color: var(--accent);
+            border: 1px solid var(--border);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .user-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 12px;
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.8rem;
+        }
+        .role-tag {
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--success);
+        }
+
+        .btn-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text);
+        }
+        .btn-action:hover {
+            border-color: var(--accent);
+            background: var(--bg-card-hover);
+        }
+        .btn-primary {
+            background: var(--accent);
+            color: #090d16;
+            border-color: var(--accent);
+        }
+        .btn-primary:hover {
+            filter: brightness(1.1);
+        }
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--danger);
+            border-color: rgba(239, 68, 68, 0.4);
+        }
+
+        /* Tabs Nav */
+        .tabs-header {
+            display: flex;
+            gap: 4px;
+            background: var(--bg-card);
+            padding: 0 24px;
+            border-bottom: 1px solid var(--border);
+        }
+        .tab-btn {
+            padding: 12px 18px;
+            border: none;
+            background: transparent;
+            color: var(--text-dim);
+            font-family: inherit;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: color 0.2s ease;
+        }
+        .tab-btn:hover { color: var(--text); }
+        .tab-btn.active {
+            color: var(--accent);
+        }
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--accent);
+        }
+
+        /* Container & Layout */
+        .main-content {
+            flex: 1;
+            padding: 24px;
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+        }
+        .tab-pane { display: none; }
+        .tab-pane.active { display: block; }
+
+        /* Metric Grid */
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .metric-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 20px;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+        .metric-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--border-hover);
+        }
+        .metric-title {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .metric-value {
+            font-size: 1.7rem;
+            font-weight: 800;
+            color: var(--accent);
+            line-height: 1.1;
+        }
+        .metric-subtitle {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            margin-top: 6px;
+        }
+
+        /* Cockpit Snapshot Selector Bar */
+        .cockpit-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 18px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .cockpit-select-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .cockpit-label {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+        .custom-select {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.85rem;
+            outline: none;
+            cursor: pointer;
+            min-width: 260px;
+        }
+        .custom-select:focus { border-color: var(--accent); }
+
+        /* Panel Card */
+        .panel-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            padding-bottom: 12px;
+        }
+        .panel-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Config Editor Layout */
+        .config-layout {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 16px;
+            min-height: 540px;
+        }
+        .config-list {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            overflow-y: auto;
+            max-height: 600px;
+        }
+        .config-item {
+            padding: 10px 14px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+        .config-item:hover { background: var(--bg-card-hover); }
+        .config-item.active {
+            background: rgba(56, 189, 248, 0.12);
+            border-left: 3px solid var(--accent);
+        }
+        .config-item-name { font-weight: 600; font-size: 0.85rem; font-family: 'JetBrains Mono', monospace; }
+        .config-item-desc { font-size: 0.72rem; color: var(--text-dim); margin-top: 2px; }
+
+        .editor-container {
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--bg-dark);
+        }
+        .editor-toolbar {
+            padding: 8px 14px;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .code-textarea {
+            width: 100%;
+            height: 520px;
+            background: transparent;
+            border: none;
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            padding: 14px;
+            resize: vertical;
+            outline: none;
+            white-space: pre;
+        }
+
+        /* Terminal Log Console */
+        .terminal-box {
+            background: #020617;
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            border-radius: 6px;
+            padding: 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+            color: #38bdf8;
+            max-height: 380px;
+            overflow-y: auto;
+            line-height: 1.6;
+        }
+
+        /* Tables */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.82rem;
+        }
+        .data-table th, .data-table td {
+            padding: 10px 14px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .data-table th {
+            color: var(--text-dim);
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+        .data-table tr:hover td {
+            background: var(--bg-card-hover);
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.75);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(8px);
+        }
+        .modal-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            width: 420px;
+            max-width: 90%;
+            padding: 24px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+        }
+
+        /* Forms */
+        .form-group { margin-bottom: 16px; }
+        .form-label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+        }
+        .form-input {
+            width: 100%;
+            padding: 9px 12px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-family: inherit;
+            font-size: 0.85rem;
+            outline: none;
+        }
+        .form-input:focus { border-color: var(--accent); }
+
+        .banner-demo {
+            background: rgba(245, 158, 11, 0.15);
+            border: 1px solid rgba(245, 158, 11, 0.4);
+            color: var(--warning);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Top Navigation Bar -->
+    <header class="top-navbar">
+        <div class="brand-container">
+            <a href="/" class="brand-logo" title="Back to Root Portal">
+                <span>🌐</span> NDX <span>Ops Portal</span>
+            </a>
+            <span class="badge-mode" id="envBadge">API Mode</span>
+        </div>
+        <div class="header-actions">
+            <div class="user-pill" id="userPill" style="display:none;">
+                <span id="navUsername">admin</span>
+                <span class="role-tag" id="navRole">SuperAdmin</span>
+            </div>
+            <button class="btn-action" onclick="toggleTheme()" id="themeBtn" title="Cycle Theme">🌙 Dark</button>
+            <a href="/" class="btn-action" title="Open Public NOC Portal">🌐 Root Portal</a>
+            <button class="btn-action btn-danger" id="logoutBtn" style="display:none;" onclick="handleLogout()">🚪 Logout</button>
+        </div>
+    </header>
+
+    <!-- Main Tabs -->
+    <nav class="tabs-header" id="tabsHeader" style="display:none;">
+        <button class="tab-btn active" onclick="switchTab('cockpit')">📊 Executive Cockpit</button>
+        <button class="tab-btn" onclick="switchTab('config')">⚙️ Configuration Manager</button>
+        <button class="tab-btn" onclick="switchTab('cron')">🕒 Cron Telemetry</button>
+        <button class="tab-btn" id="tabUsersBtn" onclick="switchTab('users')">👥 Access Control</button>
+        <button class="tab-btn" onclick="switchTab('reports')">📥 Reports & Data</button>
+    </nav>
+
+    <!-- Demo Banner -->
+    <div class="main-content" style="padding-bottom:0;">
+        <div class="banner-demo" id="demoBanner" style="display:none;">
+            <span>🔒</span>
+            <strong>Public Showcase Demo Mode:</strong> Operational features and modifications are simulated in a read-only browser sandbox without modifying disk files.
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+
+        <!-- TAB 1: EXECUTIVE COCKPIT & RUN SUMMARY -->
+        <section class="tab-pane active" id="pane-cockpit">
+            <!-- Global Metrics Overview -->
+            <div class="metric-grid">
+                <div class="metric-card">
+                    <div class="metric-title">Snapshot Collections <span>📦</span></div>
+                    <div class="metric-value" id="metricTotalRuns">-</div>
+                    <div class="metric-subtitle">Historical Runs available</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Active Network Elements <span>🧭</span></div>
+                    <div class="metric-value" id="metricActiveNodes" style="color:var(--success);">-</div>
+                    <div class="metric-subtitle">Discovered in network</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Storage Consumption <span>💾</span></div>
+                    <div class="metric-value" id="metricStorageMb">- MB</div>
+                    <div class="metric-subtitle" id="metricStorageDetails">Disk & SQLite telemetry</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Cron Job Schedule <span>🕒</span></div>
+                    <div class="metric-value" id="metricCronPill" style="font-size:1.1rem; padding-top:6px;">CHECKING...</div>
+                    <div class="metric-subtitle" id="metricCronSubtitle">Automated collection health</div>
+                </div>
+            </div>
+
+            <!-- Historical Snapshot Selector Bar -->
+            <div class="cockpit-bar">
+                <div class="cockpit-select-group">
+                    <span class="cockpit-label">Selected Snapshot:</span>
+                    <select class="custom-select" id="snapshotSelect" onchange="loadSnapshotTelemetry(this.value)">
+                        <option value="">Loading historical collections...</option>
+                    </select>
+                </div>
+                <div style="display:flex; gap:8px;" id="runDashboardsGroup">
+                    <button class="btn-action" onclick="openRunDashboard('inventory')">📦 Inventory</button>
+                    <button class="btn-action" onclick="openRunDashboard('diff')">⚖️ Drift Diff</button>
+                    <button class="btn-action" onclick="openRunDashboard('topology')">🕸️ Topology</button>
+                    <button class="btn-action" onclick="openRunDashboard('ping-matrix')">⚡ Ping Matrix</button>
+                </div>
+            </div>
+
+            <!-- Run Detailed Telemetry Tiles -->
+            <div class="metric-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+                <!-- Tile 1: Element SSH Connectivity -->
+                <div class="metric-card">
+                    <div class="metric-title">SSH Collection Success <span>🔑</span></div>
+                    <div style="display:flex; align-items:baseline; gap:8px; margin-top:6px;">
+                        <span class="metric-value" id="runOkCount" style="color:var(--success);">0</span>
+                        <span style="color:var(--text-dim); font-size:0.9rem;">/ <span id="runTotalElements">0</span> elements OK</span>
+                    </div>
+                    <div class="metric-subtitle" style="display:flex; justify-content:space-between; margin-top:8px;">
+                        <span>Timeouts: <b id="runTimeoutCount" style="color:var(--warning);">0</b></span>
+                        <span>Auth Failures: <b id="runAuthFailCount" style="color:var(--danger);">0</b></span>
+                    </div>
+                </div>
+
+                <!-- Tile 2: Ping SLA Diagnostics -->
+                <div class="metric-card">
+                    <div class="metric-title">ICMP Matrix Health <span>⚡</span></div>
+                    <div style="display:flex; align-items:baseline; gap:8px; margin-top:6px;">
+                        <span class="metric-value" id="runPingHealthy" style="color:var(--success);">0</span>
+                        <span style="color:var(--text-dim); font-size:0.9rem;">/ <span id="runPingTotal">0</span> tests healthy</span>
+                    </div>
+                    <div class="metric-subtitle" style="display:flex; justify-content:space-between; margin-top:8px;">
+                        <span>Dead/Unreachable: <b id="runPingDead" style="color:var(--danger);">0</b></span>
+                        <span>Avg Latency: <b id="runAvgLatency" style="color:var(--accent);">- ms</b></span>
+                    </div>
+                </div>
+
+                <!-- Tile 3: Topology & Interface Census -->
+                <div class="metric-card">
+                    <div class="metric-title">Interfaces & Adjacencies <span>🔌</span></div>
+                    <div style="display:flex; align-items:baseline; gap:8px; margin-top:6px;">
+                        <span class="metric-value" id="runIntUp" style="color:var(--accent);">0</span>
+                        <span style="color:var(--text-dim); font-size:0.9rem;">Up (<span id="runIntTotal">0</span> total ports)</span>
+                    </div>
+                    <div class="metric-subtitle" style="display:flex; justify-content:space-between; margin-top:8px;">
+                        <span>Active Links: <b id="runTotalLinks" style="color:var(--text);">0</b></span>
+                        <span>LLDP Mismatches: <b id="runLldpMismatches" style="color:var(--warning);">0</b></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Elements Status Drilldown Table -->
+            <div class="panel-card">
+                <div class="panel-header">
+                    <div class="panel-title"><span>📋</span> Target Element Collection Status</div>
+                    <span style="font-size:0.75rem; color:var(--text-dim);" id="tableSubtitle">Snapshot targets</span>
+                </div>
+                <div style="max-height: 280px; overflow-y: auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Element Hostname</th>
+                                <th>Status</th>
+                                <th>Error / Error Diagnostics</th>
+                            </tr>
+                        </thead>
+                        <tbody id="elementsTableBody">
+                            <tr><td colspan="3" style="text-align:center; color:var(--text-dim);">Select a snapshot to inspect node connectivity details.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: CONFIGURATION MANAGER -->
+        <section class="tab-pane" id="pane-config">
+            <div class="config-layout">
+                <!-- Sidebar File List -->
+                <div class="config-list" id="configListContainer">
+                    <div style="padding:14px; text-align:center; color:var(--text-dim);">Loading configs...</div>
+                </div>
+
+                <!-- Editor Surface -->
+                <div class="editor-container">
+                    <div class="editor-toolbar">
+                        <div>
+                            <span style="font-family:'JetBrains Mono',monospace; font-weight:700; color:var(--accent);" id="activeConfigName">-</span>
+                            <span style="font-size:0.72rem; color:var(--text-dim); margin-left:8px;" id="activeConfigBadge">READ-ONLY</span>
+                        </div>
+                        <div style="display:flex; gap:8px;">
+                            <button class="btn-action" onclick="reloadActiveConfig()">🔄 Discard Changes</button>
+                            <button class="btn-action btn-primary" id="saveConfigBtn" onclick="handleSaveConfig()">💾 Save & Apply</button>
+                        </div>
+                    </div>
+                    <textarea class="code-textarea" id="configEditorTextarea" spellcheck="false" placeholder="Select a configuration file on the left to inspect or edit..."></textarea>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: CRON & JOB TELEMETRY -->
+        <section class="tab-pane" id="pane-cron">
+            <div class="panel-card">
+                <div class="panel-header">
+                    <div class="panel-title"><span>🕒</span> Automated Cron Job Monitor</div>
+                    <span class="badge-mode" id="cronStatusBadge">HEALTHY</span>
+                </div>
+                <div class="metric-grid" style="margin-bottom:16px;">
+                    <div class="metric-card">
+                        <div class="metric-title">Last Cron Execution</div>
+                        <div class="metric-value" id="cronLastTimestamp" style="font-size:1.1rem; color:var(--text);">-</div>
+                        <div class="metric-subtitle" id="cronHoursAgo">-</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-title">Schedule Status</div>
+                        <div class="metric-value" id="cronSchedulePill" style="font-size:1.1rem; color:var(--success);">ON SCHEDULE</div>
+                        <div class="metric-subtitle">Bi-weekly cadence (Mon, Fri)</div>
+                    </div>
+                </div>
+                <div style="font-size:0.75rem; color:var(--text-dim); margin-bottom:8px; font-weight:700; text-transform:uppercase;">Execution Log Output (Last 15 lines):</div>
+                <div class="terminal-box" id="cronLogTerminal">
+                    Loading cron logs...
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: ACCESS CONTROL (RBAC) -->
+        <section class="tab-pane" id="pane-users">
+            <div class="panel-card">
+                <div class="panel-header">
+                    <div class="panel-title"><span>👥</span> User Credentials & Role-Based Access Control</div>
+                    <button class="btn-action btn-primary" onclick="openCreateUserModal()">➕ New User</button>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Role</th>
+                            <th>Description</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <tr><td colspan="4" style="text-align:center; color:var(--text-dim);">Loading accounts...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- TAB 5: REPORTS & DATA -->
+        <section class="tab-pane" id="pane-reports">
+            <div class="panel-card">
+                <div class="panel-header">
+                    <div class="panel-title"><span>📥</span> Report Exporter & Analytics Datasets</div>
+                </div>
+                <p style="font-size:0.85rem; color:var(--text-dim); margin-bottom:16px;">
+                    Export consolidated network metrics and raw CSV/JSON dumps for the currently selected snapshot.
+                </p>
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; border:1px solid var(--border); border-radius:6px; background:var(--bg-dark);">
+                        <div>
+                            <div style="font-weight:600; font-size:0.9rem;">Element Connectivity Status (status.elements.csv)</div>
+                            <div style="font-size:0.75rem; color:var(--text-dim);">Contains target status, connection durations, and error descriptions.</div>
+                        </div>
+                        <button class="btn-action" onclick="downloadReport('status_elements')">⬇️ Download CSV</button>
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; border:1px solid var(--border); border-radius:6px; background:var(--bg-dark);">
+                        <div>
+                            <div style="font-weight:600; font-size:0.9rem;">Interface Operational Status (interfaces_all.csv)</div>
+                            <div style="font-size:0.75rem; color:var(--text-dim);">Full physical & logical interface census with speed, protocol and admin states.</div>
+                        </div>
+                        <button class="btn-action" onclick="downloadReport('interfaces')">⬇️ Download CSV</button>
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; border:1px solid var(--border); border-radius:6px; background:var(--bg-dark);">
+                        <div>
+                            <div style="font-weight:600; font-size:0.9rem;">Ping Matrix SLA Telemetry (ping_matrix_list.json)</div>
+                            <div style="font-size:0.75rem; color:var(--text-dim);">Bidirectional ICMP reachability, min/avg/max latency, jitter and loss stats.</div>
+                        </div>
+                        <button class="btn-action" onclick="downloadReport('ping_matrix')">⬇️ Download JSON</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Modal: Login -->
+    <div class="modal-overlay" id="loginModal">
+        <div class="modal-card">
+            <h2 style="font-size:1.3rem; margin-bottom:8px; color:var(--accent);">🔐 Ops Authentication</h2>
+            <p style="font-size:0.8rem; color:var(--text-dim); margin-bottom:18px;">
+                Enter your credentials to access the administration and operational cockpit.
+            </p>
+            <div id="loginError" style="display:none; color:var(--danger); font-size:0.8rem; margin-bottom:12px;"></div>
+            <form id="loginForm" onsubmit="handleLoginSubmit(event)">
+                <div class="form-group">
+                    <label class="form-label">Username</label>
+                    <input type="text" class="form-input" id="loginUser" required autocomplete="username" placeholder="e.g. admin">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <input type="password" class="form-input" id="loginPass" required autocomplete="current-password" placeholder="••••••••">
+                </div>
+                <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px;">
+                    <button type="submit" class="btn-action btn-primary" style="width:100%; justify-content:center;">Unlock Ops Portal</button>
+                </div>
+                <div style="font-size:0.72rem; color:var(--text-dim); text-align:center; margin-top:12px;" id="loginHint">
+                    Demo Showcase credentials: <b>admin</b> / <b>admin</b>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Create User -->
+    <div class="modal-overlay" id="createUserModal">
+        <div class="modal-card">
+            <h2 style="font-size:1.2rem; margin-bottom:8px; color:var(--accent);">➕ Add Ops Account</h2>
+            <form onsubmit="handleCreateUserSubmit(event)">
+                <div class="form-group">
+                    <label class="form-label">Username</label>
+                    <input type="text" class="form-input" id="newUsername" required minlength="3" placeholder="e.g. jdoe">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Initial Password</label>
+                    <input type="password" class="form-input" id="newPassword" required minlength="4" placeholder="••••••••">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Assigned Role</label>
+                    <select class="custom-select" id="newRole" style="width:100%;">
+                        <option value="Operator">Operator (View Only)</option>
+                        <option value="NetOps">NetOps (Can edit .cfg and network.json)</option>
+                        <option value="SuperAdmin">SuperAdmin (Full Control)</option>
+                        <option value="Auditor">Auditor (Metrics & Reports)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description / Purpose</label>
+                    <input type="text" class="form-input" id="newDesc" placeholder="e.g. Senior Network Specialist">
+                </div>
+                <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px;">
+                    <button type="button" class="btn-action" onclick="closeCreateUserModal()">Cancel</button>
+                    <button type="submit" class="btn-action btn-primary">Create User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Client Logic Adapter -->
+    <script src="admin_adapter.js"></script>
+    <script>
+        const api = new AdminAPIAdapter();
+        let currentSnapshot = '';
+        let activeConfigFile = '';
+
+        // --- Theme Switcher ---
+        function toggleTheme() {
+            const current = document.documentElement.getAttribute('data-theme') || 'dark';
+            const next = current === 'dark' ? 'light' : (current === 'light' ? 'hightext' : 'dark');
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('ndx_theme', next);
+            const btn = document.getElementById('themeBtn');
+            btn.innerText = next === 'dark' ? '🌙 Dark' : (next === 'light' ? '☀️ Light' : '⚡ HighText');
+        }
+
+        // --- Tab Switching ---
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            
+            const pane = document.getElementById(`pane-${tabId}`);
+            if (pane) pane.classList.add('active');
+
+            const btn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick').includes(tabId));
+            if (btn) btn.classList.add('active');
+
+            if (tabId === 'config') loadConfigsList();
+            if (tabId === 'cron') loadCronTelemetry();
+            if (tabId === 'users') loadUsersList();
+        }
+
+        // --- Authentication Flow ---
+        async function checkAuth() {
+            if (api.isDemoMode) {
+                document.getElementById('envBadge').innerText = 'Demo Showcase';
+                document.getElementById('envBadge').style.borderColor = 'var(--warning)';
+                document.getElementById('envBadge').style.color = 'var(--warning)';
+                document.getElementById('demoBanner').style.display = 'flex';
+            } else {
+                document.getElementById('envBadge').innerText = 'Live API';
+            }
+
+            const status = await api.getAuthStatus();
+            if (!status.authenticated) {
+                document.getElementById('loginModal').style.display = 'flex';
+            } else {
+                setupAuthenticatedUI(status.user);
+            }
+        }
+
+        function setupAuthenticatedUI(user) {
+            document.getElementById('loginModal').style.display = 'none';
+            document.getElementById('tabsHeader').style.display = 'flex';
+            document.getElementById('userPill').style.display = 'flex';
+            document.getElementById('logoutBtn').style.display = 'inline-flex';
+            
+            document.getElementById('navUsername').innerText = user.username;
+            document.getElementById('navRole').innerText = user.role;
+
+            // Hide users tab if not SuperAdmin
+            if (user.role !== 'SuperAdmin') {
+                const uTab = document.getElementById('tabUsersBtn');
+                if (uTab) uTab.style.display = 'none';
+            }
+
+            // Load initial cockpit data
+            loadExecutiveSummary();
+        }
+
+        async function handleLoginSubmit(e) {
+            e.preventDefault();
+            const u = document.getElementById('loginUser').value.trim();
+            const p = document.getElementById('loginPass').value;
+            const res = await api.login(u, p);
+            if (res.success) {
+                setupAuthenticatedUI(res);
+            } else {
+                const errBox = document.getElementById('loginError');
+                errBox.innerText = res.message || 'Login failed';
+                errBox.style.display = 'block';
+            }
+        }
+
+        async function handleLogout() {
+            await api.logout();
+            window.location.reload();
+        }
+
+        // --- Executive Cockpit Logic ---
+        async function loadExecutiveSummary() {
+            try {
+                const summary = await api.getSystemSummary();
+                document.getElementById('metricTotalRuns').innerText = summary.total_runs;
+                document.getElementById('metricActiveNodes').innerText = summary.active_elements_count;
+                document.getElementById('metricStorageMb').innerText = `${summary.storage.total_mb} MB`;
+                document.getElementById('metricStorageDetails').innerText = `Disk: ${summary.storage.disk_mb}MB | DB: ${summary.storage.database_mb}MB`;
+
+                // Cron Status Pill
+                const cp = document.getElementById('metricCronPill');
+                if (summary.cron.status === 'HEALTHY') {
+                    cp.innerHTML = `<span style="color:var(--success);">🟢 ON SCHEDULE</span>`;
+                } else if (summary.cron.status === 'DELAYED') {
+                    cp.innerHTML = `<span style="color:var(--warning);">🟡 DELAYED</span>`;
+                } else {
+                    cp.innerHTML = `<span style="color:var(--danger);">🔴 ${summary.cron.status}</span>`;
+                }
+                document.getElementById('metricCronSubtitle').innerText = summary.cron.last_run_timestamp ? `Last: ${summary.cron.last_run_timestamp}` : 'No execution logged';
+
+                // Load Runs Dropdown
+                const runs = await api.listRuns();
+                const sel = document.getElementById('snapshotSelect');
+                sel.innerHTML = runs.map(r => `<option value="${r.id}">${r.formatted_date} (${r.node_count} nodes)</option>`).join('');
+
+                if (runs.length > 0) {
+                    currentSnapshot = runs[0].id;
+                    loadSnapshotTelemetry(currentSnapshot);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function loadSnapshotTelemetry(runId) {
+            if (!runId) return;
+            currentSnapshot = runId;
+            try {
+                const tel = await api.getRunSummary(runId);
+                
+                // Elements health
+                const elH = tel.elements_health;
+                document.getElementById('runTotalElements').innerText = elH.total;
+                document.getElementById('runOkCount').innerText = elH.counts.ok;
+                document.getElementById('runTimeoutCount').innerText = elH.counts.timeout;
+                document.getElementById('runAuthFailCount').innerText = elH.counts.auth_fail;
+
+                // Ping health
+                const p = tel.ping_health;
+                document.getElementById('runPingTotal').innerText = p.total;
+                document.getElementById('runPingHealthy').innerText = p.healthy;
+                document.getElementById('runPingDead').innerText = p.dead;
+                document.getElementById('runAvgLatency').innerText = `${p.avg_latency_ms} ms`;
+
+                // Topology & Interfaces
+                const top = tel.topology_health;
+                document.getElementById('runIntTotal').innerText = top.total_interfaces;
+                document.getElementById('runIntUp').innerText = top.interfaces_up;
+                document.getElementById('runTotalLinks').innerText = top.total_links;
+                document.getElementById('runLldpMismatches').innerText = top.lldp_mismatches;
+
+                // Render elements table
+                const tbody = document.getElementById('elementsTableBody');
+                if (!elH.elements || elH.elements.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--text-dim);">No elements logged for this snapshot.</td></tr>`;
+                } else {
+                    tbody.innerHTML = elH.elements.map(el => {
+                        const isOk = el.status === 'ok';
+                        const badge = isOk 
+                            ? `<span style="color:var(--success); font-weight:700;">OK</span>` 
+                            : `<span style="color:var(--danger); font-weight:700;">${el.status.toUpperCase()}</span>`;
+                        return `
+                            <tr>
+                                <td style="font-family:'JetBrains Mono',monospace; font-weight:600;">${el.element}</td>
+                                <td>${badge}</td>
+                                <td style="color:${isOk ? 'var(--text-dim)' : 'var(--danger)'};">${el.error || '-'}</td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function openRunDashboard(type) {
+            if (!currentSnapshot) return;
+            let url = '';
+            if (api.isDemoMode) {
+                url = `../${type}/index.html`;
+            } else {
+                url = `/${type}/index.html`;
+            }
+            window.open(url, '_blank');
+        }
+
+        // --- Config Manager Logic ---
+        async function loadConfigsList() {
+            const configs = await api.listConfigs();
+            const listEl = document.getElementById('configListContainer');
+            listEl.innerHTML = configs.map(c => `
+                <div class="config-item ${c.filename === activeConfigFile ? 'active' : ''}" onclick="selectConfig('${c.filename}', ${c.can_edit})">
+                    <div class="config-item-name">${c.filename}</div>
+                    <div class="config-item-desc">${c.description}</div>
+                </div>
+            `).join('');
+
+            if (!activeConfigFile && configs.length > 0) {
+                selectConfig(configs[0].filename, configs[0].can_edit);
+            }
+        }
+
+        async function selectConfig(filename, canEdit) {
+            activeConfigFile = filename;
+            loadConfigsList(); // refresh active highlight
+            document.getElementById('activeConfigName').innerText = filename;
+            document.getElementById('activeConfigBadge').innerText = canEdit ? 'EDITABLE' : 'READ-ONLY';
+            document.getElementById('saveConfigBtn').style.display = canEdit ? 'inline-flex' : 'none';
+
+            const res = await api.readConfig(filename);
+            document.getElementById('configEditorTextarea').value = res.content || '';
+        }
+
+        async function reloadActiveConfig() {
+            if (activeConfigFile) selectConfig(activeConfigFile, true);
+        }
+
+        async function handleSaveConfig() {
+            if (!activeConfigFile) return;
+            const content = document.getElementById('configEditorTextarea').value;
+            try {
+                const res = await api.saveConfig(activeConfigFile, content);
+                alert(res.message || 'Config saved successfully!');
+            } catch (err) {
+                alert(`Error saving configuration: ${err.message}`);
+            }
+        }
+
+        // --- Cron Telemetry ---
+        async function loadCronTelemetry() {
+            const summary = await api.getSystemSummary();
+            const cron = summary.cron;
+            document.getElementById('cronStatusBadge').innerText = cron.status;
+            document.getElementById('cronLastTimestamp').innerText = cron.last_run_timestamp || 'N/A';
+            document.getElementById('cronHoursAgo').innerText = cron.hours_since_last_run !== null ? `${cron.hours_since_last_run} hours ago` : 'Unknown';
+
+            const term = document.getElementById('cronLogTerminal');
+            if (cron.last_lines && cron.last_lines.length > 0) {
+                term.innerHTML = cron.last_lines.map(l => `<div>${l}</div>`).join('');
+            } else {
+                term.innerText = 'No logs available in cron_execution.log';
+            }
+        }
+
+        // --- User Management (RBAC) ---
+        async function loadUsersList() {
+            const res = await api.listUsers();
+            const tbody = document.getElementById('usersTableBody');
+            tbody.innerHTML = res.users.map(u => `
+                <tr>
+                    <td style="font-weight:700;">${u.username}</td>
+                    <td><span class="role-tag">${u.role}</span></td>
+                    <td style="color:var(--text-dim);">${u.description || '-'}</td>
+                    <td>
+                        ${u.username !== 'admin' ? `<button class="btn-action btn-danger" style="padding:2px 8px; font-size:0.7rem;" onclick="handleDeleteUser('${u.username}')">Delete</button>` : '<span style="color:var(--text-dim); font-size:0.75rem;">Protected</span>'}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function openCreateUserModal() { document.getElementById('createUserModal').style.display = 'flex'; }
+        function closeCreateUserModal() { document.getElementById('createUserModal').style.display = 'none'; }
+
+        async function handleCreateUserSubmit(e) {
+            e.preventDefault();
+            const username = document.getElementById('newUsername').value.trim();
+            const password = document.getElementById('newPassword').value;
+            const role = document.getElementById('newRole').value;
+            const description = document.getElementById('newDesc').value;
+
+            try {
+                const res = await api.createUser({ username, password, role, description });
+                alert(res.message || 'User created');
+                closeCreateUserModal();
+                loadUsersList();
+            } catch (err) {
+                alert(`Failed to create user: ${err.message}`);
+            }
+        }
+
+        async function handleDeleteUser(username) {
+            if (!confirm(`Are you sure you want to delete user '${username}'?`)) return;
+            try {
+                await api.deleteUser(username);
+                loadUsersList();
+            } catch (err) {
+                alert(`Error deleting user: ${err.message}`);
+            }
+        }
+
+        // --- Report Download ---
+        function downloadReport(type) {
+            if (!currentSnapshot) { alert('Please select a snapshot first'); return; }
+            if (api.isDemoMode) {
+                alert(`[Demo Mode] Report download for ${type} in snapshot ${currentSnapshot} simulated.`);
+                return;
+            }
+            window.location.href = `/api/v1/reports/download/${currentSnapshot}/${type}`;
+        }
+
+        // Run bootstrap on DOM ready
+        document.addEventListener('DOMContentLoaded', checkAuth);
+    </script>
+</body>
+</html>

@@ -41,6 +41,8 @@ Thumbs.db
 *.pem
 .env
 *.log
+config/users.json
+**/users.json
 
 # Database & SQLite Artifacts (Blindagem contra vazamento no Git)
 *.db

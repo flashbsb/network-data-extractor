@@ -16,6 +16,21 @@ def generate_root_portal(outbase):
     has_diff = os.path.isfile(diff_path)
     has_ping = os.path.isfile(ping_path)
     has_topo = os.path.isfile(topo_path)
+
+    # Sync web/admin to outbase/admin if available
+    repo_admin_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web", "admin")
+    outbase_admin_dir = os.path.join(abs_outbase, "admin")
+    if os.path.isdir(repo_admin_dir):
+        os.makedirs(outbase_admin_dir, exist_ok=True)
+        import shutil
+        for fname in os.listdir(repo_admin_dir):
+            src_f = os.path.join(repo_admin_dir, fname)
+            dst_f = os.path.join(outbase_admin_dir, fname)
+            if os.path.isfile(src_f):
+                shutil.copy2(src_f, dst_f)
+
+    admin_path = os.path.join(outbase_admin_dir, "index.html")
+    has_admin = os.path.isfile(admin_path)
     
     # Setup template variables
     inv_href = 'href="inventory/index.html"' if has_inv else ''
@@ -35,6 +50,12 @@ def generate_root_portal(outbase):
     topo_status_class = 'avail' if has_topo else 'unavail'
     topo_status_text = '🟢 AVAILABLE' if has_topo else '🔴 UNAVAILABLE'
     topo_hint = '' if has_topo else '<span class="cmd-hint">Run with --topology</span>'
+
+    admin_href = 'href="admin/index.html"' if has_admin else ''
+    admin_class = 'active' if has_admin else 'disabled'
+    admin_status_class = 'avail' if has_admin else 'unavail'
+    admin_status_text = '🟢 AVAILABLE' if has_admin else '🔴 UNAVAILABLE'
+    admin_hint = '' if has_admin else '<span class="cmd-hint">Run with --serve</span>'
     
     ping_heatmaps_href = 'href="ping-matrix/index.html"' if has_ping else ''
     ping_history_href = 'href="ping-matrix/history.html"' if has_ping else ''
@@ -176,6 +197,15 @@ def generate_root_portal(outbase):
                 <div class="desc">Interactive Draw.io topology diagrams. Visualize network elements, connections, and layouts (Circular, Geographic, Organic, Hierarchical) over time.</div>
                 <div class="status {topo_status_class}">{topo_status_text}</div>
                 {topo_hint}
+            </a>
+
+            <!-- ADMIN & OPERATIONS PORTAL -->
+            <a {admin_href} class="card {admin_class} admin" aria-label="Admin and Operations Portal">
+                <span class="icon">🛡️</span>
+                <div class="title">Admin & Operations</div>
+                <div class="desc">Executive cockpits, deep telemetry summaries, automated cron monitors, and granular role-based configuration editor.</div>
+                <div class="status {admin_status_class}">{admin_status_text}</div>
+                {admin_hint}
             </a>
         </div>
         

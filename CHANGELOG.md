@@ -2,6 +2,44 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.92.0] - 2026-10-08
+### Added
+- **Web Administration & Operations Portal (`--serve`, `web/admin/`, `core/web_server.py`)**:
+  - Embedded zero-dependency Python HTTP server (`http.server.ThreadingHTTPServer`) serving an interactive NOC Web Operations Portal.
+  - Activated via `--serve` CLI flag with configurable port (`--port 8080`), host binding (`--host 127.0.0.1` / `0.0.0.0`), and custom users file (`--users-file`).
+- **Cryptographic Authentication & RBAC Engine (`core/auth_manager.py`)**:
+  - PBKDF2-HMAC-SHA256 password hashing (100,000 rounds, 16-byte cryptographically secure random salt).
+  - Timing-attack mitigation via `secrets.compare_digest`.
+  - Secure session token management with sliding 4-hour TTL, HttpOnly SameSite=Lax session cookies, and mandatory CSRF token validation (`X-CSRF-Token`) on all mutating endpoints.
+  - 4-Tier Granular Role-Based Access Control (RBAC):
+    - `SuperAdmin`: Unrestricted full access to all configurations, user management, and system operations.
+    - `NetOps`: Read/write access to network `.cfg` macros and `network.json`; read-only for system configs; cannot manage users.
+    - `Operator`: Read-only operational visibility across all system and network configurations.
+    - `Auditor`: Restricted strictly to telemetry dashboards, run summaries, and report downloads.
+  - Last-admin deletion and demotion safeguard to prevent accidental lockouts.
+  - Automatic initial credential bootstrapping (`admin` / `admin`) stored in `config/users.json` (chmod 0600, protected by `.gitignore`).
+- **Executive Cockpit & Interactive Historical Telemetry Dashboard (`web/admin/index.html`)**:
+  - Global Executive Cards: Total historical runs, earliest and latest execution timestamps, unique node inventory count, disk and SQLite database storage usage.
+  - **Dynamic Snapshot Selector (`[ 📅 Select Snapshot ▾ ]`)**:
+    - Switches deep telemetry context across any historical collection run without page reloads.
+    - Real-time SSH Connectivity telemetry: Success vs failure breakdown with interactive failure drawer/modal.
+    - ICMP SLA Sweep metrics: Active links count, packet loss, and latency SLA performance.
+    - Port & Interface telemetry: Operational state distribution (`Up` vs `Down`) and LLDP neighbor mismatch alert indicators.
+    - 1-Click Drilldown buttons jumping directly to specific run workspaces (`📦 Inventory`, `🔍 Drift`, `🗺️ Topology`, `⚡ Ping Matrix`).
+- **Cron Health & Execution Telemetry Inspector (`core/web_server.py`, `tools/production_cron_runner.sh`)**:
+  - Dynamic discovery and parsing of `cron_execution.log` across project and production directories.
+  - Evaluates elapsed hours since the last scheduled execution against the bi-weekly SLA threshold (> 96 hours marks `DELAYED`).
+  - Structured token parsing: recognizes `[STATUS: STARTING]`, `[STATUS: COMPLETED]`, and `[STATUS: FAILED]` to display real-time status badges (`HEALTHY`, `RUNNING`, `DELAYED`, `ERROR`) and the last 15 execution log lines.
+- **In-Browser Configuration Management (`web/admin/index.html`, `core/web_server.py`)**:
+  - Syntax-validated JSON configuration editor for domain configs (`extractor.json`, `ssh.json`, `network.json`, `ping.json`, `storage.json`, `settings.json`) preventing saving broken JSON.
+  - Network macro and inventory `.cfg` editor (`elements.cfg`, `commands.cfg`, `commands.icmp.cfg`) with automatic production directory prioritization (`../d-network-data-extractor/config/`) when pointing to external outbase.
+  - Strict path traversal isolation and filename extension whitelisting: `.env`, `users.json`, chaves SSH e diretórios fora do escopo são bloqueados com 403 Forbidden.
+- **Seamless Public Showcase Simulation Mode (`web/admin/admin_adapter.js`)**:
+  - Dual-mode client API adapter automatically detecting GitHub Pages (`github.io`) and static `file:///` viewing.
+  - Provides a safe sandbox simulation (`admin` / `admin` or `demo`) pre-loading all 10 demo snapshots, simulated config edits, and telemetry inspection without crashing or throwing HTTP errors.
+- **Root Portal Integration (`core/root_portal_engine.py`)**:
+  - Added the 5th top-level navigation card `🛡️ Admin & Operations` to `infos/index.html` and automated asset synchronization to `{outbase}/admin/`.
+
 ## [1.91.0] - 2026-10-08
 ### Added
 - **Modular Configuration Architecture (`config/*.json`, `core/utils_shared.py`)**:

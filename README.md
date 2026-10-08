@@ -405,6 +405,27 @@ python3 network-data-extractor.py --storage-mode hybrid  # Persist to filesystem
 python3 network-data-extractor.py --storage-mode db_only # Store exclusively in DB & reclaim raw text inodes
 ```
 
+### [I] Web Administration & Operations Portal (`--serve`)
+Launch an embedded, zero-dependency HTTP server (`http.server.ThreadingHTTPServer`) hosting the authenticated Web Administration and Operations Portal:
+```bash
+# 1. Launch with default settings (port 8080, local bind)
+python3 network-data-extractor.py --serve
+
+# 2. Launch pointing to production outbase and custom port
+python3 network-data-extractor.py --serve --port 8080 --outbase ../d-network-data-extractor/infos/bb
+
+# 3. Launch with remote access binding and custom users file
+python3 network-data-extractor.py --serve --host 0.0.0.0 --port 9090 --users-file config/users.json
+```
+
+#### Core Capabilities:
+* **Cryptographic Security & RBAC:** PBKDF2-HMAC-SHA256 credentials with sliding 4h session cookies (`HttpOnly; SameSite=Lax`) and strict CSRF tokens (`X-CSRF-Token`). Features 4 granular roles: `SuperAdmin`, `NetOps`, `Operator`, and `Auditor`.
+* **Default Credentials:** Initialized out-of-the-box with `admin` / `admin`. Passwords can be changed directly from the Web UI profile modal.
+* **Executive Telemetry Cockpit:** Deep snapshot selector (`[ 📅 Select Snapshot ▾ ]`) inspecting historical runs with real-time SSH success/failure stats, ICMP SLA metrics, interface up/down distribution, LLDP alerts, and 1-click drilldowns.
+* **Cron Health Inspector:** Live monitoring of scheduled runs (`cron_execution.log`) with elapsed run hours, schedule delay warnings (> 96h), and real-time structured status tokens (`HEALTHY`, `RUNNING`, `DELAYED`, `ERROR`).
+* **In-Browser Configuration Management:** Integrated JSON validator for system settings (`extractor.json`, etc.) and `.cfg` editor with automated production directory prioritization and strict path-traversal isolation.
+* **Zero-Crash Public Showcase Sandbox:** Full GitHub Pages client simulation via `web/admin/admin_adapter.js`.
+
 ---
 
 ## 🔗 Interactive Inter-Dashboard Navigation
@@ -423,7 +444,7 @@ flowchart LR
 %% ==========================================================
 %% STYLES (Cyber / NOC Theme)
 %% ==========================================================
-classDef root fill:#7C3AED,stroke:#5B21B6,stroke-width:2px,color:#fff,rx:8,ry:8
+classDef root fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff,rx:8,ry:8
 classDef workspace fill:#0F172A,stroke:#06B6D4,stroke-width:2px,color:#67E8F9,rx:6,ry:6
 classDef menu fill:#D97706,stroke:#78350F,stroke-width:2px,color:#fff,rx:12,ry:12
 classDef subview fill:#059669,stroke:#064E3B,stroke-width:2px,color:#fff,rx:6,ry:6
@@ -448,12 +469,15 @@ subgraph STEP2["📊 STEP 2: WORKSPACES"]
     (topology/index.html)"]:::workspace
     PM["⚡ Ping Matrix & Telemetry
     (ping-matrix/index.html)"]:::workspace
+    ADMIN["🛡️ Admin & Operations
+    (admin/index.html)"]:::workspace
 end
 
 ROOT -->|Select| INV
 ROOT -->|Select| DIFF
 ROOT -->|Select| TOPO
 ROOT -->|Select| PM
+ROOT -->|Select| ADMIN
 
 %% ==========================================================
 %% STEP 3: CONTEXT ENGINE (CENTERED)

@@ -39,6 +39,7 @@ C_GREEN  = '\033[92m'
 C_RED    = '\033[91m'
 C_CYAN   = '\033[96m'
 C_YELLOW = '\033[93m'
+C_BOLD   = '\033[1m'
 C_RESET  = '\033[0m'
 
 # --- PRE-FLIGHT SYSTEM DEPENDENCY CHECKER ---
@@ -479,7 +480,36 @@ group_demo = parser.add_argument_group("Mode G: Demo Showcase & Maintenance")
 group_demo.add_argument("--update-demo", action="store_true", help="Refresh web views in 'demo/' using tools/generate_demo_dataset.py --refresh-views")
 group_demo.add_argument("--rebuild-demo", action="store_true", help="Rebuild full synthetic demo dataset from scratch using tools/generate_demo_dataset.py --rebuild")
 
+group_server = parser.add_argument_group("Mode H: Web Administration & Operations Portal")
+group_server.add_argument("--serve", action="store_true", help="Start the embedded Web Administration & Operations Portal")
+group_server.add_argument("--port", type=int, default=8080, help="Port for the Web Administration Portal (default: 8080)")
+group_server.add_argument("--host", type=str, default="127.0.0.1", help="Host interface to bind Web Portal (default: 127.0.0.1)")
+group_server.add_argument("--users-file", type=str, default=None, help="Custom path to users credentials JSON file")
+
 args = parser.parse_args()
+
+# --- WEB SERVER SHORTCUT HOOK ---
+if getattr(args, "serve", False):
+    from core.web_server import NDXWebServer
+    bind_host = args.host
+    bind_port = args.port
+    print(f"\n{C_CYAN}============================================================{C_RESET}")
+    print(f"{C_BOLD}{C_GREEN}    🚀 NETWORK DATA EXTRACTOR - WEB ADMIN PORTAL            {C_RESET}")
+    print(f"{C_CYAN}============================================================{C_RESET}")
+    print(f"[*] Workspace Root   : {os.path.abspath(args.outbase)}")
+    print(f"[*] Portal URL       : {C_GREEN}http://{bind_host}:{bind_port}/admin/{C_RESET}")
+    print(f"[*] Root Dashboard   : {C_CYAN}http://{bind_host}:{bind_port}/{C_RESET}")
+    print(f"[*] Press {C_YELLOW}Ctrl+C{C_RESET} to gracefully stop the server.\n")
+
+    try:
+        httpd = NDXWebServer(outbase=args.outbase, host=bind_host, port=bind_port, users_file=args.users_file)
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        print(f"\n{C_YELLOW}[*] Shutting down Web Administration Portal...{C_RESET}")
+        sys.exit(0)
+    except Exception as e:
+        print(f"\n{C_RED}[!] Web Server Error: {e}{C_RESET}")
+        sys.exit(1)
 
 # --- DEMO SHOWCASE SHORTCUT HOOK ---
 if getattr(args, "update_demo", False) or getattr(args, "rebuild_demo", False):
