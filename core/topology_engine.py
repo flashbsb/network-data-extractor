@@ -381,6 +381,122 @@ class TopologyEngine:
         .drift-pill-removed { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171; }
         .drift-pill-stable { background: rgba(148, 163, 184, 0.15); border: 1px solid rgba(148, 163, 184, 0.3); color: #94a3b8; }
 
+        /* Phase 4 & 5: Path Tracing Toolbar, Summary Card & Context Menu */
+        .trace-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(15, 23, 42, 0.75);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 16px;
+            margin-bottom: 10px;
+            gap: 12px;
+            flex-wrap: wrap;
+            backdrop-filter: blur(10px);
+        }
+        .trace-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .trace-input {
+            background: var(--sidebar-bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-family: monospace;
+            outline: none;
+            width: 170px;
+            transition: border-color 0.2s;
+        }
+        .trace-input:focus { border-color: var(--accent); }
+        .trace-input::placeholder { color: var(--text-dim); }
+
+        .path-summary-card {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            z-index: 150;
+            background: rgba(15, 23, 42, 0.90);
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+            border-radius: 8px;
+            padding: 12px 16px;
+            min-width: 280px;
+            backdrop-filter: blur(12px);
+            pointer-events: auto;
+        }
+        .path-summary-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 6px;
+        }
+        .path-summary-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .path-summary-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            font-family: monospace;
+        }
+        .path-stat-box {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px 8px;
+            text-align: center;
+        }
+        .path-stat-val { font-size: 0.95rem; font-weight: 700; color: #38bdf8; }
+        .path-stat-lbl { font-size: 0.62rem; color: var(--text-dim); text-transform: uppercase; margin-top: 2px; }
+
+        .context-menu {
+            position: fixed;
+            z-index: 500;
+            background: var(--sidebar-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.65);
+            padding: 6px 0;
+            min-width: 195px;
+            font-size: 0.8rem;
+            backdrop-filter: blur(10px);
+        }
+        .context-menu-title {
+            padding: 6px 14px 4px 14px;
+            font-size: 0.7rem;
+            color: var(--accent);
+            font-weight: 700;
+            font-family: monospace;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 4px;
+        }
+        .context-menu-item {
+            padding: 7px 14px;
+            cursor: pointer;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.15s;
+        }
+        .context-menu-item:hover {
+            background: rgba(56, 189, 248, 0.15);
+            color: #38bdf8;
+        }
+        .context-menu-divider {
+            height: 1px;
+            background: var(--border);
+            margin: 4px 0;
+        }
+
         /* Graph Canvas Wrapper */
         .graph-wrapper { flex: 1; border: 1px solid var(--border); border-radius: 8px; background: var(--card-bg); overflow: hidden; position: relative; display: flex; min-height: 0; }
         #nativeGraphContainer { width: 100%; height: 100%; position: relative; }
@@ -556,6 +672,12 @@ class TopologyEngine:
                                 <button id="layoutOrganic" class="action-btn" onclick="switchNativeLayout('organic')">🌐 Organic</button>
                                 <button id="layoutSite" class="action-btn" onclick="switchNativeLayout('site')">🏢 By Site</button>
                             </div>
+                            <div class="btn-group">
+                                <span class="filter-label">Telemetry:</span>
+                                <button id="telemetryModeSpeed" class="action-btn active" onclick="switchTelemetryMode('speed')">⚡ Speed</button>
+                                <button id="telemetryModeLatency" class="action-btn" onclick="switchTelemetryMode('latency')">⏱️ Latency (RTT)</button>
+                                <button id="telemetryModeLoss" class="action-btn" onclick="switchTelemetryMode('loss')">📉 Loss</button>
+                            </div>
                         </div>
 
                         <div style="display: flex; gap: 8px; align-items: center;">
@@ -566,6 +688,28 @@ class TopologyEngine:
                             <button class="action-btn" id="theaterBtn" onclick="toggleTheaterMode()">🔲 Fullscreen</button>
                             <button class="action-btn" onclick="exportCurrentNativeTopology()" title="Export to Draw.io (.drawio)">📥 Export .drawio</button>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Phase 4: Path Tracing Toolbar -->
+                <div class="trace-toolbar" id="traceToolbar">
+                    <div class="trace-group">
+                        <span style="font-size:0.8rem; font-weight:700; color:var(--accent);">🛣️ PATH TRACE:</span>
+                        <label style="font-size:0.75rem; color:var(--text-dim);">Origin (A):</label>
+                        <input list="topologyNodeList" id="traceSourceInput" class="trace-input" placeholder="Type or select Origin..." oninput="onTraceInputChange()">
+                        <label style="font-size:0.75rem; color:var(--text-dim);">Target (B):</label>
+                        <input list="topologyNodeList" id="traceTargetInput" class="trace-input" placeholder="Type or select Target..." oninput="onTraceInputChange()">
+                        <datalist id="topologyNodeList"></datalist>
+                        <button class="action-btn active" id="btnTraceRoute" onclick="triggerPathTrace()">🚀 Trace Path</button>
+                        <button class="action-btn" id="btnClearTrace" onclick="clearPathTrace()" style="display:none;">✕ Clear</button>
+                    </div>
+
+                    <!-- Path Selection Toggle Buttons (Option 1: Path 1 Optimal by default) -->
+                    <div class="trace-group" id="pathSelectorGroup" style="display:none;">
+                        <span class="filter-label" style="font-size:0.75rem; color:var(--text-dim);">Select Route:</span>
+                        <button id="btnPath0" class="action-btn active" onclick="selectActivePath(0)">🟢 Path 1 (Optimal)</button>
+                        <button id="btnPath1" class="action-btn" onclick="selectActivePath(1)" style="display:none;">🟡 Path 2</button>
+                        <button id="btnPath2" class="action-btn" onclick="selectActivePath(2)" style="display:none;">🔵 Path 3</button>
                     </div>
                 </div>
 
@@ -591,6 +735,37 @@ class TopologyEngine:
 
                 <div class="graph-wrapper">
                     <div id="nativeGraphContainer"></div>
+
+                    <!-- Floating Path Telemetry Summary Card (Phase 4 & 5) -->
+                    <div class="path-summary-card" id="pathSummaryCard" style="display:none;">
+                        <div class="path-summary-header">
+                            <div>
+                                <div class="path-summary-title" id="summaryRouteTitle">ROUTE TELEMETRY</div>
+                                <div style="font-size:0.7rem; color:var(--text-dim); font-family:monospace;" id="summaryRouteEndpoints">- ➔ -</div>
+                            </div>
+                            <button class="drawer-close" onclick="clearPathTrace()" title="Clear Path" style="font-size:1rem;">✕</button>
+                        </div>
+                        <div class="path-summary-grid">
+                            <div class="path-stat-box">
+                                <div class="path-stat-val" id="summaryTotalHops">0</div>
+                                <div class="path-stat-lbl">Total Hops</div>
+                            </div>
+                            <div class="path-stat-box">
+                                <div class="path-stat-val" id="summaryCumulativeRtt">-</div>
+                                <div class="path-stat-lbl">Cumulative RTT</div>
+                            </div>
+                            <div class="path-stat-box">
+                                <div class="path-stat-val" id="summaryWorstLoss">0.0%</div>
+                                <div class="path-stat-lbl">Worst Loss</div>
+                            </div>
+                            <div class="path-stat-box">
+                                <div class="path-stat-val" id="summaryBottleneckBw">-</div>
+                                <div class="path-stat-lbl">Bottleneck Cap</div>
+                            </div>
+                        </div>
+                        <div id="summaryHopsList" style="margin-top:8px; font-size:0.72rem; max-height:130px; overflow-y:auto; border-top:1px solid var(--border); padding-top:6px; font-family:monospace;"></div>
+                        <button class="action-btn" style="padding:4px 8px; font-size:0.72rem; margin-top:8px; width:100%; text-align:center;" onclick="openDrawerRouteDetails()">📋 Full Drilldown in Drawer</button>
+                    </div>
                     
                     <!-- Sliding Telemetry Drawer -->
                     <div class="node-drawer" id="nodeDrawer">
@@ -605,6 +780,57 @@ class TopologyEngine:
                             <button class="drawer-close" onclick="closeDrawer()">✕</button>
                         </div>
                         <div class="drawer-body">
+                            <!-- Quick Route Selection -->
+                            <div style="display:flex; gap:8px; margin-bottom:12px;">
+                                <button class="action-btn" style="flex:1; font-size:0.75rem;" onclick="setDrawerNodeAsOrigin()">🚩 Route Origin (A)</button>
+                                <button class="action-btn" style="flex:1; font-size:0.75rem;" onclick="setDrawerNodeAsTarget()">🎯 Route Target (B)</button>
+                            </div>
+
+                            <!-- Phase 5: Collapsible Active Route Drilldown Section -->
+                            <div id="drawerRouteTraceSection" style="display:none; margin-bottom:14px; border:1px solid rgba(56,189,248,0.3); border-radius:8px; background:rgba(15,23,42,0.85); overflow:hidden;">
+                                <div style="padding:10px 14px; background:rgba(56,189,248,0.12); display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="toggleDrawerRouteDetails()">
+                                    <div style="font-family:'Outfit'; font-weight:700; font-size:0.82rem; color:#38bdf8; display:flex; align-items:center; gap:6px;">
+                                        <span>🛣️</span>
+                                        <span id="drawerRouteTraceTitle">ACTIVE ROUTE TELEMETRY</span>
+                                    </div>
+                                    <span id="routeDrilldownToggleIcon" style="font-size:0.75rem; color:var(--text-dim);">▲</span>
+                                </div>
+                                <div id="drawerRouteDrilldownBody" style="padding:12px 14px;">
+                                    <div class="drawer-metric-grid" style="margin:0 0 10px 0;">
+                                        <div class="drawer-metric-card">
+                                            <div class="drawer-metric-val" id="drawerRouteHops" style="color:#38bdf8;">0</div>
+                                            <div class="drawer-metric-lbl">Total Hops</div>
+                                        </div>
+                                        <div class="drawer-metric-card">
+                                            <div class="drawer-metric-val" id="drawerRouteRtt" style="color:#10b981;">-</div>
+                                            <div class="drawer-metric-lbl">Cumulative RTT</div>
+                                        </div>
+                                        <div class="drawer-metric-card">
+                                            <div class="drawer-metric-val" id="drawerRouteLoss" style="color:#10b981;">0.0%</div>
+                                            <div class="drawer-metric-lbl">Worst Loss</div>
+                                        </div>
+                                        <div class="drawer-metric-card">
+                                            <div class="drawer-metric-val" id="drawerRouteBottleneck">-</div>
+                                            <div class="drawer-metric-lbl">Bottleneck Cap</div>
+                                        </div>
+                                    </div>
+                                    <div style="font-size:0.7rem; color:var(--text-dim); text-transform:uppercase; margin-bottom:6px; font-weight:700;">Hop-by-Hop Breakdown</div>
+                                    <table class="neighbor-table">
+                                        <thead>
+                                            <tr>
+                                                <th>#</th>
+                                                <th>From ➔ To</th>
+                                                <th>Egress Port</th>
+                                                <th>Ingress Port</th>
+                                                <th>Speed</th>
+                                                <th>RTT</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="drawerRouteHopsTable"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+
                             <!-- Phase 4: Drift Status if in drift mode -->
                             <div id="drawerDriftSection" style="display:none; margin-bottom:12px; padding:10px; border-radius:6px; background:rgba(15,23,42,0.6); border:1px solid var(--border);">
                                 <div style="font-size:0.7rem; color:var(--text-dim); text-transform:uppercase; margin-bottom:4px; font-weight:700;">Topological Drift Status</div>
@@ -637,6 +863,8 @@ class TopologyEngine:
                                         <th>Neighbor</th>
                                         <th>Remote Port</th>
                                         <th>Speed</th>
+                                        <th>RTT</th>
+                                        <th>Loss</th>
                                     </tr>
                                 </thead>
                                 <tbody id="drawerNeighborsList">
@@ -772,6 +1000,7 @@ class TopologyEngine:
             if (!nativeGraph) {
                 nativeGraph = new NetworkTopologyGraph('nativeGraphContainer');
                 nativeGraph.onNodeSelected = (node) => showNodeDrawer(node);
+                nativeGraph.onNodeContextMenu = (node, cx, cy) => showContextMenu(node, cx, cy);
             }
 
             if (window.topology_data && window.topology_data[runId]) {
@@ -795,6 +1024,8 @@ class TopologyEngine:
         function applyNativeDataset(dataset) {
             nativeGraph.setData(dataset, activeNativeType);
             buildTierPills(dataset);
+            populateTraceDatalist(dataset);
+            clearPathTrace();
         }
 
         function buildTierPills(dataset) {
@@ -961,6 +1192,17 @@ class TopologyEngine:
             nativeGraph.applyLayout(layout, true);
         }
 
+        let activeTelemetryMode = 'speed';
+        function switchTelemetryMode(mode) {
+            activeTelemetryMode = mode;
+            document.getElementById('telemetryModeSpeed').classList.toggle('active', mode === 'speed');
+            document.getElementById('telemetryModeLatency').classList.toggle('active', mode === 'latency');
+            document.getElementById('telemetryModeLoss').classList.toggle('active', mode === 'loss');
+            if (nativeGraph) {
+                nativeGraph.setTelemetryMode(mode);
+            }
+        }
+
         function toggleNativePhysics() {
             if (nativeGraph) nativeGraph.togglePhysics();
         }
@@ -1016,6 +1258,14 @@ class TopologyEngine:
                 driftSec.style.display = 'none';
             }
 
+            // Route Trace Section in drawer
+            if (nativeGraph && nativeGraph.activePath) {
+                renderDrawerRouteDetails(nativeGraph.activePath, nativeGraph.activePathIdx || 0);
+            } else {
+                const routeSec = document.getElementById('drawerRouteTraceSection');
+                if (routeSec) routeSec.style.display = 'none';
+            }
+
             document.getElementById('drawerHostname').innerText = node.id;
             const meta = window.TopologyTheme ? window.TopologyTheme.getMeta(node.tier) : { label: node.tier, shortLabel: node.tier };
             const tierBadge = document.getElementById('drawerTierBadge');
@@ -1046,18 +1296,25 @@ class TopologyEngine:
                 const cap = e.capacity_gbps || (e.bandwidth_mbps ? (e.bandwidth_mbps / 1000) : 0);
                 totalBwGbps += cap;
 
+                const p = e.ping;
+                const rttStr = p ? (p.rtt_avg_ms + ' ms') : '-';
+                const lossStr = p ? (p.loss_pct + '%') : '-';
+                const rttColor = p ? (p.status === 'critical' ? '#ef4444' : (p.status === 'warning' ? '#f59e0b' : '#10b981')) : 'var(--text-dim)';
+
                 return `
                     <tr onclick="focusNeighbor('${neighbor}')">
                         <td>${localInt}</td>
                         <td style="color:var(--accent); font-weight:600;">${neighbor}</td>
                         <td>${remoteInt}</td>
                         <td>${speed}</td>
+                        <td style="color:${rttColor}; font-family:monospace; font-weight:600;">${rttStr}</td>
+                        <td style="color:${rttColor}; font-family:monospace;">${lossStr}</td>
                     </tr>
                 `;
             }).join('');
 
             document.getElementById('drawerBandwidth').innerText = totalBwGbps > 0 ? (totalBwGbps >= 1 ? totalBwGbps.toFixed(0) + ' Gbps' : (totalBwGbps * 1000).toFixed(0) + ' Mbps') : 'N/A';
-            document.getElementById('drawerNeighborsList').innerHTML = rowsHtml || '<tr><td colspan="4" style="text-align:center; color:var(--text-dim);">No neighbor connections found</td></tr>';
+            document.getElementById('drawerNeighborsList').innerHTML = rowsHtml || '<tr><td colspan="6" style="text-align:center; color:var(--text-dim);">No neighbor connections found</td></tr>';
 
             drawer.classList.add('open');
         }
@@ -1203,6 +1460,296 @@ class TopologyEngine:
             }, 100);
         }
 
+        /* ====================================================================
+         * Phase 4 & 5: Path Tracing UI & Interaction Functions
+         * ==================================================================== */
+
+        let currentContextNode = null;
+
+        function populateTraceDatalist(dataset) {
+            const list = document.getElementById('topologyNodeList');
+            if (!list || !dataset || !dataset.nodes) return;
+            const sorted = [...dataset.nodes].sort((a, b) => a.id.localeCompare(b.id));
+            list.innerHTML = sorted.map(n => `<option value="${n.id}">${n.tier ? '[' + n.tier + '] ' : ''}${n.id}</option>`).join('');
+        }
+
+        function onTraceInputChange() {
+            // Optional reactive validation
+        }
+
+        function triggerPathTrace() {
+            if (!nativeGraph) return;
+            const srcInp = document.getElementById('traceSourceInput');
+            const dstInp = document.getElementById('traceTargetInput');
+            const src = srcInp ? srcInp.value.trim() : '';
+            const dst = dstInp ? dstInp.value.trim() : '';
+
+            if (!src || !dst) {
+                alert("Please specify both Origin (A) and Target (B) nodes.");
+                return;
+            }
+            if (src === dst) {
+                alert("Origin and Target nodes must be different.");
+                return;
+            }
+            if (!nativeGraph.nodeMap.has(src)) {
+                alert(`Origin node "${src}" not found in current snapshot.`);
+                return;
+            }
+            if (!nativeGraph.nodeMap.has(dst)) {
+                alert(`Target node "${dst}" not found in current snapshot.`);
+                return;
+            }
+
+            const paths = nativeGraph.calculateTopKPaths(src, dst, 3);
+            if (!paths || paths.length === 0) {
+                alert(`No viable network route found between "${src}" and "${dst}".`);
+                return;
+            }
+
+            const clearBtn = document.getElementById('btnClearTrace');
+            if (clearBtn) clearBtn.style.display = 'inline-block';
+
+            const selectorGroup = document.getElementById('pathSelectorGroup');
+            if (selectorGroup) selectorGroup.style.display = 'flex';
+
+            for (let i = 0; i < 3; i++) {
+                const btn = document.getElementById('btnPath' + i);
+                if (btn) {
+                    if (i < paths.length) {
+                        btn.style.display = 'inline-block';
+                        btn.innerText = (i === 0) ? `🟢 Path 1 (Optimal)` : (i === 1 ? `🟡 Path 2` : `🔵 Path 3`);
+                        btn.title = `${paths[i].hops} Hops, ${paths[i].cumulativeRtt !== null ? paths[i].cumulativeRtt + 'ms' : 'Clean'}`;
+                    } else {
+                        btn.style.display = 'none';
+                    }
+                }
+            }
+
+            // Option 1: Display Path 1 (Optimal) by default
+            selectActivePath(0);
+        }
+
+        function selectActivePath(idx) {
+            if (!nativeGraph || !nativeGraph.activePaths || nativeGraph.activePaths.length === 0) return;
+            const paths = nativeGraph.activePaths;
+            if (idx < 0 || idx >= paths.length) idx = 0;
+
+            for (let i = 0; i < 3; i++) {
+                const btn = document.getElementById('btnPath' + i);
+                if (btn) {
+                    if (i === idx) btn.classList.add('active');
+                    else btn.classList.remove('active');
+                }
+            }
+
+            const selectedPath = nativeGraph.setActivePathIndex(idx);
+            updatePathSummaryCard(selectedPath, idx);
+            renderDrawerRouteDetails(selectedPath, idx);
+        }
+
+        function updatePathSummaryCard(p, idx) {
+            const card = document.getElementById('pathSummaryCard');
+            if (!card || !p) {
+                if (card) card.style.display = 'none';
+                return;
+            }
+
+            const routeTitle = (idx === 0) ? "Path 1 (Optimal)" : `Path ${idx + 1}`;
+            document.getElementById('summaryRouteTitle').innerText = routeTitle;
+            document.getElementById('summaryRouteEndpoints').innerText = `${p.path[0]} ➔ ${p.path[p.path.length - 1]}`;
+            document.getElementById('summaryTotalHops').innerText = `${p.hops} ${p.hops === 1 ? 'Hop' : 'Hops'}`;
+            document.getElementById('summaryCumulativeRtt').innerText = (p.cumulativeRtt !== null) ? `${p.cumulativeRtt} ms` : 'Clean';
+            document.getElementById('summaryWorstLoss').innerText = (p.worstLoss !== null && p.worstLoss > 0) ? `${p.worstLoss}% Loss` : '0.0% Clean';
+            document.getElementById('summaryBottleneckBw').innerText = p.bottleneckStr + (p.bottleneckInterface ? ' @ ' + p.bottleneckInterface : '');
+
+            const hopsListEl = document.getElementById('summaryHopsList');
+            if (hopsListEl && p.hopDetails) {
+                hopsListEl.innerHTML = p.hopDetails.map((h, hIdx) => {
+                    const rttText = (h.rtt !== null) ? `${h.rtt}ms` : 'clean';
+                    const rttColor = (h.rtt && h.rtt > 30) ? '#f59e0b' : '#10b981';
+                    return `
+                        <div style="display:flex; justify-content:space-between; margin-bottom:4px; padding:2px 0; cursor:pointer;" onclick="nativeGraph && nativeGraph.focusHop('${h.from}', '${h.to}')" title="Click to focus hop on graph">
+                            <span style="color:var(--text); font-weight:600;">${hIdx + 1}. ${h.from} ➔ ${h.to}</span>
+                            <span style="color:${rttColor};">${rttText} (${h.bandwidth})</span>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            card.style.display = 'block';
+        }
+
+        function toggleDrawerRouteDetails() {
+            const body = document.getElementById('drawerRouteDrilldownBody');
+            const icon = document.getElementById('routeDrilldownToggleIcon');
+            if (!body) return;
+            const isHidden = (body.style.display === 'none');
+            body.style.display = isHidden ? 'block' : 'none';
+            if (icon) icon.innerText = isHidden ? '▲' : '▼';
+        }
+
+        function openDrawerRouteDetails() {
+            const drawer = document.getElementById('nodeDrawer');
+            if (drawer) drawer.classList.add('open');
+            const sec = document.getElementById('drawerRouteTraceSection');
+            if (sec) sec.style.display = 'block';
+            const body = document.getElementById('drawerRouteDrilldownBody');
+            if (body) body.style.display = 'block';
+            const icon = document.getElementById('routeDrilldownToggleIcon');
+            if (icon) icon.innerText = '▲';
+            if (nativeGraph && nativeGraph.activePath) {
+                renderDrawerRouteDetails(nativeGraph.activePath, nativeGraph.activePathIdx || 0);
+                if (!nativeGraph.selectedNode) {
+                    const hostEl = document.getElementById('drawerHostname');
+                    if (hostEl) hostEl.innerText = `${nativeGraph.activePath.path[0]} ➔ ${nativeGraph.activePath.path[nativeGraph.activePath.path.length - 1]}`;
+                    const tierBadge = document.getElementById('drawerTierBadge');
+                    if (tierBadge) {
+                        tierBadge.innerText = 'Active Route';
+                        tierBadge.style.backgroundColor = 'rgba(56,189,248,0.2)';
+                        tierBadge.style.color = '#38bdf8';
+                    }
+                    const siteBadge = document.getElementById('drawerSiteBadge');
+                    if (siteBadge) siteBadge.innerText = 'Multi-Hop Path';
+                    const degEl = document.getElementById('drawerDegree');
+                    if (degEl) degEl.innerText = nativeGraph.activePath.hops;
+                    const bwEl = document.getElementById('drawerBandwidth');
+                    if (bwEl) bwEl.innerText = nativeGraph.activePath.bottleneckStr;
+                    const neighborsList = document.getElementById('drawerNeighborsList');
+                    if (neighborsList) {
+                        neighborsList.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-dim); font-size:0.75rem;">See Hop-by-Hop Breakdown above</td></tr>';
+                    }
+                }
+            }
+        }
+
+        function renderDrawerRouteDetails(p, idx) {
+            const sec = document.getElementById('drawerRouteTraceSection');
+            if (!sec || !p) {
+                if (sec) sec.style.display = 'none';
+                return;
+            }
+            sec.style.display = 'block';
+            const titleEl = document.getElementById('drawerRouteTraceTitle');
+            if (titleEl) {
+                titleEl.innerText = (idx === 0 ? "Path 1 (Optimal)" : `Path ${idx + 1}`) + ` [${p.path[0]} ➔ ${p.path[p.path.length - 1]}]`;
+            }
+            document.getElementById('drawerRouteHops').innerText = `${p.hops} ${p.hops === 1 ? 'Hop' : 'Hops'}`;
+            document.getElementById('drawerRouteRtt').innerText = (p.cumulativeRtt !== null) ? `${p.cumulativeRtt} ms` : 'Clean';
+            document.getElementById('drawerRouteLoss').innerText = (p.worstLoss !== null && p.worstLoss > 0) ? `${p.worstLoss}% Loss` : '0.0% Clean';
+            document.getElementById('drawerRouteBottleneck').innerText = p.bottleneckStr + (p.bottleneckInterface ? ' @ ' + p.bottleneckInterface : '');
+
+            const tbody = document.getElementById('drawerRouteHopsTable');
+            if (tbody && p.hopDetails) {
+                tbody.innerHTML = p.hopDetails.map((h, i) => {
+                    const rttColor = (h.rtt && h.rtt > 30) ? '#f59e0b' : '#10b981';
+                    const rttStr = (h.rtt !== null) ? `${h.rtt} ms` : 'clean';
+                    return `
+                        <tr onclick="nativeGraph && nativeGraph.focusHop('${h.from}', '${h.to}')" title="Click to focus hop on graph" style="cursor:pointer;">
+                            <td style="font-weight:700; color:#38bdf8;">${i + 1}</td>
+                            <td style="color:var(--text); font-weight:600;">${h.from} ➔ ${h.to}</td>
+                            <td>${h.localInt || '-'}</td>
+                            <td>${h.remoteInt || '-'}</td>
+                            <td>${h.bandwidth || '10G'}</td>
+                            <td style="color:${rttColor}; font-weight:600;">${rttStr}</td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+        }
+
+        function clearPathTrace() {
+            if (nativeGraph) nativeGraph.clearActivePath();
+            const srcInp = document.getElementById('traceSourceInput');
+            const dstInp = document.getElementById('traceTargetInput');
+            if (srcInp) srcInp.value = '';
+            if (dstInp) dstInp.value = '';
+            const clearBtn = document.getElementById('btnClearTrace');
+            if (clearBtn) clearBtn.style.display = 'none';
+            const selectorGroup = document.getElementById('pathSelectorGroup');
+            if (selectorGroup) selectorGroup.style.display = 'none';
+            const card = document.getElementById('pathSummaryCard');
+            if (card) card.style.display = 'none';
+            const sec = document.getElementById('drawerRouteTraceSection');
+            if (sec) sec.style.display = 'none';
+        }
+
+        function checkAutoTrace() {
+            const src = document.getElementById('traceSourceInput').value.trim();
+            const dst = document.getElementById('traceTargetInput').value.trim();
+            if (src && dst && src !== dst) {
+                triggerPathTrace();
+            }
+        }
+
+        function setDrawerNodeAsOrigin() {
+            if (!nativeGraph || !nativeGraph.selectedNode) return;
+            const inp = document.getElementById('traceSourceInput');
+            if (inp) {
+                inp.value = nativeGraph.selectedNode.id;
+                checkAutoTrace();
+            }
+        }
+
+        function setDrawerNodeAsTarget() {
+            if (!nativeGraph || !nativeGraph.selectedNode) return;
+            const inp = document.getElementById('traceTargetInput');
+            if (inp) {
+                inp.value = nativeGraph.selectedNode.id;
+                checkAutoTrace();
+            }
+        }
+
+        /* Context Menu Interactions */
+        function showContextMenu(node, x, y) {
+            currentContextNode = node;
+            const menu = document.getElementById('canvasContextMenu');
+            if (!menu) return;
+            document.getElementById('ctxMenuTitle').innerText = node.id + (node.tier ? ' [' + node.tier + ']' : '');
+            menu.style.left = Math.min(x, window.innerWidth - 210) + 'px';
+            menu.style.top = Math.min(y, window.innerHeight - 200) + 'px';
+            menu.style.display = 'block';
+        }
+
+        function closeContextMenu() {
+            const menu = document.getElementById('canvasContextMenu');
+            if (menu) menu.style.display = 'none';
+        }
+
+        window.addEventListener('click', () => closeContextMenu());
+
+        function setContextNodeAsOrigin() {
+            if (!currentContextNode) return;
+            const inp = document.getElementById('traceSourceInput');
+            if (inp) {
+                inp.value = currentContextNode.id;
+                closeContextMenu();
+                checkAutoTrace();
+            }
+        }
+
+        function setContextNodeAsTarget() {
+            if (!currentContextNode) return;
+            const inp = document.getElementById('traceTargetInput');
+            if (inp) {
+                inp.value = currentContextNode.id;
+                closeContextMenu();
+                checkAutoTrace();
+            }
+        }
+
+        function focusContextNode() {
+            if (!currentContextNode || !nativeGraph) return;
+            nativeGraph.focusNode(currentContextNode);
+            closeContextMenu();
+        }
+
+        function openContextNodeDrawer() {
+            if (!currentContextNode) return;
+            showNodeDrawer(currentContextNode);
+            closeContextMenu();
+        }
+
         window.addEventListener('message', function(event) {
             try {
                 const data = JSON.parse(event.data);
@@ -1232,6 +1779,16 @@ class TopologyEngine:
 
         /* THEME_SCRIPT_JS */
     </script>
+
+    <!-- Micro Context Menu for Canvas Elements -->
+    <div id="canvasContextMenu" class="context-menu" style="display:none;">
+        <div class="context-menu-title" id="ctxMenuTitle">DEVICE</div>
+        <div class="context-menu-item" onclick="setContextNodeAsOrigin()">🚩 Set as Route Origin (A)</div>
+        <div class="context-menu-item" onclick="setContextNodeAsTarget()">🎯 Set as Route Target (B)</div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" onclick="focusContextNode()">🔍 Focus on Graph</div>
+        <div class="context-menu-item" onclick="openContextNodeDrawer()">📋 View Details</div>
+    </div>
 </body>
 </html>
 """

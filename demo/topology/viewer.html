@@ -5,6 +5,17 @@
     <meta name="description" content="Network Topology Interactive Viewer">
     <meta property="og:title" content="Network Topology Viewer">
     <title>Draw.io Offline Viewer</title>
+    <script>
+        (function() {
+            if (window.self !== window.top) {
+                document.documentElement.classList.add('in-iframe');
+            }
+            try {
+                var theme = localStorage.getItem('ndx_theme') || localStorage.getItem('nde_theme') || 'dark';
+                document.documentElement.setAttribute('data-theme', theme);
+            } catch(e) {}
+        })();
+    </script>
     <style>
         html, body {
             margin: 0;
@@ -46,6 +57,14 @@
             white-space: nowrap;
             scrollbar-width: none; /* Firefox */
         }
+        :root[data-theme="light"] #page-tabs-bar {
+            background-color: #f1f5f9;
+            border-top: 1px solid #cbd5e1;
+        }
+        :root[data-theme="hightext"] #page-tabs-bar {
+            background-color: #000000;
+            border-top: 2px solid #ffffff;
+        }
         #page-tabs-bar::-webkit-scrollbar {
             display: none; /* Chrome/Safari */
         }
@@ -70,7 +89,37 @@
             background: #2563eb;
             color: #ffffff;
             border-color: #3b82f6;
-            box-shadow: 0 0 10px rgba(37, 99, 235, 0.3);
+            box-shadow: 0 0 10px rgba(37, 99, 255, 0.3);
+        }
+        :root[data-theme="light"] .page-tab {
+            background: #e2e8f0;
+            border-color: #cbd5e1;
+            color: #475569;
+        }
+        :root[data-theme="light"] .page-tab:hover {
+            background: #cbd5e1;
+            color: #0f172a;
+        }
+        :root[data-theme="light"] .page-tab.active {
+            background: #0284c7;
+            color: #ffffff;
+            border-color: #0284c7;
+            box-shadow: 0 0 8px rgba(2, 132, 199, 0.3);
+        }
+        :root[data-theme="hightext"] .page-tab {
+            background: #000000;
+            border: 1px solid #ffffff;
+            color: #ffffff;
+        }
+        :root[data-theme="hightext"] .page-tab:hover {
+            background: #222222;
+            color: #ffff00;
+        }
+        :root[data-theme="hightext"] .page-tab.active {
+            background: #ffff00;
+            color: #000000;
+            border: 2px solid #ffffff;
+            font-weight: bold;
         }
 
         /* Force cursor during dragging */
@@ -91,7 +140,11 @@
 
         window.addEventListener('message', function(event) {
             try {
-                const data = JSON.parse(event.data);
+                const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+                const newTheme = (data && data.theme) ? data.theme : null;
+                if (newTheme) {
+                    document.documentElement.setAttribute('data-theme', newTheme);
+                }
                 if (data.action === 'load' && data.xml) {
                     activeXmlContent = data.xml;
                     activePageIndex = 0;
@@ -99,6 +152,12 @@
                     renderPageTabs(activeXmlContent);
                 }
             } catch (e) {}
+        });
+
+        window.addEventListener('storage', function(e) {
+            if ((e.key === 'ndx_theme' || e.key === 'nde_theme') && e.newValue) {
+                document.documentElement.setAttribute('data-theme', e.newValue);
+            }
         });
 
         function parseDiagramPages(xmlString) {

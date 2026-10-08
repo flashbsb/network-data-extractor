@@ -1,24 +1,4 @@
-# -*- coding: utf-8 -*-
-"""
-Topology Native Interactive Graph Engine (Phases 3 & 4)
-======================================================
-Generates client-side pure HTML5 Canvas interactive graph visualizer (topology_graph.js).
-Features:
-  - Concentric Orbital, Organic (Force-Directed), and Site-Grouped layouts
-  - Viewport culling & Level of Detail (LOD) for scaling to 6,500 elements
-  - Phase 4 Topological Drift Analyzer (snapshot diffing, node/edge addition & removal highlights)
-  - Smooth pan, zoom, drag & drop, hover highlights, and selection
-  - Tier filtering, search-and-focus, physics freeze/resume
-  - 100% offline, zero CORS (compatible with file:/// and http://)
-  - Zero external libraries or CDNs required
-"""
-
-import os
-
-
-def get_topology_graph_js() -> str:
-    """Returns standalone JavaScript module for high-performance canvas topology."""
-    return """/* Native Interactive Topology Graph Engine (Phases 3 & 4)
+/* Native Interactive Topology Graph Engine (Phases 3 & 4)
  * High-performance 2D Canvas graph renderer with Concentric Orbital,
  * Force-Directed, Clustered layouts, and Topological Drift Comparator.
  * Zero CORS / Pure Offline / Scalable up to 6,500 elements.
@@ -1408,13 +1388,20 @@ def get_topology_graph_js() -> str:
             };
 
             const nowIso = new Date().toISOString();
-            let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
-            xml += `<mxfile host="Electron" modified="${nowIso}" agent="Mozilla/5.0" version="21.0.0" type="device">\n`;
-            xml += `  <diagram id="diag_native_export" name="${escapeXml(title)}">\n`;
-            xml += `    <mxGraphModel dx="1600" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="${pageWidth}" pageHeight="${pageHeight}" background="#ffffff" math="0" shadow="0">\n`;
-            xml += `      <root>\n`;
-            xml += `        <mxCell id="0"/>\n`;
-            xml += `        <mxCell id="1" parent="0"/>\n`;
+            let xml = `<?xml version="1.0" encoding="UTF-8"?>
+`;
+            xml += `<mxfile host="Electron" modified="${nowIso}" agent="Mozilla/5.0" version="21.0.0" type="device">
+`;
+            xml += `  <diagram id="diag_native_export" name="${escapeXml(title)}">
+`;
+            xml += `    <mxGraphModel dx="1600" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="${pageWidth}" pageHeight="${pageHeight}" background="#ffffff" math="0" shadow="0">
+`;
+            xml += `      <root>
+`;
+            xml += `        <mxCell id="0"/>
+`;
+            xml += `        <mxCell id="1" parent="0"/>
+`;
 
             // Tier styling definitions
             const tierStyles = {
@@ -1459,9 +1446,12 @@ def get_topology_graph_js() -> str:
                 let shapeStyle = `shape=mxgraph.cisco19.rect;prIcon=${tStyle.prIcon};fillColor=${fill};strokeColor=${stroke};strokeWidth=${strokeWidth};verticalLabelPosition=bottom;verticalAlign=top;align=center;fontSize=11;fontStyle=1;fontColor=#0f172a;html=1;`;
                 if (dashed) shapeStyle += `dashed=1;`;
 
-                xml += `        <mxCell id="${escapeXml(n.id)}" value="${cellValue}" style="${shapeStyle}" vertex="1" parent="1">\n`;
-                xml += `          <mxGeometry x="${drawioX}" y="${drawioY}" width="50" height="50" as="geometry"/>\n`;
-                xml += `        </mxCell>\n`;
+                xml += `        <mxCell id="${escapeXml(n.id)}" value="${cellValue}" style="${shapeStyle}" vertex="1" parent="1">
+`;
+                xml += `          <mxGeometry x="${drawioX}" y="${drawioY}" width="50" height="50" as="geometry"/>
+`;
+                xml += `        </mxCell>
+`;
             });
 
             // Render Edges
@@ -1517,15 +1507,22 @@ def get_topology_graph_js() -> str:
                 let edgeStyle = `edgeStyle=none;rounded=0;curved=0;html=1;endArrow=none;endFill=0;strokeColor=${strokeColor};strokeWidth=${strokeWidth};fontSize=9;`;
                 if (dashed) edgeStyle += `dashed=1;`;
 
-                xml += `        <mxCell id="edge_${idx}" value="${escapeXml(edgeValue)}" style="${edgeStyle}" edge="1" parent="1" source="${escapeXml(sId)}" target="${escapeXml(tId)}">\n`;
-                xml += `          <mxGeometry relative="1" as="geometry"/>\n`;
-                xml += `        </mxCell>\n`;
+                xml += `        <mxCell id="edge_${idx}" value="${escapeXml(edgeValue)}" style="${edgeStyle}" edge="1" parent="1" source="${escapeXml(sId)}" target="${escapeXml(tId)}">
+`;
+                xml += `          <mxGeometry relative="1" as="geometry"/>
+`;
+                xml += `        </mxCell>
+`;
             });
 
-            xml += `      </root>\n`;
-            xml += `    </mxGraphModel>\n`;
-            xml += `  </diagram>\n`;
-            xml += `</mxfile>\n`;
+            xml += `      </root>
+`;
+            xml += `    </mxGraphModel>
+`;
+            xml += `  </diagram>
+`;
+            xml += `</mxfile>
+`;
             return xml;
         }
 
@@ -1978,21 +1975,3 @@ def get_topology_graph_js() -> str:
     window.NetworkTopologyGraph = NetworkTopologyGraph;
 
 })();
-"""
-
-
-class TopologyGraphEngine:
-    """Manages creation and distribution of topology interactive graph script."""
-
-    def __init__(self, outbase: str):
-        self.outbase = os.path.abspath(outbase)
-        self.topology_dir = os.path.join(self.outbase, "topology")
-
-    def ensure_graph_js(self) -> str:
-        """Writes topology_graph.js to the topology directory."""
-        os.makedirs(self.topology_dir, exist_ok=True)
-        target_path = os.path.join(self.topology_dir, "topology_graph.js")
-        content = get_topology_graph_js()
-        with open(target_path, "w", encoding="utf-8") as f:
-            f.write(content)
-        return target_path

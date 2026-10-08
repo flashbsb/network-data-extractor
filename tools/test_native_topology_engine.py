@@ -280,6 +280,137 @@ def test_offline_zero_cors_compliance(sandbox: str):
     print(f"  • Verified 100% offline and Zero CORS architecture compliant {C_GREEN}[PASS]{C_RESET}")
 
 
+def test_ping_telemetry_and_k3_routing(sandbox: str):
+    print(f"\n{C_CYAN}[*] Test 8: Ping Telemetry Serialization & Yen's K=3 Routing Verification...{C_RESET}")
+    import subprocess
+
+    run_id = "20261008_150000"
+    run_dir = os.path.join(sandbox, "runs", run_id)
+    resume_dir = os.path.join(run_dir, "resume")
+    conn_dir = os.path.join(run_dir, "connections")
+    os.makedirs(resume_dir, exist_ok=True)
+    os.makedirs(conn_dir, exist_ok=True)
+
+    # 1. Setup sample network
+    conn_csv = os.path.join(conn_dir, "topology.connections.csv")
+    with open(conn_csv, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f, delimiter=';')
+        writer.writerow(["element", "interface", "remote_element", "remote_interface", "bandwidth", "description"])
+        writer.writerow(["CORE-01", "Hu0/0/0/1", "CORE-02", "Hu0/0/0/1", "100000000000", "CORE MESH"])
+        writer.writerow(["CORE-01", "Hu0/0/0/2", "AGGR-01", "Hu0/0/0/1", "100000000000", "CORE AGG 1"])
+        writer.writerow(["CORE-02", "Hu0/0/0/2", "AGGR-01", "Hu0/0/0/2", "100000000000", "CORE AGG 2"])
+        writer.writerow(["AGGR-01", "Te0/0/0/1", "EDGE-01", "Te0/0/0/1", "10000000000", "AGG EDGE 1"])
+        writer.writerow(["CORE-01", "Te0/0/0/3", "EDGE-01", "Te0/0/0/2", "10000000000", "BYPASS"])
+
+    # 2. Setup ping resume data
+    ping_resume = os.path.join(resume_dir, "ping_matrix_list.json")
+    ping_payload = {
+        "data": [
+            {"origin": "CORE-01", "dest": "CORE-02", "avg_rtt": 1.2, "min_rtt": 1.0, "max_rtt": 1.5, "loss_pct": 0.0, "jitter": 0.1, "is_dead": False},
+            {"origin": "CORE-01", "dest": "AGGR-01", "avg_rtt": 3.4, "min_rtt": 3.0, "max_rtt": 4.0, "loss_pct": 0.0, "jitter": 0.2, "is_dead": False},
+            {"origin": "CORE-02", "dest": "AGGR-01", "avg_rtt": 2.8, "min_rtt": 2.5, "max_rtt": 3.1, "loss_pct": 0.0, "jitter": 0.1, "is_dead": False},
+            {"origin": "AGGR-01", "dest": "EDGE-01", "avg_rtt": 8.9, "min_rtt": 8.0, "max_rtt": 9.5, "loss_pct": 1.5, "jitter": 0.5, "is_dead": False},
+            {"origin": "CORE-01", "dest": "EDGE-01", "avg_rtt": 14.2, "min_rtt": 13.5, "max_rtt": 15.0, "loss_pct": 0.0, "jitter": 0.8, "is_dead": False},
+        ]
+    }
+    with open(ping_resume, "w", encoding="utf-8") as f:
+        json.dump(ping_payload, f)
+
+    # 3. Test TopologyDataEngine serialization
+    data_engine = TopologyDataEngine(sandbox)
+    payload = data_engine.extract_run_topology(run_id)
+
+    assert "ping_summary" in payload, "Missing ping_summary in payload"
+    assert "ping_lookup" in payload, "Missing ping_lookup in payload"
+    assert payload["ping_summary"]["total_pairs_tested"] == 5, f"Expected 5 probed pairs, got {payload['ping_summary']['total_pairs_tested']}"
+    assert payload["ping_summary"]["warning_pairs"] == 1, "Expected 1 warning link (1.5% loss)"
+
+    # Verify edge has ping attached
+    edges_with_ping = [e for e in payload["edges_summary"] if e.get("ping") is not None]
+    assert len(edges_with_ping) > 0, "No summary edges had ping metrics attached"
+    print(f"  • Ping telemetry serialization verified with {len(edges_with_ping)} edges tagged {C_GREEN}[PASS]{C_RESET}")
+
+    # 4. Verify Yen's K=3 Dijkstra with Node.js execution
+    graph_js = get_topology_graph_js()
+    assert "calculateTopKPaths" in graph_js
+    assert "MinHeapPriorityQueue" in graph_js
+    assert "getDeviceRank" in graph_js
+
+    node_test_script = f"""
+    const mockContainer = {{
+        appendChild: () => {{}},
+        addEventListener: () => {{}},
+        style: {{}},
+        getBoundingClientRect: () => ({{ width: 1000, height: 800 }})
+    }};
+    global.window = {{ addEventListener: () => {{}}, removeEventListener: () => {{}} }};
+    global.document = {{
+        getElementById: () => mockContainer,
+        createElement: () => ({{
+            getContext: () => ({{
+                save: () => {{}}, restore: () => {{}}, beginPath: () => {{}},
+                arc: () => {{}}, fill: () => {{}}, stroke: () => {{}},
+                moveTo: () => {{}}, lineTo: () => {{}}, measureText: () => ({{ width: 10 }}),
+                fillText: () => {{}}, setLineDash: () => {{}}, createRadialGradient: () => ({{ addColorStop: () => {{}} }}),
+                setTransform: () => {{}}, scale: () => {{}}, clearRect: () => {{}}, fillRect: () => {{}}
+            }}),
+            style: {{}},
+            addEventListener: () => {{}},
+            removeEventListener: () => {{}}
+        }}),
+        addEventListener: () => {{}}
+    }};
+    global.requestAnimationFrame = () => 1;
+    global.cancelAnimationFrame = () => {{}};
+
+    {graph_js}
+
+    const graph = new (window.NetworkTopologyGraph || NetworkTopologyGraph)('mockContainer');
+    const nodes = [
+        {{ id: 'EDGE-01', tier: 'edge' }},
+        {{ id: 'AGGR-01', tier: 'core_agg' }},
+        {{ id: 'CORE-01', tier: 'core' }},
+        {{ id: 'CORE-02', tier: 'core' }},
+        {{ id: 'ISOLATED-01', tier: 'metro' }}
+    ];
+    const edges = [
+        {{ source: 'EDGE-01', target: 'AGGR-01', bandwidth_mbps: 10000, ping: {{ rtt_avg_ms: 8.9, loss_pct: 1.5 }} }},
+        {{ source: 'AGGR-01', target: 'CORE-01', bandwidth_mbps: 100000, ping: {{ rtt_avg_ms: 3.4, loss_pct: 0.0 }} }},
+        {{ source: 'AGGR-01', target: 'CORE-02', bandwidth_mbps: 100000, ping: {{ rtt_avg_ms: 2.8, loss_pct: 0.0 }} }},
+        {{ source: 'CORE-01', target: 'CORE-02', bandwidth_mbps: 100000, ping: {{ rtt_avg_ms: 1.2, loss_pct: 0.0 }} }},
+        {{ source: 'EDGE-01', target: 'CORE-01', bandwidth_mbps: 10000, ping: {{ rtt_avg_ms: 14.2, loss_pct: 0.0 }} }}
+    ];
+    graph.setData(nodes, edges);
+
+    const t0 = performance.now();
+    const paths = graph.calculateTopKPaths('EDGE-01', 'CORE-02', 3);
+    const elapsed = performance.now() - t0;
+
+    if (!paths || paths.length < 2) {{
+        console.error('Expected at least 2 paths, found: ' + (paths ? paths.length : 0));
+        process.exit(1);
+    }}
+    if (elapsed > 25.0) {{
+        console.error('K=3 calculation took too long: ' + elapsed + 'ms');
+        process.exit(1);
+    }}
+
+    // Check disconnected node returns empty list
+    const discPaths = graph.calculateTopKPaths('EDGE-01', 'ISOLATED-01', 3);
+    if (!discPaths || discPaths.length !== 0) {{
+        console.error('Expected 0 paths for isolated node, got: ' + (discPaths ? discPaths.length : 0));
+        process.exit(1);
+    }}
+
+    console.log(JSON.stringify({{ pathsCount: paths.length, elapsedMs: elapsed, optimalHops: paths[0].hops }}));
+    """
+
+    res = subprocess.run(["node", "-e", node_test_script], capture_output=True, text=True)
+    assert res.returncode == 0, f"Node.js validation failed: {res.stderr}\n{res.stdout}"
+    out_obj = json.loads(res.stdout.strip().split("\n")[-1])
+    print(f"  • Yen's K=3 routing verified: {out_obj['pathsCount']} paths discovered in {out_obj['elapsedMs']:.3f}ms {C_GREEN}[PASS]{C_RESET}")
+
+
 if __name__ == "__main__":
     print(f"{C_CYAN}============================================================{C_RESET}")
     print(f"{C_CYAN}      NATIVE INTERACTIVE TOPOLOGY VERIFICATION SUITE       {C_RESET}")
@@ -293,6 +424,7 @@ if __name__ == "__main__":
         test_drift_comparator_payload(temp_dir)
         test_drawio_xml_generation()
         test_offline_zero_cors_compliance(temp_dir)
+        test_ping_telemetry_and_k3_routing(temp_dir)
 
     print(f"\n{C_GREEN}============================================================{C_RESET}")
     print(f"{C_GREEN}[+] ALL NATIVE TOPOLOGY SUITE TESTS COMPLETED SUCCESSFULLY! {C_RESET}")

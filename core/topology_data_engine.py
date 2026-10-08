@@ -157,6 +157,135 @@ class TopologyDataEngine:
             return 3
         return 2
 
+    def _load_ping_metrics_for_run(self, run_id: str, run_dir: str) -> Dict[str, Dict[str, Any]]:
+        """
+        Loads ping test metrics for a given run from SQLite or filesystem.
+        Returns a dict indexed by:
+          1. Undirected key: pair_key (e.g. "NODE_A__NODE_B", sorted)
+          2. Directional key: f"{origin}|{dest}"
+        Each entry contains:
+          - rtt_avg_ms: float
+          - rtt_min_ms: float
+          - rtt_max_ms: float
+          - loss_pct: float
+          - jitter_ms: float
+          - status: "healthy" | "warning" | "critical"
+        """
+        records: List[Dict[str, Any]] = []
+        db_path = os.path.join(self.outbase, "database", "network_data.db")
+        if os.path.isfile(db_path):
+            try:
+                import sqlite3
+                with sqlite3.connect(db_path) as conn:
+                    cur = conn.cursor()
+                    cur.execute(
+                        "SELECT origin, dest, loss_pct, min_rtt, avg_rtt, max_rtt, jitter, is_dead "
+                        "FROM ping_tests WHERE run_id = ?",
+                        (run_id,)
+                    )
+                    for row in cur.fetchall():
+                        records.append({
+                            "origin": (row[0] or "").strip(),
+                            "dest": (row[1] or "").strip(),
+                            "loss_pct": float(row[2]) if row[2] is not None else 0.0,
+                            "min_rtt": float(row[3]) if row[3] is not None else 0.0,
+                            "avg_rtt": float(row[4]) if row[4] is not None else 0.0,
+                            "max_rtt": float(row[5]) if row[5] is not None else 0.0,
+                            "jitter": float(row[6]) if row[6] is not None else 0.0,
+                            "is_dead": bool(row[7])
+                        })
+            except Exception:
+                pass
+
+        if not records:
+            # Fallback to filesystem resume files
+            json_file = os.path.join(run_dir, "ping-matrix", "resume", "ping_matrix_list.json")
+            if not os.path.isfile(json_file):
+                json_file = os.path.join(run_dir, "resume", "ping_matrix_list.json")
+            if os.path.isfile(json_file):
+                try:
+                    with open(json_file, "r", encoding="utf-8") as f:
+                        payload = json.load(f)
+                        raw_data = payload.get("data", [])
+                        for r in raw_data:
+                            records.append({
+                                "origin": (r.get("origin") or "").strip(),
+                                "dest": (r.get("dest") or "").strip(),
+                                "loss_pct": float(r.get("loss_pct") if r.get("loss_pct") is not None else r.get("loss", 0.0)),
+                                "min_rtt": float(r.get("min_rtt") if r.get("min_rtt") is not None else r.get("min", 0.0)),
+                                "avg_rtt": float(r.get("avg_rtt") if r.get("avg_rtt") is not None else r.get("avg", 0.0)),
+                                "max_rtt": float(r.get("max_rtt") if r.get("max_rtt") is not None else r.get("max", 0.0)),
+                                "jitter": float(r.get("jitter", 0.0)),
+                                "is_dead": bool(r.get("is_dead", False))
+                            })
+                except Exception:
+                    pass
+
+        # Aggregate metrics
+        ping_lookup: Dict[str, Dict[str, Any]] = {}
+        pair_aggregates: Dict[str, List[Dict[str, Any]]] = {}
+
+        for rec in records:
+            orig = rec["origin"]
+            dest = rec["dest"]
+            if not orig or not dest:
+                continue
+
+            loss = rec["loss_pct"]
+            avg_r = rec["avg_rtt"]
+            # Determine health
+            if rec["is_dead"] or loss >= 20.0:
+                st = "critical"
+            elif loss > 0.0 or avg_r >= 35.0:
+                st = "warning"
+            else:
+                st = "healthy"
+
+            metric_obj = {
+                "rtt_avg_ms": round(avg_r, 2),
+                "rtt_min_ms": round(rec["min_rtt"], 2),
+                "rtt_max_ms": round(rec["max_rtt"], 2),
+                "loss_pct": round(loss, 1),
+                "jitter_ms": round(rec["jitter"], 2),
+                "status": st
+            }
+
+            # Directional key
+            ping_lookup[f"{orig}|{dest}"] = metric_obj
+
+            # Symmetrical pair
+            pair_key = "__".join(sorted([orig, dest]))
+            if pair_key not in pair_aggregates:
+                pair_aggregates[pair_key] = []
+            pair_aggregates[pair_key].append(rec)
+
+        # Build symmetrical consolidated metrics for each pair
+        for pair_key, recs in pair_aggregates.items():
+            mean_avg = sum(r["avg_rtt"] for r in recs) / len(recs)
+            min_r = min(r["min_rtt"] for r in recs)
+            max_r = max(r["max_rtt"] for r in recs)
+            max_loss = max(r["loss_pct"] for r in recs)
+            mean_jit = sum(r["jitter"] for r in recs) / len(recs)
+            any_dead = any(r["is_dead"] for r in recs)
+
+            if any_dead or max_loss >= 20.0:
+                st = "critical"
+            elif max_loss > 0.0 or mean_avg >= 35.0:
+                st = "warning"
+            else:
+                st = "healthy"
+
+            ping_lookup[pair_key] = {
+                "rtt_avg_ms": round(mean_avg, 2),
+                "rtt_min_ms": round(min_r, 2),
+                "rtt_max_ms": round(max_r, 2),
+                "loss_pct": round(max_loss, 1),
+                "jitter_ms": round(mean_jit, 2),
+                "status": st
+            }
+
+        return ping_lookup
+
     def extract_run_topology(self, run_id: str) -> Dict[str, Any]:
         """
         Extracts topology nodes and edges (summary and detailed) for a given run ID.
@@ -166,6 +295,9 @@ class TopologyDataEngine:
         nodes_dict: Dict[str, Dict[str, Any]] = {}
         edges_summary_list: List[Dict[str, Any]] = []
         edges_detail_list: List[Dict[str, Any]] = []
+        
+        # 0. Load Ping Telemetry for Run
+        ping_lookup = self._load_ping_metrics_for_run(run_id, run_dir)
         
         # 1. Load Nodes Metadata from Resume Files if available
         platform_file = os.path.join(run_dir, "resume", "platform_all.csv")
@@ -246,6 +378,9 @@ class TopologyDataEngine:
                         color = row.get("strokeColor", "").strip() or "#0284c7"
                         is_dashed = bool(row.get("dashed", "").strip().lower() in ("1", "true", "yes"))
                         
+                        pair_key = f"{sorted_pair[0]}__{sorted_pair[1]}"
+                        p_metric = ping_lookup.get(pair_key) or ping_lookup.get(f"{a}|{b}") or ping_lookup.get(f"{b}|{a}")
+
                         edges_summary_list.append({
                             "id": edge_id,
                             "from": a,
@@ -256,7 +391,8 @@ class TopologyDataEngine:
                             "capacity_gbps": capacity,
                             "width": width,
                             "color": color,
-                            "dashed": is_dashed
+                            "dashed": is_dashed,
+                            "ping": p_metric
                         })
                 summary_loaded = True
             except Exception:
@@ -288,6 +424,7 @@ class TopologyDataEngine:
                             raw_pairs[pair_key] = (old_a, old_b, cnt + 1, old_bw + bw_gbps)
 
                 for pair_key, (a, b, cnt, tot_bw) in raw_pairs.items():
+                    p_metric = ping_lookup.get(pair_key) or ping_lookup.get(f"{a}|{b}") or ping_lookup.get(f"{b}|{a}")
                     edges_summary_list.append({
                         "id": pair_key,
                         "from": a,
@@ -298,7 +435,8 @@ class TopologyDataEngine:
                         "capacity_gbps": float(tot_bw if tot_bw > 0 else cnt * 10),
                         "width": self._calculate_edge_width(float(tot_bw if tot_bw > 0 else cnt * 10)),
                         "color": "#0284c7",
-                        "dashed": False
+                        "dashed": False,
+                        "ping": p_metric
                     })
                 if len(edges_summary_list) > 0:
                     summary_loaded = True
@@ -331,6 +469,7 @@ class TopologyDataEngine:
                             seen_pairs.add(pair_key)
                             
                             conn_text = f"{cnt}x Link"
+                            p_metric = ping_lookup.get(pair_key) or ping_lookup.get(f"{a}|{b}") or ping_lookup.get(f"{b}|{a}")
                             edges_summary_list.append({
                                 "id": pair_key,
                                 "from": a,
@@ -341,7 +480,8 @@ class TopologyDataEngine:
                                 "capacity_gbps": float(cnt * 10),
                                 "width": self._calculate_edge_width(float(cnt * 10)),
                                 "color": "#0284c7",
-                                "dashed": False
+                                "dashed": False,
+                                "ping": p_metric
                             })
                 except Exception:
                     pass
@@ -372,6 +512,7 @@ class TopologyDataEngine:
                             speed = "1G"
                             
                         edge_id = f"{local}_{l_intf}__{remote}_{r_intf}"
+                        p_metric = ping_lookup.get(f"{local}|{remote}") or ping_lookup.get(f"{remote}|{local}") or ping_lookup.get("__".join(sorted([local, remote])))
                         edges_detail_list.append({
                             "id": edge_id,
                             "from": local,
@@ -385,7 +526,8 @@ class TopologyDataEngine:
                             "label": f"{l_intf} ⇄ {r_intf}",
                             "speed": speed,
                             "width": 3 if speed == "100G" else 2,
-                            "color": "#006400" if speed == "100G" else "#0085DA"
+                            "color": "#006400" if speed == "100G" else "#0085DA",
+                            "ping": p_metric
                         })
             except Exception:
                 pass
@@ -402,6 +544,17 @@ class TopologyDataEngine:
         except Exception:
             pass
 
+        # Ping summary compilation
+        tested_pairs = [v for k, v in ping_lookup.items() if "__" in k]
+        ping_summary = {
+            "total_pairs_tested": len(tested_pairs),
+            "healthy_pairs": sum(1 for p in tested_pairs if p.get("status") == "healthy"),
+            "warning_pairs": sum(1 for p in tested_pairs if p.get("status") == "warning"),
+            "critical_pairs": sum(1 for p in tested_pairs if p.get("status") == "critical"),
+            "avg_latency_ms": round(sum(p["rtt_avg_ms"] for p in tested_pairs) / len(tested_pairs), 2) if tested_pairs else 0.0,
+            "worst_loss_pct": max([p["loss_pct"] for p in tested_pairs], default=0.0)
+        }
+
         return {
             "run_id": run_id,
             "timestamp": formatted_date,
@@ -409,8 +562,11 @@ class TopologyDataEngine:
                 "total_nodes": len(nodes_dict),
                 "total_summary_edges": len(edges_summary_list),
                 "total_detailed_edges": len(edges_detail_list),
-                "tiers_count": tiers_count
+                "tiers_count": tiers_count,
+                "ping_summary": ping_summary
             },
+            "ping_summary": ping_summary,
+            "ping_lookup": {k: v for k, v in ping_lookup.items() if "|" in k or "__" in k},
             "nodes": sorted(list(nodes_dict.values()), key=lambda x: (x["tier_rank"], x["id"])),
             "edges_summary": edges_summary_list,
             "edges_detail": edges_detail_list
