@@ -2,6 +2,46 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.91.0] - 2026-10-08
+### Added
+- **Modular Configuration Architecture (`config/*.json`, `core/utils_shared.py`)**:
+  - Decomposed the legacy monolithic `config/settings.json` into 5 domain-specific configuration files:
+    - `config/extractor.json`: Concurrency limits, timeouts, command pacing, and recursive discovery parameters.
+    - `config/ssh.json`: SSH connectivity settings, auth retries, keepalives, and dynamic pagination markers (`pager_markers`, `prompt_regex`).
+    - `config/network.json`: Routing tier hierarchy, tier metadata badges, speed color thresholds, optic transceiver speed maps, and topology regex patterns (`site_regex`).
+    - `config/ping.json`: Ping matrix engine modes, ICMP execution rules, canvas latency/loss SLA thresholds, and same-site scoping.
+    - `config/storage.json`: Storage Abstraction Layer (SAL) mode selection (`files_only`, `hybrid`, `db_only`), database path, and retention lifecycle rules.
+  - Transparent deep-merge configuration loader in `core/utils_shared.py` providing seamless backward compatibility: automatically merges modular config files with `settings.json` while honoring explicit command-line `--settings` paths.
+  - Dedicated verification test suite in `tools/test_modular_configs.py` (5/5 PASS).
+- **Topology Boolean Filter Engine (`core/topology_graph.py`)**:
+  - Advanced recursive descent boolean parser supporting complex query syntax:
+    - Logical operators: `&`, `;` (AND), `|`, `,` (OR), `!`, `-` (NOT), and grouping with parentheses `()`.
+    - Field prefixes: `tier:core`, `site:BHE01`, `model:8808`, `vendor:cisco`, or free-text hostname substrings.
+  - Multi-match visual emphasis: simultaneous glowing halos (`#10b981` / `#38bdf8`) on all matching elements with non-matching nodes dimmed to 10% opacity.
+  - Group bounding box auto-fit: camera smoothly adjusts zoom and pan to frame the entire matching subset.
+- **Match HUD Navigation Pill (`core/topology_engine.py`)**:
+  - Interactive HUD widget positioned adjacent to the search input showing `[ N matches ] [ ◀ Prev ] [ Next ▶ ]`.
+  - Supports keyboard cycling via `Enter` (next match), `Shift+Enter` (previous match), and `Escape` (clear filter).
+- **Floating Node Quick Summary Mini-Card (`core/topology_engine.py`)**:
+  - Lightweight canvas HUD card (`#nodeQuickSummaryCard`) displayed upon clicking a node on the canvas:
+    - Displays instant totals: `Total Links`, `Aggregate Capacity` (Gbps/Mbps), and `Top Neighbors` with speed badges.
+    - Integrated quick actions: `[ 📋 Open Full Drawer ]` for in-depth inspection and `[ 🎯 Focus ]` for camera centering.
+- **Enriched Hardware & Platform Specs in Drawer (`core/topology_engine.py`, `core/topology_data_engine.py`)**:
+  - Telemetry drawer updated with hardware platform specs: `Vendor`, `Model`, `OS Version`, and `Uptime`.
+  - Elegant fallback for access elements without direct chassis telemetry.
+- **Topology Engine CLI Rebuild Flag (`core/topology_engine.py`)**:
+  - Added `--force-rebuild` (`-f`) flag to force re-extraction and re-serialization of all topology snapshot payloads from scratch.
+
+### Fixed
+- **Empty Platform Metadata in Topology Engine (`core/topology_data_engine.py`)**:
+  - Resolved bug where topology nodes lacked hardware model and OS details: cross-references `platform_all.csv` (chassis/card hardware) and `version_all.csv` (OS version and uptime).
+- **Hardcoded CLI Pager Markers & Prompts (`core/commands.py`)**:
+  - Replaced hardcoded pagination markers (`--more--`, etc.) and `PROMPT_RE` with dynamically loaded settings from `config/ssh.json`.
+- **Hardcoded Optical Transceiver Speeds & Bandwidth Maps (`core/interface2connection.py`, `parsers/generate_max_speed_interfaces.py`)**:
+  - Replaced hardcoded speed strings with dynamic mappings loaded from `config/network.json`.
+- **Strict Purple Ban Enforcement**:
+  - Eliminated all legacy `#800080` colors from the repository, standardizing on modern Tailwind/Sky hues (`#0284c7`, `#0ea5e9`, `#38bdf8`, `#10b981`).
+
 ## [1.90.0] - 2026-10-08
 ### Added
 - **Native Interactive Topology Visualizer & Graph Engine (`core/topology_engine.py`, `core/topology_graph.py`, `core/topology_icons.py`, `core/topology_data_engine.py`)**:

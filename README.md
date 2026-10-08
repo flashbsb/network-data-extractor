@@ -2,7 +2,7 @@
   <h1>🌐 Network Data Extractor</h1>
   <p><strong>The Ultimate Multivendor NOC Orchestrator & Autonomous Discovery Engine</strong></p>
   
-  ![Version](https://img.shields.io/badge/version-1.90.0-blue.svg)
+  ![Version](https://img.shields.io/badge/version-1.91.0-blue.svg)
   ![Python](https://img.shields.io/badge/python-3.8%2B-green.svg)
   [![Live Demo](https://img.shields.io/badge/Live_Demo-GitHub_Pages-0ea5e9?style=flat&logo=github)](https://flashbsb.github.io/network-data-extractor/)
 </div>
@@ -23,7 +23,7 @@ The bundled **[demo/](demo/)** workspace provides an authentic nationwide Brazil
 - **📦 Global Inventory**: Multivendor hardware inventory, transceivers, and interface operational statuses.
 - **⚖️ Drift Analysis (Diff)**: Configuration drift, interface state changes, and BGP peering updates.
 - **⚡ Ping Monitoring**: SLA heatmaps, Chart.js 30-day degradation trends, and Dijkstra route analysis.
-- **🕸️ Native Interactive Topology & Graph Viewer**: High-performance HTML5 Canvas & Vector SVG interactive network graph with **Concentric Orbital**, **Organic**, and **Site-Grouped** layouts, live multi-tier filtering, instant hostname search, sliding telemetry drawer, client-side **Topological Drift Comparator** (highlighting added/removed elements), and 1-click **Client-Side Draw.io (.drawio) Export**. Also includes backward-compatible Draw.io embedded view.
+- **🕸️ Native Interactive Topology & Graph Viewer**: High-performance HTML5 Canvas & Vector SVG interactive network graph with **Concentric Orbital**, **Organic**, and **Site-Grouped** layouts, live multi-tier filtering, **Advanced Boolean Search (`&`, `|`, `!`, `()`, `tier:`, `site:`, `model:`, `vendor:`)** with multi-match glowing halos, auto-fit camera framing, match cycling HUD pill, floating **Quick Summary Mini-Card** (`#nodeQuickSummaryCard`), sliding telemetry drawer with enriched hardware/OS specs, client-side **Topological Drift Comparator** (highlighting added/removed elements), and 1-click **Client-Side Draw.io (.drawio) Export**. Also includes backward-compatible Draw.io embedded view.
 
 ### Exploring Locally
 To run the demo web portal locally on your workstation:
@@ -56,11 +56,12 @@ Beyond simple command execution, it acts as an **intelligence layer**—parsing 
 
 - **🚀 Massive Concurrency**: Multi-threaded SSH polling reduces collection windows from hours to seconds.
 - **🧭 Autonomous LLDP Discovery**: Recursively hops through the network, discovering missing devices and generating new inventory targets on the fly.
+- **⚙️ Modular Configuration Architecture**: Decomposed domain configs (`config/extractor.json`, `ssh.json`, `network.json`, `ping.json`, `storage.json`) with seamless deep-merge backward compatibility for monolithic `settings.json`. Zero hardcodes across extraction, parsing, and rendering engines.
 - **🗃️ Enterprise Storage Abstraction Layer (SAL)**: Decoupled three-mode persistence (`files_only`, `hybrid`, `db_only`) backed by zero-dependency SQLite with Write-Ahead Logging (`WAL`), compressed raw CLI blobs, and autonomous retention vacuuming.
 - **🧩 Universal Multivendor Parsing**: Regex-based "Blind Analyzer" bypasses human typos in descriptions to seamlessly map logical and physical topologies across different vendors.
 - **📊 Local-First Dashboards**: Generates High-Performance SPAs (Single Page Applications) embedded directly in HTML. Works 100% offline without CORS issues.
 - **🎨 Universal Visual Theming System**: Seamless one-click switching between **Dark (NOC Obsidian)**, **Light (Clean Enterprise / Day Mode)**, and **HighText (WCAG AAA High Contrast)** across all dashboards, with zero-FOUC pre-render initialization, cross-tab synchronization, and full iframe support.
-- **🕸️ Native Interactive Topology & Temporal Drift Engine**: Zero-CORS, high-performance HTML5 canvas graph engine with concentric orbital hierarchy mapping (`routing_hierarchy`), real-time physics stabilization, multi-tier filtering, temporal snapshot diffing (+new/-removed elements highlight), and instantaneous client-side `.drawio` diagram export.
+- **🕸️ Native Interactive Topology & Boolean Search Engine**: Zero-CORS, high-performance HTML5 canvas graph engine with concentric orbital hierarchy mapping, advanced boolean filtering (`&`, `|`, `!`, `()`, `tier:`, `site:`, `model:`, `vendor:`), multi-match halos, auto-fit camera framing, HUD match cycling pill, floating node quick summary mini-cards (`#nodeQuickSummaryCard`), temporal snapshot diffing (+new/-removed elements highlight), and instantaneous client-side `.drawio` diagram export.
 - **🔍 Network Drift Analysis**: Instantly compares historical snapshots to detect port status changes, bandwidth variations, and missing links.
 - **🛡️ Selective ICMP Diagnostics (Ping Matrix)**: Architecture-aware rules engine (`mode: "selective"`) filters out non-routable cross-tier pings before SSH execution, reducing ICMP load by up to ~80% (including optimized metro-to-edge rules and `:same_site` scoping). Includes dynamic column pruning (`Hide Out-of-Scope 🚫`) in visual heatmaps.
 - **🩺 Pre-flight Dependency Diagnostics**: Proactively validates Python modules and system tools (`--check-deps`) prior to execution, halting with actionable guidance to prevent corrupted or interrupted runs.
@@ -308,7 +309,28 @@ The tool relies on two primary configuration files:
   datacom01;show system
   ```
 
-*(Note: Global behaviors, architecture matrix rules, regex topology patterns, and authentication fallback configurations are safely managed in `config/settings.json`)*
+---
+
+## ⚙️ Modular Configuration Architecture (`config/*.json`)
+
+Starting in **v1.91.0**, the orchestrator decomposes configuration parameters into five dedicated, domain-specific JSON files under `config/`:
+
+| File | Domain Responsibility | Key Parameters |
+| :--- | :--- | :--- |
+| **`config/extractor.json`** | Polling Engine & Discovery | `workers`, `command_timeout`, `per_command_delay`, `discovery.default_hops`, `preferred_management_subnets` |
+| **`config/ssh.json`** | Multivendor SSH Layer | `auth_timeout`, `banner_timeout`, `retries`, `pager_markers`, `prompt_regex` |
+| **`config/network.json`** | Topology & Optical Mapping | `routing_hierarchy`, `tier_metadata`, `site_regex`, `interface_speed_inference`, `transceiver_speed_map`, `speed_colors` |
+| **`config/ping.json`** | ICMP Telemetry & SLA | `mode` (`selective`/`full`), `packet_size`, `timeout`, `canvas_sla_thresholds` (latency/loss colors), `architecture_matrix` |
+| **`config/storage.json`** | Storage Layer (SAL) & Retention | `mode` (`files_only`/`hybrid`/`db_only`), `database_path`, `retention.days`, `retention.max_runs`, `retention.auto_vacuum` |
+
+### Backward Compatibility & Deep-Merge Precedence
+The configuration loader (`core/utils_shared.py`) transparently loads domain files and performs a deep-merge with legacy `config/settings.json`:
+1. If domain-specific files (`extractor.json`, etc.) exist, they take precedence.
+2. If `config/settings.json` is modified directly or passed via `--settings custom.json`, all keys are safely preserved and deep-merged.
+3. Validate configuration integrity at any time with the built-in test suite:
+   ```bash
+   python3 tools/test_modular_configs.py
+   ```
 
 ---
 
