@@ -1,0 +1,24 @@
+{
+    "_help": "Tuning parameters for the paramiko SSH connection backend.",
+    "ssh": {
+        "_help_ssh": "Tuning parameters for the paramiko SSH connection backend. Increase timeout if devices are slow. Enable strict_host_key_checking to reject unknown host keys.",
+        "timeout": 10,
+        "delay_between_commands": 5,
+        "command_timeout": 20,
+        "strict_host_key_checking": false,
+        "_help_pager_disable_commands": "List of CLI commands executed by SSH sessions to disable terminal pagination.",
+        "pager_disable_commands": [
+            "terminal length 0",
+            "terminal pager 0",
+            "screen-length 0 disable"
+        ],
+        "_help_pager_markers": "Mid-output pagination markers that trigger automatic spacebar sending.",
+        "pager_markers": [
+            "--more--",
+            "---- more",
+            "press any key"
+        ],
+        "_help_prompt_regex": "Regular expression pattern detecting CLI shell command completion prompt.",
+        "prompt_regex": "[A-Za-z0-9_\\-\\.\\:\\/]+[#>\\$]\\s*$"
+    }
+}

@@ -2,6 +2,18 @@
 # -*- coding: utf-8 -*-
 import csv
 import re
+import os
+import sys
+import json
+
+base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(base_path)
+
+try:
+    from core.utils_shared import load_settings
+    json_config = load_settings()
+except Exception:
+    json_config = {}
 
 ETH_STD_SPEED = {
     '100Base-TX': '100Mbps',
@@ -19,19 +31,24 @@ ETH_STD_SPEED = {
     '100GBase-SR10': '100Gbps',
     '': ''
 }
+if json_config.get("transceiver_speed_map"):
+    ETH_STD_SPEED.update(json_config["transceiver_speed_map"])
 
-import os
-import json
-
-base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-config_path = os.path.join(base_path, "config", "settings.json")
-json_config = {}
-if os.path.exists(config_path):
-    try:
-        with open(config_path, "r") as f:
-            json_config = json.load(f)
-    except:
-        pass
+INTERFACE_SPEED_INFERENCE = json_config.get("interface_speed_inference", {
+    "100g": "100Gbps",
+    "hundredgige": "100Gbps",
+    "40g": "40Gbps",
+    "fortygige": "40Gbps",
+    "25g": "25Gbps",
+    "twentyfivegige": "25Gbps",
+    "10g": "10Gbps",
+    "tengige": "10Gbps",
+    "xge": "10Gbps",
+    "giga": "1Gbps",
+    "gigabitethernet": "1Gbps",
+    "ge": "1Gbps",
+    "eth": "1Gbps"
+})
 
 topology_cfg = json_config.get("topology", {})
 IGNORE = tuple(topology_cfg.get("ignore_virtual_prefixes", ('Loopback', 'Bundle', 'Null', 'BVI', 'Vlan', 'Tunnel', 'Port-channel', 'Mgmt', 'NVI')))
@@ -45,15 +62,21 @@ def normalize(name):
     return name
 
 def infer_speed(name):
-    if '100G' in name or 'HundredGigE' in name:
+    if not name:
+        return ''
+    n_lower = name.lower()
+    for pattern, speed_str in INTERFACE_SPEED_INFERENCE.items():
+        if pattern in n_lower:
+            return speed_str
+    if '100g' in n_lower or 'hundred' in n_lower:
         return '100Gbps'
-    if '40G' in name or 'FortyGigE' in name:
+    if '40g' in n_lower or 'forty' in n_lower:
         return '40Gbps'
-    if '25G' in name or 'TwentyFiveGigE' in name:
+    if '25g' in n_lower or 'twentyfive' in n_lower:
         return '25Gbps'
-    if '10G' in name or 'TenGigE' in name:
+    if '10g' in n_lower or 'ten' in n_lower or 'xge' in n_lower:
         return '10Gbps'
-    if 'Giga' in name or 'GigabitEthernet' in name or 'Eth' in name:
+    if 'giga' in n_lower or 'eth' in n_lower or 'ge' in n_lower:
         return '1Gbps'
     return ''
 

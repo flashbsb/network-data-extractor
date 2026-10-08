@@ -280,7 +280,7 @@ def generate_drawio_xml(layout_type: str, nodes: dict, links: list) -> str:
             stroke_color = "#0085da"
             stroke_width = "2"
         else:
-            stroke_color = "#800080"
+            stroke_color = "#0ea5e9"
             stroke_width = "1"
 
         dash_style = "dashed=1;strokeColor=#ef4444;" if dashed == 1 else ""
@@ -425,11 +425,42 @@ def generate_mock_run(run_index: int, total_runs: int, timestamp: datetime, run_
         writer.writeheader()
         writer.writerows(interfaces_list)
 
+    # Write platform_all.csv and version_all.csv
+    platform_rows = []
+    version_rows = []
+    for node_name, node_info in current_nodes.items():
+        model_str = node_info.get("model", "")
+        vendor_str = "Cisco" if "Cisco" in model_str else ("Juniper" if "Juniper" in model_str else ("Huawei" if "Huawei" in model_str else ("Padtec" if "Padtec" in model_str else "EdgeCore")))
+        platform_rows.append({
+            "element": node_name,
+            "vendor": vendor_str,
+            "model": model_str,
+            "type": "chassis",
+            "serial": f"SN-{abs(hash(node_name)) % 10000000:07d}",
+            "description": f"{model_str} Modular Chassis"
+        })
+        version_rows.append({
+            "element": node_name,
+            "version": node_info.get("os", "1.0.0"),
+            "uptime": "142 days, 8 hours, 23 minutes",
+            "rom": "System Bootstrap v1.2"
+        })
+
+    with open(resume_dir / "platform_all.csv", "w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=["element", "vendor", "model", "type", "serial", "description"], delimiter=";")
+        writer.writeheader()
+        writer.writerows(platform_rows)
+
+    with open(resume_dir / "version_all.csv", "w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=["element", "version", "uptime", "rom"], delimiter=";")
+        writer.writeheader()
+        writer.writerows(version_rows)
+
     # 2. Build topology.connections.SUM.csv and topology.connections.csv
     sum_rows = []
     for lnk in current_links:
         width = 3 if lnk["speed"] >= 100000000 else (2 if lnk["speed"] >= 10000000 else 1)
-        color = "#006400" if lnk["speed"] >= 100000000 else ("#0085DA" if lnk["speed"] >= 10000000 else "#800080")
+        color = "#006400" if lnk["speed"] >= 100000000 else ("#0085DA" if lnk["speed"] >= 10000000 else "#0284c7")
         sum_rows.append({
             "endpoint_a": lnk["a"],
             "endpoint_b": lnk["b"],

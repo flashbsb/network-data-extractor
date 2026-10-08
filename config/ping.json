@@ -1,0 +1,50 @@
+{
+    "_help": "Specific settings for Ping Matrix latency testing, historical aggregation, and canvas SLA overlay.",
+    "ping_matrix": {
+        "mode": "selective",
+        "default_allow_unmapped": false,
+        "matrix_rules": {
+            "metro": [],
+            "edge": ["edge", "core_agg", "core"],
+            "core_agg": ["edge", "core_agg", "core"],
+            "core": ["edge", "core_agg", "core", "peering", "router_reflector"],
+            "peering": ["core"],
+            "router_reflector": ["core"]
+        },
+        "count": 5,
+        "datagram_size": 100,
+        "timeout": 2,
+        "max_latency_warning": 200,
+        "parallel_sessions": 10,
+        "delay_between_commands": 1.0,
+        "asymmetric_threshold_pct": 25.0,
+        "transmitted_regex": "(\\d+)\\s+packet[s]?\\s*(?:\\([a-zA-Z\\s]+\\))? transmitted",
+        "received_regex": "(\\d+)\\s+(?:packet[s]?\\s*(?:\\([a-zA-Z\\s]+\\))?\\s*)?received",
+        "rtt_regex": "min(?:imum)?/avg(?:erage)?/max(?:imum)?.*?=\\s*([\\d\\.]+)/([\\d\\.]+)/([\\d\\.]+)",
+        "cisco_success_regex": "Success rate is \\d+\\s*percent\\s*\\(\\s*(\\d+)\\s*/\\s*(\\d+)\\s*\\)",
+        "unreachable_indicators": [
+            "U.U.U",
+            "Admin Prohibited",
+            "Destination unreachable"
+        ]
+    },
+    "ping_history": {
+        "max_retention": 90,
+        "thr_latency": 200.0,
+        "thr_loss": 1.0,
+        "thr_jitter": 5.0,
+        "thr_avail": 99.5
+    },
+    "canvas_sla_thresholds": {
+        "_help": "Canvas topology SLA coloring thresholds. Under warning is healthy (green), over critical is red.",
+        "rtt_warning_ms": 35.0,
+        "rtt_critical_ms": 65.0,
+        "loss_warning_pct": 1.0,
+        "loss_critical_pct": 10.0
+    },
+    "anomaly_detection": {
+        "_help": "Anomaly detection statistical limits: std_dev_multiplier (e.g. 3.0 sigma) and min_samples.",
+        "std_dev_multiplier": 3.0,
+        "min_samples": 5
+    }
+}

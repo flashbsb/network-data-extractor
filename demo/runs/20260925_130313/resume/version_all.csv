@@ -1,0 +1,31 @@
+element;version;uptime;rom
+RT-CORE-BSB-01;IOS-XR 7.5.2;142 days, 8 hours, 23 minutes;System Bootstrap v1.2
+RT-CORE-SPO-01;IOS-XR 7.5.2;142 days, 8 hours, 23 minutes;System Bootstrap v1.2
+RT-CORE-RJO-01;IOS-XR 7.5.2;142 days, 8 hours, 23 minutes;System Bootstrap v1.2
+RT-CORE-FOR-01;IOS-XR 7.5.2;142 days, 8 hours, 23 minutes;System Bootstrap v1.2
+RT-AGGR-POA-01;Junos 21.4R3;142 days, 8 hours, 23 minutes;System Bootstrap v1.2
+RT-AGGR-CWB-01;Junos 21.4R3;142 days, 8 hours, 23 minutes;System Bootstrap v1.2
+RT-AGGR-BHZ-01;Junos 21.4R3;142 days, 8 hours, 23 minutes;System Bootstrap v1.2
+RT-AGGR-SSA-01;Junos 21.4R3;142 days, 8 hours, 23 minutes;System Bootstrap v1.2
+RT-AGGR-REC-01;Junos 21.4R3;142 days, 8 hours, 23 minutes;System Bootstrap v1.2
+RT-AGGR-BEL-01;Junos 21.4R3;142 days, 8 hours, 23 minutes;System Bootstrap v1.2
+RT-AGGR-MAO-01;Junos 21.4R3;142 days, 8 hours, 23 minutes;System Bootstrap v1.2
+RT-AGGR-CGB-01;Junos 21.4R3;142 days, 8 hours, 23 minutes;System Bootstrap v1.2
+SW-DIST-SPO-01;VRP 8.180;142 days, 8 hours, 23 minutes;System Bootstrap v1.2
+SW-DIST-SPO-02;VRP 8.180;142 days, 8 hours, 23 minutes;System Bootstrap v1.2
+SW-DIST-RJO-01;VRP 8.180;142 days, 8 hours, 23 minutes;System Bootstrap v1.2
+SW-DIST-RJO-02;VRP 8.180;142 days, 8 hours, 23 minutes;System Bootstrap v1.2
+SW-DIST-BSB-01;VRP 8.180;142 days, 8 hours, 23 minutes;System Bootstrap v1.2
+SW-DIST-BSB-02;VRP 8.180;142 days, 8 hours, 23 minutes;System Bootstrap v1.2
+SW-DIST-POA-01;VRP 8.180;142 days, 8 hours, 23 minutes;System Bootstrap v1.2
+SW-DIST-CWB-01;VRP 8.180;142 days, 8 hours, 23 minutes;System Bootstrap v1.2
+SW-DIST-BHZ-01;VRP 8.180;142 days, 8 hours, 23 minutes;System Bootstrap v1.2
+SW-DIST-SSA-01;VRP 8.180;142 days, 8 hours, 23 minutes;System Bootstrap v1.2
+SW-DIST-REC-01;VRP 8.180;142 days, 8 hours, 23 minutes;System Bootstrap v1.2
+SW-DIST-FOR-01;VRP 8.180;142 days, 8 hours, 23 minutes;System Bootstrap v1.2
+PTT-IX-SPO-01;OpenNetworkLinux;142 days, 8 hours, 23 minutes;System Bootstrap v1.2
+PTT-IX-FOR-01;OpenNetworkLinux;142 days, 8 hours, 23 minutes;System Bootstrap v1.2
+PTT-IX-RJO-01;OpenNetworkLinux;142 days, 8 hours, 23 minutes;System Bootstrap v1.2
+DW-OPT-SPO-01;LightPad-OS 5.2;142 days, 8 hours, 23 minutes;System Bootstrap v1.2
+DW-OPT-RJO-01;LightPad-OS 5.2;142 days, 8 hours, 23 minutes;System Bootstrap v1.2
+DW-OPT-BSB-01;LightPad-OS 5.2;142 days, 8 hours, 23 minutes;System Bootstrap v1.2

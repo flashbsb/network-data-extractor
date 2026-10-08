@@ -11,20 +11,11 @@ import argparse
 
 # Logging will be configured in main()
 
-# Load Global Settings once.
-# Path is derived from __file__ so the file is found regardless of the
-# current working directory from which commands.py is invoked.
-_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-_SETTINGS_PATH = os.path.join(_SCRIPT_DIR, "..", "config", "settings.json")
-_SETTINGS_PATH = os.path.normpath(_SETTINGS_PATH)
+# Load Global Settings (supports both monolithic and modular configs)
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from core.utils_shared import load_settings
 
-json_config = {}
-if os.path.exists(_SETTINGS_PATH):
-    try:
-        with open(_SETTINGS_PATH, "r", encoding="utf-8") as f:
-            json_config = json.load(f)
-    except Exception as e:
-        print(f"Warning: Failed to load settings.json ({_SETTINGS_PATH}): {e}")
+json_config = load_settings()
 
 ssh_cfg = json_config.get("ssh", {})
 SSH_TIMEOUT = ssh_cfg.get("timeout", 10)
@@ -35,6 +26,8 @@ LOG_LEVEL = extractor_cfg.get("log_level", "INFO").upper()
 
 PAGER_DISABLE_COMMANDS = ssh_cfg.get("pager_disable_commands", ["terminal length 0", "terminal pager 0", "screen-length 0 disable"])
 COMMAND_TIMEOUT = ssh_cfg.get("command_timeout", 20)
+PAGER_MARKERS = [str(m).lower() for m in ssh_cfg.get("pager_markers", ["--more--", "---- more", "press any key"])]
+PROMPT_REGEX_PATTERN = ssh_cfg.get("prompt_regex", r'[A-Za-z0-9_\-\.\:\/]+[#>]\s*$')
 
 
 def read_elements(path):
@@ -90,7 +83,7 @@ def sanitize_filename(s):
 def execute_commands_shell(client, cmds):
     import re
     # Matches CLI prompts like: ROUTER#, ROUTER>, RP/0/RSP0/CPU0:ROUTER#, etc.
-    PROMPT_RE = re.compile(r'[A-Za-z0-9_\-\.\:\/]+[#>]\s*$')
+    PROMPT_RE = re.compile(PROMPT_REGEX_PATTERN)
 
     shell = client.invoke_shell()
     time.sleep(1)
@@ -128,7 +121,7 @@ def execute_commands_shell(client, cmds):
                     text_chunk = chunk.decode('utf-8', errors='ignore').lower()
 
                     # Handle mid-output pagination markers
-                    if '--more--' in text_chunk or '---- more' in text_chunk or 'press any key' in text_chunk:
+                    if any(marker in text_chunk for marker in PAGER_MARKERS):
                         shell.send(' ')  # Send Spacebar to continue
                         time.sleep(0.1)
                         continue

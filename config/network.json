@@ -1,0 +1,151 @@
+{
+    "_help": "Network topology, device tier classification, interface patterns, and optic mappings.",
+    "routing_hierarchy": {
+        "_help": "Defines hostname prefixes and their rank for hierarchical path routing.",
+        "metro": [
+            "SWAC",
+            "SWAG"
+        ],
+        "edge": [
+            "RTAC",
+            "RTED"
+        ],
+        "core_agg": [
+            "RTOC"
+        ],
+        "core": [
+            "RTIC"
+        ],
+        "peering": [
+            "RTPR"
+        ],
+        "router_reflector": [
+            "RTRR"
+        ]
+    },
+    "tier_metadata": {
+        "core": {
+            "label": "Core Router",
+            "shortLabel": "CORE",
+            "rank": 1,
+            "description": "Backbone ultra-high capacity transit & chassis routers"
+        },
+        "core_agg": {
+            "label": "Core Aggregation",
+            "shortLabel": "C-AGG",
+            "rank": 2,
+            "description": "Regional distribution and aggregation transit nodes"
+        },
+        "edge": {
+            "label": "Edge / PE Router",
+            "shortLabel": "EDGE",
+            "rank": 3,
+            "description": "Provider edge routers terminating customer and metro links"
+        },
+        "metro": {
+            "label": "Metro Switch",
+            "shortLabel": "METRO",
+            "rank": 4,
+            "description": "Access switches and metro ethernet aggregation fabrics"
+        },
+        "peering": {
+            "label": "Peering / IX Edge",
+            "shortLabel": "PEER",
+            "rank": 5,
+            "description": "Internet exchange points, transit gateways, and BGP peering"
+        },
+        "router_reflector": {
+            "label": "Route Reflector",
+            "shortLabel": "BGP-RR",
+            "rank": 6,
+            "description": "BGP control-plane route reflector cluster nodes"
+        },
+        "other": {
+            "label": "Generic Element",
+            "shortLabel": "OTHER",
+            "rank": 7,
+            "description": "Unclassified or auxiliary network devices"
+        }
+    },
+    "topology": {
+        "neighbor_hostname_regex": "(D?(?:{dev_group})[A-Za-z0-9]+-[A-Za-z0-9-]+)",
+        "site_regex": "[-_.]?([A-Za-z]{3,4}\\d{2,3})[-_.]?",
+        "ignore_virtual_prefixes": [
+            "Bundle",
+            "PW",
+            "NULL",
+            "Null",
+            "Loopback",
+            "Tunnel",
+            "BVI",
+            "Vlan",
+            "Port-channel",
+            "Mgmt",
+            "NVI"
+        ],
+        "neighbor_regex_prefixes": [
+            "CONEXAO_COM_",
+            "PEERING_",
+            "TRUNK_"
+        ],
+        "device_name_prefixes": [
+            "RT",
+            "SW",
+            "SM",
+            "PTT",
+            "DW"
+        ],
+        "speed_colors": {
+            "1000000": {
+                "width": 2,
+                "color": "#0284c7"
+            },
+            "10000000": {
+                "width": 3,
+                "color": "#0ea5e9"
+            },
+            "40000000": {
+                "width": 5,
+                "color": "#38bdf8"
+            },
+            "100000000": {
+                "width": 6,
+                "color": "#10b981"
+            },
+            "default": {
+                "width": 3,
+                "color": "#0284c7"
+            }
+        }
+    },
+    "interface_speed_inference": {
+        "100g": "100Gbps",
+        "hundredgig": "100Gbps",
+        "40g": "40Gbps",
+        "fortygig": "40Gbps",
+        "25g": "25Gbps",
+        "twentyfivegig": "25Gbps",
+        "10g": "10Gbps",
+        "tengig": "10Gbps",
+        "xge": "10Gbps",
+        "giga": "1Gbps",
+        "gigabit": "1Gbps",
+        "ge": "1Gbps",
+        "eth": "1Gbps"
+    },
+    "transceiver_speed_map": {
+        "100Base-TX": "100Mbps",
+        "1000Base-T": "1Gbps",
+        "1000Base-LX": "1Gbps",
+        "1000Base-SX": "1Gbps",
+        "10GBase-LR": "10Gbps",
+        "10GBase-SR": "10Gbps",
+        "10GBase-ER": "10Gbps",
+        "25GBase-CR": "25Gbps",
+        "25GBase-SR": "25Gbps",
+        "40GBase-SR4": "40Gbps",
+        "40GBase-LR4": "40Gbps",
+        "100GBase-LR4": "100Gbps",
+        "100GBase-SR10": "100Gbps"
+    }
+}

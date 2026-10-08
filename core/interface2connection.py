@@ -16,15 +16,31 @@ IGNORE_VIRTUAL_PREFIXES = ("Bundle", "PW", "NULL", "Null", "Loopback", "Tunnel")
 NEIGHBOR_PREFIXES = ["CONEXAO_COM_", "PEERING_", "TRUNK_"]
 DEVICE_NAME_PREFIXES = ["RT", "SW", "SM", "PTT", "DW"]
 SPEED_COLORS = {
-    "1000000": {"width": 1, "color": "#800080"},
-    "10000000": {"width": 2, "color": "#0085DA"},
-    "100000000": {"width": 3, "color": "#006400"},
-    "default": {"width": 4, "color": "#800080"}
+    "1000000": {"width": 2, "color": "#0284c7"},
+    "10000000": {"width": 3, "color": "#0ea5e9"},
+    "40000000": {"width": 5, "color": "#38bdf8"},
+    "100000000": {"width": 6, "color": "#10b981"},
+    "default": {"width": 3, "color": "#0284c7"}
 }
 NEIGHBOR_HOSTNAME_REGEX = "(D?(?:{dev_group})[A-Za-z0-9]+-[A-Za-z0-9-]+)"
+INTERFACE_SPEED_INFERENCE = {
+    "100g": 100000000,
+    "hundredgig": 100000000,
+    "40g": 40000000,
+    "fortygig": 40000000,
+    "25g": 25000000,
+    "twentyfivegig": 25000000,
+    "10g": 10000000,
+    "tengig": 10000000,
+    "xge": 10000000,
+    "giga": 1000000,
+    "gigabit": 1000000,
+    "ge": 1000000,
+    "eth": 1000000
+}
 
 def load_settings(custom_path=None):
-    global IGNORE_VIRTUAL_PREFIXES, NEIGHBOR_PREFIXES, DEVICE_NAME_PREFIXES, SPEED_COLORS, NEIGHBOR_HOSTNAME_REGEX
+    global IGNORE_VIRTUAL_PREFIXES, NEIGHBOR_PREFIXES, DEVICE_NAME_PREFIXES, SPEED_COLORS, NEIGHBOR_HOSTNAME_REGEX, INTERFACE_SPEED_INFERENCE
     from core.utils_shared import load_settings as load_cfg
     json_config = load_cfg(custom_path)
     if json_config:
@@ -34,6 +50,20 @@ def load_settings(custom_path=None):
         DEVICE_NAME_PREFIXES = topology_cfg.get("device_name_prefixes", DEVICE_NAME_PREFIXES)
         SPEED_COLORS = topology_cfg.get("speed_colors", SPEED_COLORS)
         NEIGHBOR_HOSTNAME_REGEX = topology_cfg.get("neighbor_hostname_regex", NEIGHBOR_HOSTNAME_REGEX)
+        
+        cfg_inference = json_config.get("interface_speed_inference", {})
+        if cfg_inference:
+            unit_mult = {"gbps": 1000000, "mbps": 1000, "g": 1000000, "m": 1000}
+            parsed_inf = {}
+            for k, v in cfg_inference.items():
+                v_str = str(v).lower()
+                m = re.match(r"(\d+)\s*(gbps|mbps|g|m)?", v_str)
+                if m:
+                    val = int(m.group(1))
+                    unit = m.group(2) or "g"
+                    parsed_inf[k.lower()] = val * unit_mult.get(unit, 1000000)
+            if parsed_inf:
+                INTERFACE_SPEED_INFERENCE = parsed_inf
 
 # Pre-load settings so they are populated at import time
 load_settings()
@@ -82,16 +112,10 @@ def extract_capacity(bandwidth_kbit, interface_name=""):
     # Fallback to interface name inference if BW is 0 or missing
     if bw == 0 and interface_name:
         if_name = interface_name.lower()
-        if '100g' in if_name or 'hundredgig' in if_name:
-            bw = 100000000
-        elif '40g' in if_name or 'fortygig' in if_name:
-            bw = 40000000
-        elif '25g' in if_name or 'twentyfivegig' in if_name:
-            bw = 25000000
-        elif '10g' in if_name or 'tengig' in if_name or 'xge' in if_name:
-            bw = 10000000
-        elif 'giga' in if_name or 'gigabit' in if_name or 'ge' in if_name or 'eth' in if_name:
-            bw = 1000000
+        for pattern, speed_kbit in INTERFACE_SPEED_INFERENCE.items():
+            if pattern in if_name:
+                bw = speed_kbit
+                break
             
     if bw == 1000000:
         return "1G", bw
@@ -113,8 +137,8 @@ def get_style(bw_kbit):
     except (ValueError, TypeError):
         bw = "0"
         
-    style = SPEED_COLORS.get(bw, SPEED_COLORS.get("default", {"width": 4, "color": "#800080"}))
-    return style.get("width", 4), style.get("color", "#800080")
+    style = SPEED_COLORS.get(bw, SPEED_COLORS.get("default", {"width": 3, "color": "#0284c7"}))
+    return style.get("width", 3), style.get("color", "#0284c7")
 
 def main():
     parser = argparse.ArgumentParser(description="Generates connections from interface CSV files.")

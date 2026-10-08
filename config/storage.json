@@ -1,0 +1,79 @@
+{
+    "_help": "Persistence, database, retention policies, and archive compression.",
+    "storage": {
+        "mode": "hybrid",
+        "backend": "sqlite",
+        "sqlite": {
+            "database_name": "network_data.db",
+            "journal_mode": "WAL",
+            "synchronous": "NORMAL",
+            "busy_timeout_ms": 60000,
+            "compression_enabled": true
+        },
+        "retention": {
+            "files": {
+                "raw_collect_days": 7,
+                "runs_days": 14,
+                "history_links_days": 365
+            },
+            "database": {
+                "raw_collect_days": 7,
+                "runs_days": 30,
+                "ping_tests_days": 90
+            }
+        }
+    },
+    "retention": {
+        "global": {
+            "max_collections": 30,
+            "max_days": 14,
+            "preserve_topology": true
+        },
+        "ping_history": {
+            "auto_purge_out_of_scope": true
+        },
+        "components": {
+            "collect": {
+                "max_collections": null,
+                "max_days": 7
+            },
+            "log": {
+                "max_collections": null,
+                "max_days": 7
+            },
+            "resume": {
+                "max_collections": null,
+                "max_days": 7
+            },
+            "connections": {
+                "max_collections": null,
+                "max_days": 365
+            },
+            "inventory": {
+                "max_collections": null,
+                "max_days": 365
+            },
+            "drift": {
+                "max_collections": null,
+                "max_days": 365
+            },
+            "ping-matrix": {
+                "max_collections": null,
+                "max_days": 365
+            },
+            "topology": {
+                "max_collections": null,
+                "max_days": 365
+            }
+        }
+    },
+    "compression": {
+        "enabled": true,
+        "format": "zip",
+        "delete_after_compression": true,
+        "folders": [
+            "collect",
+            "log"
+        ]
+    }
+}

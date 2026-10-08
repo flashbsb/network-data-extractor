@@ -21,6 +21,15 @@ from glob import glob
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Set, Tuple
+import sys
+
+# Support root directory imports
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+try:
+    from core.utils_shared import load_settings
+except ImportError:
+    def load_settings(custom_path=None):
+        return {}
 
 
 class TopologyDataEngine:
@@ -33,10 +42,24 @@ class TopologyDataEngine:
         
         self.repo_dir = str(Path(__file__).resolve().parent.parent)
         self.settings = self._load_settings()
-        self.routing_hierarchy = self.settings.get("routing_hierarchy", {})
+        self.network_cfg = self.settings.get("network", {}) if isinstance(self.settings.get("network"), dict) else self.settings
+        self.routing_hierarchy = self.settings.get("routing_hierarchy", self.network_cfg.get("routing_hierarchy", {}))
+        self.tier_metadata = self.settings.get("tier_metadata", self.network_cfg.get("tier_metadata", {}))
+        self.topology_cfg = self.settings.get("topology", self.network_cfg.get("topology", {}))
+        
+        self.site_regex_str = self.topology_cfg.get("site_regex", r"[-_.]?([A-Za-z]{3,4}\d{2,3})[-_.]?")
+        self.site_regex = re.compile(self.site_regex_str) if self.site_regex_str else None
+        self.speed_colors = self.topology_cfg.get("speed_colors", {})
+        self.speed_inference = self.settings.get("interface_speed_inference", self.network_cfg.get("interface_speed_inference", {}))
 
     def _load_settings(self) -> Dict[str, Any]:
-        """Loads routing_hierarchy and styling from settings.json."""
+        """Loads routing_hierarchy and styling from settings or modular config files."""
+        try:
+            cfg = load_settings()
+            if cfg:
+                return cfg
+        except Exception:
+            pass
         settings_path = os.path.join(self.repo_dir, "config", "settings.json")
         if os.path.isfile(settings_path):
             try:
@@ -57,7 +80,7 @@ class TopologyDataEngine:
 
     def get_tier_for_hostname(self, hostname: str) -> Tuple[str, int]:
         """
-        Determines the architectural layer and circular rank based on routing_hierarchy.
+        Determines the architectural layer and circular rank based on routing_hierarchy and tier_metadata.
         Ranks for Concentric Orbital Layout:
           1: Core (RTIC) - Central Ring
           2: Core Aggregation (RTOC) - Ring 2
@@ -76,15 +99,21 @@ class TopologyDataEngine:
         prefix_match = re.split(r"[-_.]", clean_name)
         prefix = prefix_match[0] if prefix_match else clean_name[:4]
 
-        # Rank definition
-        rank_map = {
-            "core": 1,
-            "core_agg": 2,
-            "edge": 3,
-            "metro": 4,
-            "peering": 5,
-            "router_reflector": 6,
-        }
+        # Dynamic rank map derived from tier_metadata
+        rank_map = {}
+        for t, meta in self.tier_metadata.items():
+            if isinstance(meta, dict) and "rank" in meta:
+                rank_map[t] = meta["rank"]
+        if not rank_map:
+            rank_map = {
+                "core": 1,
+                "core_agg": 2,
+                "edge": 3,
+                "metro": 4,
+                "peering": 5,
+                "router_reflector": 6,
+                "other": 7
+            }
 
         for tier, prefixes in self.routing_hierarchy.items():
             if isinstance(prefixes, list):
@@ -93,27 +122,32 @@ class TopologyDataEngine:
                     if prefix.startswith(p_clean) or p_clean in prefix:
                         return (tier, rank_map.get(tier, 7))
         
-        # Fallback heurístics
+        # Fallback heuristics
         if "RTIC" in clean_name or "CORE" in clean_name:
-            return ("core", 1)
+            return ("core", rank_map.get("core", 1))
         if "RTOC" in clean_name or "AGGR" in clean_name:
-            return ("core_agg", 2)
+            return ("core_agg", rank_map.get("core_agg", 2))
         if "RTAC" in clean_name or "RTED" in clean_name or "EDGE" in clean_name:
-            return ("edge", 3)
+            return ("edge", rank_map.get("edge", 3))
         if "SW" in clean_name or "METRO" in clean_name:
-            return ("metro", 4)
+            return ("metro", rank_map.get("metro", 4))
         if "PTT" in clean_name or "IX" in clean_name or "RTPR" in clean_name:
-            return ("peering", 5)
+            return ("peering", rank_map.get("peering", 5))
         if "RTRR" in clean_name:
-            return ("router_reflector", 6)
+            return ("router_reflector", rank_map.get("router_reflector", 6))
             
-        return ("other", 7)
+        return ("other", rank_map.get("other", 7))
 
     def get_site_for_hostname(self, hostname: str) -> str:
         """Extracts site/location code from hostname (e.g., RTAC-BHE02-02 -> BHE02)."""
         if not hostname:
             return "UNKNOWN"
-        parts = re.split(r"[-_.]", hostname.strip().upper())
+        clean = hostname.strip().upper()
+        if self.site_regex:
+            m = self.site_regex.search(clean)
+            if m:
+                return m.group(1) if m.groups() else m.group(0)
+        parts = re.split(r"[-_.]", clean)
         if len(parts) >= 2:
             return parts[1]
         return "DEFAULT"
@@ -299,23 +333,77 @@ class TopologyDataEngine:
         # 0. Load Ping Telemetry for Run
         ping_lookup = self._load_ping_metrics_for_run(run_id, run_dir)
         
-        # 1. Load Nodes Metadata from Resume Files if available
+        # 1. Load Nodes Metadata from Resume Files (version_all.csv & platform_all.csv)
         platform_file = os.path.join(run_dir, "resume", "platform_all.csv")
+        version_file = os.path.join(run_dir, "resume", "version_all.csv")
         status_file = os.path.join(run_dir, "resume", "status.elements.csv")
         
         node_meta: Dict[str, Dict[str, str]] = {}
+        
+        # Load OS Version and Uptime
+        if os.path.isfile(version_file):
+            try:
+                with open(version_file, "r", encoding="utf-8", errors="ignore") as f:
+                    reader = csv.DictReader(f, delimiter=";")
+                    for row in reader:
+                        host = row.get("element", "").strip()
+                        if host:
+                            node_meta.setdefault(host, {})["os_version"] = row.get("software_version", row.get("version", ""))
+                            node_meta[host]["uptime"] = row.get("uptime", "")
+            except Exception:
+                pass
+
+        # Load Hardware Model and Vendor
         if os.path.isfile(platform_file):
             try:
+                plat_rows: Dict[str, List[Dict[str, str]]] = {}
                 with open(platform_file, "r", encoding="utf-8", errors="ignore") as f:
                     reader = csv.DictReader(f, delimiter=";")
                     for row in reader:
                         host = row.get("element", "").strip()
                         if host:
-                            node_meta[host] = {
-                                "vendor": row.get("vendor", ""),
-                                "model": row.get("model", ""),
-                                "os_version": row.get("version", ""),
-                            }
+                            plat_rows.setdefault(host, []).append(row)
+
+                for host, rows in plat_rows.items():
+                    # Check for explicit columns first
+                    first_row = rows[0]
+                    if first_row.get("vendor") or first_row.get("model"):
+                        node_meta.setdefault(host, {})["vendor"] = first_row.get("vendor", "")
+                        node_meta[host]["model"] = first_row.get("model", "")
+                        if "version" in first_row and not node_meta[host].get("os_version"):
+                            node_meta[host]["os_version"] = first_row.get("version", "")
+                        continue
+
+                    # Intelligent chassis / card inference
+                    chassis = ""
+                    rsp = ""
+                    for r in rows:
+                        t = r.get("type", "").strip()
+                        node = r.get("node", "").strip()
+                        m_fc = re.search(r"(ASR-?\d+|NC55-\d+|A9K|ASR\d+|NCS-?\d+|C\d{4})", t, re.I)
+                        if m_fc and any(k in t.upper() for k in ("FAN", "FC", "CHASSIS", "PEM")):
+                            chassis = m_fc.group(1)
+                        elif not chassis and m_fc:
+                            chassis = m_fc.group(1)
+                        if "Active" in t or "RSP" in node or "RP" in node:
+                            rsp = t.replace("(Active)", "").replace("(Standby)", "").strip()
+
+                    model = chassis or rsp or (rows[0].get("type", "") if rows else "")
+                    
+                    # Vendor inference
+                    vendor = "Cisco"
+                    all_text = " ".join([r.get("type", "") + " " + r.get("node", "") for r in rows]).upper()
+                    if any(k in all_text for k in ("DATACOM", "DM4", "DM2", "DM3")):
+                        vendor = "Datacom"
+                    elif any(k in all_text for k in ("HUAWEI", "NE40", "NE8000", "CLOUDENGINE")):
+                        vendor = "Huawei"
+                    elif any(k in all_text for k in ("JUNIPER", "MX")):
+                        vendor = "Juniper"
+                    elif any(k in all_text for k in ("A9K", "ASR", "NC55", "NCS", "CISCO")):
+                        vendor = "Cisco"
+
+                    node_meta.setdefault(host, {})["model"] = model
+                    node_meta[host]["vendor"] = vendor
             except Exception:
                 pass
 
@@ -350,6 +438,7 @@ class TopologyDataEngine:
                 "vendor": meta.get("vendor", ""),
                 "model": meta.get("model", ""),
                 "os_version": meta.get("os_version", ""),
+                "uptime": meta.get("uptime", ""),
                 "status": st
             }
 
@@ -504,15 +593,28 @@ class TopologyDataEngine:
                         l_intf = row.get("local_intf", "").strip()
                         r_intf = row.get("port_id", "").strip()
                         
-                        # Normalize speed
+                        # Normalize speed using configured inference map
+                        l_lower = l_intf.lower()
                         speed = "10G"
-                        if "Hundred" in l_intf or "100G" in l_intf:
-                            speed = "100G"
-                        elif "Gigabit" in l_intf and "Ten" not in l_intf:
-                            speed = "1G"
+                        for pattern, inferred in self.speed_inference.items():
+                            if pattern in l_lower:
+                                speed = inferred.replace("bps", "").replace("b", "").upper()
+                                break
+                        else:
+                            if "hundred" in l_lower or "100g" in l_lower:
+                                speed = "100G"
+                            elif "forty" in l_lower or "40g" in l_lower:
+                                speed = "40G"
+                            elif "gigabit" in l_lower and "ten" not in l_lower:
+                                speed = "1G"
                             
                         edge_id = f"{local}_{l_intf}__{remote}_{r_intf}"
                         p_metric = ping_lookup.get(f"{local}|{remote}") or ping_lookup.get(f"{remote}|{local}") or ping_lookup.get("__".join(sorted([local, remote])))
+                        
+                        # Style from speed_colors / zero purple
+                        edge_width = 4 if speed == "100G" else (3 if speed == "40G" else 2)
+                        edge_color = "#10b981" if speed == "100G" else ("#38bdf8" if speed == "40G" else "#0284c7")
+                        
                         edges_detail_list.append({
                             "id": edge_id,
                             "from": local,
@@ -525,8 +627,8 @@ class TopologyDataEngine:
                             "remote_int": r_intf,
                             "label": f"{l_intf} ⇄ {r_intf}",
                             "speed": speed,
-                            "width": 3 if speed == "100G" else 2,
-                            "color": "#006400" if speed == "100G" else "#0085DA",
+                            "width": edge_width,
+                            "color": edge_color,
                             "ping": p_metric
                         })
             except Exception:
@@ -558,6 +660,8 @@ class TopologyDataEngine:
         return {
             "run_id": run_id,
             "timestamp": formatted_date,
+            "routing_hierarchy": self.routing_hierarchy,
+            "tier_metadata": self.tier_metadata,
             "stats": {
                 "total_nodes": len(nodes_dict),
                 "total_summary_edges": len(edges_summary_list),

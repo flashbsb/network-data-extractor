@@ -58,20 +58,20 @@
         "_help_speed_colors": "Mapping from Interface Bandwidth (in bits per second) to Hex color codes and widths for the final topology visualization.",
         "speed_colors": {
             "1000000": {
-                "width": 1,
-                "color": "#800080"
+                "width": 2,
+                "color": "#0284c7"
             },
             "10000000": {
-                "width": 2,
-                "color": "#0085DA"
+                "width": 3,
+                "color": "#0ea5e9"
             },
             "100000000": {
-                "width": 3,
-                "color": "#006400"
+                "width": 4,
+                "color": "#10b981"
             },
             "default": {
-                "width": 4,
-                "color": "#800080"
+                "width": 2,
+                "color": "#0284c7"
             }
         }
     },

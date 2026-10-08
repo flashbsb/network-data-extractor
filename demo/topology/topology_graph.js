@@ -692,12 +692,212 @@
             }
         }
 
-        setSearchQuery(q) {
-            this.searchQuery = (q || '').trim().toLowerCase();
-            if (this.searchQuery) {
-                const match = this.nodes.find(n => n.id.toLowerCase().includes(this.searchQuery) && this.activeTiers.has(n.tier));
-                if (match) this.focusNode(match);
+        evaluateBooleanFilter(node, query) {
+            if (!query || !query.trim()) return true;
+
+            const tokenize = (str) => {
+                const tokens = [];
+                let i = 0;
+                while (i < str.length) {
+                    const c = str[i];
+                    if (/\s/.test(c)) { i++; continue; }
+                    if (c === '(' || c === ')') { tokens.push({ type: c }); i++; continue; }
+                    if (c === '&' || c === ';') { tokens.push({ type: 'AND' }); i++; continue; }
+                    if (c === '|' || c === ',') { tokens.push({ type: 'OR' }); i++; continue; }
+                    if (c === '!' || c === '-') { tokens.push({ type: 'NOT' }); i++; continue; }
+                    if (c === '"' || c === "'") {
+                        const quote = c;
+                        i++;
+                        let val = '';
+                        while (i < str.length && str[i] !== quote) { val += str[i]; i++; }
+                        if (i < str.length) i++;
+                        tokens.push({ type: 'TERM', value: val });
+                        continue;
+                    }
+                    let val = '';
+                    while (i < str.length && !/[\s()&;|,!-]/.test(str[i])) { val += str[i]; i++; }
+                    if (val) {
+                        const up = val.toUpperCase();
+                        if (up === 'AND') tokens.push({ type: 'AND' });
+                        else if (up === 'OR') tokens.push({ type: 'OR' });
+                        else if (up === 'NOT') tokens.push({ type: 'NOT' });
+                        else tokens.push({ type: 'TERM', value: val });
+                    }
+                }
+                return tokens;
+            };
+
+            const insertImplicitAnd = (tokens) => {
+                const res = [];
+                for (let i = 0; i < tokens.length; i++) {
+                    res.push(tokens[i]);
+                    if (i < tokens.length - 1) {
+                        const curr = tokens[i];
+                        const next = tokens[i+1];
+                        const currIsOperand = (curr.type === 'TERM' || curr.type === ')');
+                        const nextIsOperand = (next.type === 'TERM' || next.type === '(' || next.type === 'NOT');
+                        if (currIsOperand && nextIsOperand) {
+                            res.push({ type: 'AND' });
+                        }
+                    }
+                }
+                return res;
+            };
+
+            const matchTerm = (targetNode, term) => {
+                if (!term) return true;
+                const colonIdx = term.indexOf(':');
+                if (colonIdx > 0) {
+                    const field = term.substring(0, colonIdx).toLowerCase();
+                    const val = term.substring(colonIdx + 1).toLowerCase();
+                    if (field === 'tier') return (targetNode.tier || '').toLowerCase() === val || (targetNode.tier || '').toLowerCase().includes(val);
+                    if (field === 'site') return (targetNode.site || '').toLowerCase().includes(val);
+                    if (field === 'vendor') return (targetNode.vendor || '').toLowerCase().includes(val);
+                    if (field === 'model') return (targetNode.model || '').toLowerCase().includes(val);
+                    if (field === 'status') return (targetNode.status || '').toLowerCase().includes(val);
+                    if (field === 'id' || field === 'name' || field === 'host') return (targetNode.id || '').toLowerCase().includes(val);
+                }
+                const lowerTerm = term.toLowerCase();
+                const idMatch = (targetNode.id || '').toLowerCase().includes(lowerTerm);
+                const siteMatch = (targetNode.site || '').toLowerCase().includes(lowerTerm);
+                const modelMatch = (targetNode.model || '').toLowerCase().includes(lowerTerm);
+                const vendorMatch = (targetNode.vendor || '').toLowerCase().includes(lowerTerm);
+                const tierMatch = (targetNode.tier || '').toLowerCase().includes(lowerTerm);
+                return idMatch || siteMatch || modelMatch || vendorMatch || tierMatch;
+            };
+
+            const tokens = insertImplicitAnd(tokenize(query));
+            if (tokens.length === 0) return true;
+
+            let pos = 0;
+
+            const parseOr = () => {
+                let left = parseAnd();
+                while (pos < tokens.length && tokens[pos].type === 'OR') {
+                    pos++;
+                    const right = parseAnd();
+                    left = left || right;
+                }
+                return left;
+            };
+
+            const parseAnd = () => {
+                let left = parseUnary();
+                while (pos < tokens.length && tokens[pos].type === 'AND') {
+                    pos++;
+                    const right = parseUnary();
+                    left = left && right;
+                }
+                return left;
+            };
+
+            const parseUnary = () => {
+                if (pos < tokens.length && tokens[pos].type === 'NOT') {
+                    pos++;
+                    return !parseUnary();
+                }
+                return parsePrimary();
+            };
+
+            const parsePrimary = () => {
+                if (pos >= tokens.length) return true;
+                const tok = tokens[pos];
+                if (tok.type === '(') {
+                    pos++;
+                    const val = parseOr();
+                    if (pos < tokens.length && tokens[pos].type === ')') pos++;
+                    return val;
+                }
+                if (tok.type === 'TERM') {
+                    pos++;
+                    return matchTerm(node, tok.value);
+                }
+                pos++;
+                return true;
+            };
+
+            try {
+                return parseOr();
+            } catch (e) {
+                return (node.id || '').toLowerCase().includes(query.toLowerCase());
             }
+        }
+
+        setSearchQuery(q) {
+            this.searchQuery = (q || '').trim();
+            if (!this.searchQuery) {
+                this.searchMatchingNodes = [];
+                this.searchMatchIndex = -1;
+                if (typeof this.onSearchMatchesChanged === 'function') {
+                    this.onSearchMatchesChanged(0, -1);
+                }
+                return;
+            }
+
+            // Collect all matching nodes
+            this.searchMatchingNodes = this.nodes.filter(n => {
+                return this.activeTiers.has(n.tier) && this.evaluateBooleanFilter(n, this.searchQuery);
+            });
+
+            this.searchMatchIndex = this.searchMatchingNodes.length > 0 ? 0 : -1;
+
+            if (this.searchMatchingNodes.length > 0) {
+                if (this.searchMatchingNodes.length === 1) {
+                    this.focusNode(this.searchMatchingNodes[0]);
+                } else {
+                    this.fitNodesBoundingBox(this.searchMatchingNodes);
+                }
+            }
+
+            if (typeof this.onSearchMatchesChanged === 'function') {
+                this.onSearchMatchesChanged(this.searchMatchingNodes.length, this.searchMatchIndex);
+            }
+        }
+
+        nextSearchMatch() {
+            if (!this.searchMatchingNodes || this.searchMatchingNodes.length === 0) return;
+            this.searchMatchIndex = (this.searchMatchIndex + 1) % this.searchMatchingNodes.length;
+            const n = this.searchMatchingNodes[this.searchMatchIndex];
+            this.focusNode(n);
+            if (typeof this.onSearchMatchesChanged === 'function') {
+                this.onSearchMatchesChanged(this.searchMatchingNodes.length, this.searchMatchIndex);
+            }
+        }
+
+        prevSearchMatch() {
+            if (!this.searchMatchingNodes || this.searchMatchingNodes.length === 0) return;
+            this.searchMatchIndex = (this.searchMatchIndex - 1 + this.searchMatchingNodes.length) % this.searchMatchingNodes.length;
+            const n = this.searchMatchingNodes[this.searchMatchIndex];
+            this.focusNode(n);
+            if (typeof this.onSearchMatchesChanged === 'function') {
+                this.onSearchMatchesChanged(this.searchMatchingNodes.length, this.searchMatchIndex);
+            }
+        }
+
+        fitNodesBoundingBox(nodes, padding = 120) {
+            if (!nodes || nodes.length === 0) return;
+            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+            nodes.forEach(n => {
+                if (n.x < minX) minX = n.x;
+                if (n.x > maxX) maxX = n.x;
+                if (n.y < minY) minY = n.y;
+                if (n.y > maxY) maxY = n.y;
+            });
+
+            const boxW = Math.max(maxX - minX, 100);
+            const boxH = Math.max(maxY - minY, 100);
+            const centerX = (minX + maxX) / 2;
+            const centerY = (minY + maxY) / 2;
+
+            const availW = Math.max(this.width - padding * 2, 200);
+            const availH = Math.max(this.height - padding * 2, 200);
+
+            let zoom = Math.min(availW / boxW, availH / boxH);
+            zoom = Math.max(0.35, Math.min(zoom, 1.6));
+
+            this.targetCamera.x = this.width / 2 - centerX * zoom;
+            this.targetCamera.y = this.height / 2 - centerY * zoom;
+            this.targetCamera.zoom = zoom;
         }
 
         screenToWorld(sx, sy) {
@@ -1080,8 +1280,16 @@
                     (this.activePathPairKeys && (this.activePathPairKeys.has(`${n1.id}:::${n2.id}`) || this.activePathPairKeys.has(`${n2.id}:::${n1.id}`)))
                 );
 
+                const hasSearchFilter = (this.searchMatchingNodes && this.searchMatchingNodes.length > 0);
+                const isN1Match = hasSearchFilter && this.searchMatchingNodes.some(m => m.id === n1.id);
+                const isN2Match = hasSearchFilter && this.searchMatchingNodes.some(m => m.id === n2.id);
+                const isSearchEdge = isN1Match && isN2Match;
+                const isPartialSearchEdge = isN1Match || isN2Match;
+
                 if (isPathMode) {
                     ctx.globalAlpha = isPathEdge ? 1.0 : 0.06;
+                } else if (hasSearchFilter) {
+                    ctx.globalAlpha = isSearchEdge ? 0.95 : (isPartialSearchEdge ? 0.25 : 0.04);
                 } else if (isHighlightMode && !isConnected) {
                     ctx.globalAlpha = 0.08;
                 } else if (isConnected) {
@@ -1171,7 +1379,9 @@
         renderNodes(ctx, minX, maxX, minY, maxY, theme, themeName) {
             const isHighlightMode = (this.selectedNode !== null || this.hoveredNode !== null);
             const activeNode = this.hoveredNode || this.selectedNode;
-            const query = this.searchQuery;
+            const hasSearchFilter = (this.searchMatchingNodes && this.searchMatchingNodes.length > 0);
+            const searchSet = hasSearchFilter ? new Set(this.searchMatchingNodes.map(m => m.id)) : null;
+            const currentCycleNode = (hasSearchFilter && this.searchMatchIndex >= 0 && this.searchMatchingNodes[this.searchMatchIndex]) ? this.searchMatchingNodes[this.searchMatchIndex] : null;
 
             for (let i = 0; i < this.nodes.length; i++) {
                 const n = this.nodes[i];
@@ -1182,7 +1392,8 @@
                 const isSelected = (this.selectedNode && this.selectedNode.id === n.id);
                 const isHovered = (this.hoveredNode && this.hoveredNode.id === n.id);
                 const isNeighbor = isHighlightMode && this.connectedNodeIds.has(n.id);
-                const isSearchMatch = query && n.id.toLowerCase().includes(query);
+                const isSearchMatch = searchSet ? searchSet.has(n.id) : false;
+                const isCurrentCycleMatch = currentCycleNode && (currentCycleNode.id === n.id);
 
                 // Phase 3 & 4: Path Tracing node classification
                 const isPathMode = (this.activePath !== null && this.activePathNodeIds && this.activePathNodeIds.size > 0);
@@ -1193,6 +1404,8 @@
                 // Transparency logic
                 if (isPathMode) {
                     ctx.globalAlpha = isPathNode ? 1.0 : 0.08;
+                } else if (hasSearchFilter) {
+                    ctx.globalAlpha = isSearchMatch ? 1.0 : 0.10;
                 } else if (this.isDriftMode) {
                     if (n.drift === 'added') {
                         ctx.globalAlpha = 1.0;
@@ -1259,13 +1472,16 @@
 
                 // Search highlight glow
                 if (isSearchMatch) {
+                    ctx.save();
                     ctx.beginPath();
                     ctx.arc(n.x, n.y, n.radius + 6, 0, Math.PI * 2);
-                    ctx.strokeStyle = '#22c55e';
-                    ctx.lineWidth = 2.5;
-                    ctx.setLineDash([3, 3]);
+                    ctx.strokeStyle = isCurrentCycleMatch ? '#38bdf8' : '#10b981';
+                    ctx.lineWidth = isCurrentCycleMatch ? 3.5 : 2.5;
+                    if (!isCurrentCycleMatch) {
+                        ctx.setLineDash([4, 3]);
+                    }
                     ctx.stroke();
-                    ctx.setLineDash([]);
+                    ctx.restore();
                 }
 
                 // Render Labels (LOD: Level of Detail)
