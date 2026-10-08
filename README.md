@@ -411,8 +411,8 @@ Launch an embedded, zero-dependency HTTP server (`http.server.ThreadingHTTPServe
 # 1. Launch with default settings (port 8080, local bind)
 python3 network-data-extractor.py --serve
 
-# 2. Launch pointing to production outbase and custom port
-python3 network-data-extractor.py --serve --port 8080 --outbase ../d-network-data-extractor/infos/bb
+# 2. Launch pointing to specific outbase directory and custom port
+python3 network-data-extractor.py --serve --port 8080 --outbase /var/network-data/infos
 
 # 3. Launch with remote access binding and custom users file
 python3 network-data-extractor.py --serve --host 0.0.0.0 --port 9090 --users-file config/users.json

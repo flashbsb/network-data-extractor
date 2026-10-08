@@ -32,13 +32,18 @@ All notable changes to the **Network Data Extractor** project will be documented
   - Structured token parsing: recognizes `[STATUS: STARTING]`, `[STATUS: COMPLETED]`, and `[STATUS: FAILED]` to display real-time status badges (`HEALTHY`, `RUNNING`, `DELAYED`, `ERROR`) and the last 15 execution log lines.
 - **In-Browser Configuration Management (`web/admin/index.html`, `core/web_server.py`)**:
   - Syntax-validated JSON configuration editor for domain configs (`extractor.json`, `ssh.json`, `network.json`, `ping.json`, `storage.json`, `settings.json`) preventing saving broken JSON.
-  - Network macro and inventory `.cfg` editor (`elements.cfg`, `commands.cfg`, `commands.icmp.cfg`) with automatic production directory prioritization (`../d-network-data-extractor/config/`) when pointing to external outbase.
+  - Network macro and inventory `.cfg` editor (`elements.cfg`, `commands.cfg`, `commands.icmp.cfg`) with automatic external configuration directory prioritization when pointing to an external outbase.
   - Strict path traversal isolation and filename extension whitelisting: `.env`, `users.json`, chaves SSH e diretórios fora do escopo são bloqueados com 403 Forbidden.
 - **Seamless Public Showcase Simulation Mode (`web/admin/admin_adapter.js`)**:
   - Dual-mode client API adapter automatically detecting GitHub Pages (`github.io`) and static `file:///` viewing.
   - Provides a safe sandbox simulation (`admin` / `admin` or `demo`) pre-loading all 10 demo snapshots, simulated config edits, and telemetry inspection without crashing or throwing HTTP errors.
 - **Root Portal Integration (`core/root_portal_engine.py`)**:
   - Added the 5th top-level navigation card `🛡️ Admin & Operations` to `infos/index.html` and automated asset synchronization to `{outbase}/admin/`.
+- **Multivendor Command Macro Consolidation & Case-Insensitive Resiliency (`core/commands.py`, `config/commands.cfg`, `config/commands.icmp.cfg`)**:
+  - Consolidated real production command suites (`show interfaces`, `show platform`, `show inventory details`, `show license summary`, `show bgp vpnv4 unicast all summary`, `show hardware-status transceivers detail`) into the repository standard `config/commands.cfg`.
+  - Added resilient case-insensitive matching fallback in `core/commands.py`, preventing command drops across differing casing standards (e.g. `Cisco_IOS_XR` vs `cisco_ios_xr`).
+  - Standardized ICMP Ping syntax in `config/commands.icmp.cfg` with multivendor parameter tuning for Datacom DMOS, Cisco IOS XR, IOS XE, and Huawei VRP.
+  - Aligned execution scripts to point to repository standard configurations, allowing external configuration directories to retain exclusively sanitized elements definitions.
 
 ## [1.91.0] - 2026-10-08
 ### Added
@@ -429,7 +434,7 @@ All notable changes to the **Network Data Extractor** project will be documented
 ### Added
 - **Global English Translation**: Translated all user-facing interface text, buttons, loading screens, and fallbacks inside the Draw.io Topology Viewer (`topology/index.html`) and manifest cataloguer (`core/topology_engine.py`) to English.
 - **Source Code Comments Cleanup**: Replaced Portuguese code-level and HTML comments with English equivalents across the main orchestrator (`network-data-extractor.py`) and templates (`history.html`, `path.html`).
-- **Draw.io Layer & Navigation Controls**: Appended `layers=1` and `nav=1` URL parameters to the embedded diagrams.net iframe inside the topology portal ([core/topology_engine.py](file:///home/flashbsb/projetos/network-data-extractor/core/topology_engine.py)) to allow NOC operators to show/hide specific layers (such as background maps) and use pan/zoom navigation controls directly inside the web browser.
+- **Draw.io Layer & Navigation Controls**: Appended `layers=1` and `nav=1` URL parameters to the embedded diagrams.net iframe inside the topology portal (`core/topology_engine.py`) to allow NOC operators to show/hide specific layers (such as background maps) and use pan/zoom navigation controls directly inside the web browser.
 
 ### Verified
 - **Terminal Consistencies**: Conducted an end-to-end audit verifying that all console output, interactive configuration prompts, and command line validation warnings are exclusively printed in English.

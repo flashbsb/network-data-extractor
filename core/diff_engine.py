@@ -51,8 +51,7 @@ class DiffEngine:
                 manifest.append({
                     "id": col['id'],
                     "date": col['date'],
-                    "file": f"data/{col['id']}.js",
-                    "path": col['path']
+                    "file": f"data/{col['id']}.js"
                 })
                 continue
 
@@ -66,8 +65,7 @@ class DiffEngine:
                 manifest.append({
                     "id": col['id'],
                     "date": col['date'],
-                    "file": f"data/{col['id']}.js",
-                    "path": col['path'] # Keep path for report generation
+                    "file": f"data/{col['id']}.js"
                 })
 
         # 4. Save Manifest (as JS for CORS bypass)
@@ -162,10 +160,14 @@ class DiffEngine:
             except Exception:
                 pass
 
+        run_path = col.get('path')
+        if not run_path or not os.path.isabs(run_path):
+            run_path = os.path.join(self.base_path, "runs", col['id'])
+
         sources = [
-            os.path.join(col['path'], "resume", "interfaces_all.json"),
-            os.path.join(col['path'], "resume", "interfaces.all.csv"),
-            os.path.join(col['path'], "resume", "interfaces_all.csv")
+            os.path.join(run_path, "resume", "interfaces_all.json"),
+            os.path.join(run_path, "resume", "interfaces.all.csv"),
+            os.path.join(run_path, "resume", "interfaces_all.csv")
         ]
         
         for src in sources:

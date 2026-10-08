@@ -248,6 +248,12 @@ def main():
             for current_key in cmd_key_list:
                 cmds = commands_map.get(current_key)
                 if not cmds:
+                    # Robust case-insensitive fallback (e.g. Cisco_IOS_XR vs cisco_ios_xr)
+                    for k, v in commands_map.items():
+                        if k.strip().lower() == current_key.strip().lower():
+                            cmds = v
+                            break
+                if not cmds:
                     logging.warning(f"No commands found for key '{current_key}' on element '{host}'")
                     continue
 
