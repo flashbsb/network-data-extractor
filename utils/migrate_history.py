@@ -62,7 +62,7 @@ def safe_move_and_merge(src, dst):
 
 def main():
     parser = argparse.ArgumentParser(description="Migrate legacy network-data-extractor history to unified runs/ structure.")
-    parser.add_argument("--outbase", required=True, help="Path to the output base directory (e.g. ../d-network-data-extractor/infos/bb)")
+    parser.add_argument("--outbase", required=True, help="Path to the output base directory (e.g. /var/network-data/infos)")
     parser.add_argument("--dry-run", action="store_true", help="Simulate execution without moving any files.")
     args = parser.parse_args()
 

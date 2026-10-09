@@ -135,7 +135,7 @@ def extract_production_signatures(repo_root):
 
 def check_demo_leakage(demo_dir, prod_signatures):
     """Deep scans all text files inside demo/ for production leaks or non-compliant IPs."""
-    print(f"\n{C_CYAN}[*] Step 2: Auditing demo/ Content for Leaks & RFC Compliance...{C_RESET}")
+    print(f"\n{C_CYAN}[*] Step 4: Auditing demo/ Content for Leaks & RFC Compliance...{C_RESET}")
     if not demo_dir.exists():
         print(f"{C_YELLOW}[*] Notice: demo/ directory does not exist yet (Skipping content audit).{C_RESET}")
         return True
@@ -209,6 +209,59 @@ def check_demo_leakage(demo_dir, prod_signatures):
 
     return False
 
+def check_tracked_content_leakage(repo_root):
+    """
+    Audits EVERY tracked file in Git for private production keywords,
+    host usernames, and absolute home filesystem paths.
+    """
+    print(f"\n{C_CYAN}[*] Step 2: Auditing All Git-Tracked Files for Path & Privacy Leaks...{C_RESET}")
+    tracked_files = run_git_cmd(["ls-files"])
+    staged_files = run_git_cmd(["diff", "--cached", "--name-only"])
+    all_files = sorted(set(tracked_files + staged_files))
+
+    forbidden_patterns = [
+        (re.compile(r'(?:/home/|/Users/|[A-Za-z]:[\\/]Users[\\/])[a-zA-Z0-9_\-]+', re.IGNORECASE), "Absolute user home path detected"),
+        (re.compile(r'file:///(?:home/|Users/)[a-zA-Z0-9_\-]+', re.IGNORECASE), "Absolute file:/// URL with home path detected"),
+        (re.compile(r'\bd-network-[a-zA-Z0-9_\-]+', re.IGNORECASE), "Private production directory prefix ('d-network-') detected"),
+    ]
+
+    skip_extensions = {".png", ".jpg", ".jpeg", ".gif", ".ico", ".drawio", ".zip", ".pyc", ".db", ".sqlite", ".svg", ".min.js"}
+
+    violations = []
+    scanned_count = 0
+
+    for rel_path in all_files:
+        full_path = repo_root / rel_path
+        if not full_path.is_file():
+            continue
+
+        if full_path.suffix.lower() in skip_extensions:
+            continue
+
+        scanned_count += 1
+        try:
+            with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
+                for line_no, line in enumerate(f, start=1):
+                    # Skip verify_zero_leakage.py self-inspection of its own regex definitions
+                    if "verify_zero_leakage.py" in rel_path and "re.compile" in line:
+                        continue
+                    for pat, reason in forbidden_patterns:
+                        m = pat.search(line)
+                        if m:
+                            match_text = m.group(0)
+                            violations.append((rel_path, line_no, match_text, reason))
+        except Exception:
+            continue
+
+    if violations:
+        print(f"{C_RED}[!] FAILED: Found privacy / path leakage in tracked files:{C_RESET}")
+        for path, line_no, matched, reason in violations:
+            print(f"    - {path}:{line_no} -> '{matched}' ({reason})")
+        return False
+
+    print(f"{C_GREEN}[+] PASS: Scanned {scanned_count} tracked files. Zero absolute paths or private prefixes detected.{C_RESET}")
+    return True
+
 def main():
     repo_root = Path(__file__).resolve().parent.parent
     demo_dir = repo_root / "demo"
@@ -218,18 +271,21 @@ def main():
     print(f"{C_BOLD}{C_CYAN}============================================================{C_RESET}")
     print(f"Repository Root: {repo_root}")
 
-    # Step 1: Git hygiene
+    # Step 1: Git hygiene (untracked/unauthorized files)
     git_ok = check_git_hygiene(repo_root)
 
-    # Step 2: Production signatures cross-check
-    prod_signatures = extract_production_signatures(repo_root)
-    print(f"Loaded {len(prod_signatures)} production signatures/elements for cross-checking.")
+    # Step 2: Content scan across all tracked files for absolute paths / private tokens
+    content_ok = check_tracked_content_leakage(repo_root)
 
-    # Step 3: Demo content inspection
+    # Step 3: Production signatures cross-check
+    prod_signatures = extract_production_signatures(repo_root)
+    print(f"\n{C_CYAN}[*] Step 3: Loaded {len(prod_signatures)} production signatures/elements for cross-checking.{C_RESET}")
+
+    # Step 4: Demo content inspection (RFC documentation IP compliance)
     demo_ok = check_demo_leakage(demo_dir, prod_signatures)
 
     print(f"\n{C_BOLD}{C_CYAN}------------------------------------------------------------{C_RESET}")
-    if git_ok and demo_ok:
+    if git_ok and content_ok and demo_ok:
         print(f"{C_BOLD}{C_GREEN}[✔] AUDIT PASSED: ZERO PRODUCTION LEAKAGE RISK DETECTED.{C_RESET}")
         print(f"{C_GREEN}The repository is clean and safe to commit.{C_RESET}\n")
         sys.exit(0)

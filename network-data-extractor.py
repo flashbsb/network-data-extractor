@@ -417,8 +417,8 @@ IGNORE_NEW_PREFIXES = discovery_cfg.get("ignore_new_prefixes", [])
 topo_gen_cfg = json_config.get("topology_generator", {})
 def_topo_generator_path = topo_gen_cfg.get("generator_path", "../network-topology-generator/network-topology-generator.py")
 def_topo_config = topo_gen_cfg.get("config_path", "../network-topology-generator/config/config.json")
-def_topo_elements = topo_gen_cfg.get("elements_path", "../d-network-topology-generator/config/elements.csv")
-def_topo_locations = topo_gen_cfg.get("locations_path", "../d-network-topology-generator/config/locations.csv")
+def_topo_elements = topo_gen_cfg.get("elements_path", "../network-topology-generator/config/elements.csv")
+def_topo_locations = topo_gen_cfg.get("locations_path", "../network-topology-generator/config/locations.csv")
 def_topo_theme = topo_gen_cfg.get("theme", "cog")
 
 # --- MAIN ARGUMENT PARSING ---

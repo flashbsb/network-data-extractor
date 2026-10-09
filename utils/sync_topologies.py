@@ -17,13 +17,13 @@ C_RESET = '\033[0m'
 
 def main():
     parser = argparse.ArgumentParser(description="Synchronize and batch generate missing network topologies.")
-    parser.add_argument("--outbase", required=True, help="Base output directory (e.g., ../d-network-data-extractor/infos/bb)")
+    parser.add_argument("--outbase", required=True, help="Base output directory (e.g., /var/network-data/infos)")
     
     # Topology Generator paths
     parser.add_argument("--topology-generator-path", default="../network-topology-generator/network-topology-generator.py", help="Path to network-topology-generator.py")
     parser.add_argument("--topo-config", default="../network-topology-generator/config/config.json", help="Path to topology config.json")
-    parser.add_argument("--topo-elements", default="../d-network-topology-generator/config/elements.csv", help="Path to topology elements.csv")
-    parser.add_argument("--topo-locations", default="../d-network-topology-generator/config/locations.csv", help="Path to topology locations.csv")
+    parser.add_argument("--topo-elements", default="../network-topology-generator/config/elements.csv", help="Path to topology elements.csv")
+    parser.add_argument("--topo-locations", default="../network-topology-generator/config/locations.csv", help="Path to topology locations.csv")
     
     # Optional parameters
     parser.add_argument("--filter", "-f", default="in:RTAC;RTED;RTOC;RTIC;RTRR;RTPR", help="Filter parameter for the topology generator")
