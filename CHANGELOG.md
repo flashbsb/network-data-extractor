@@ -18,6 +18,8 @@ All notable changes to the **Network Data Extractor** project will be documented
     - `Auditor`: Restricted strictly to telemetry dashboards, run summaries, and report downloads.
   - Last-admin deletion and demotion safeguard to prevent accidental lockouts.
   - Automatic initial credential bootstrapping (`admin` / `admin`) stored in `config/users.json` (chmod 0600, protected by `.gitignore`).
+  - Default Password Detection & Proactive Alert: Displays an amber banner (`⚠️ Default Password In Use`) when default credentials are active, with 1-click modal for self-service password updates.
+  - Password Policy Enforcement: Requires minimum 8 characters for account creation and updates with dual-entry confirmation validation.
 - **Executive Cockpit & Interactive Historical Telemetry Dashboard (`web/admin/index.html`)**:
   - Global Executive Cards: Total historical runs, earliest and latest execution timestamps, unique node inventory count, disk and SQLite database storage usage.
   - **Dynamic Snapshot Selector (`[ 📅 Select Snapshot ▾ ]`)**:

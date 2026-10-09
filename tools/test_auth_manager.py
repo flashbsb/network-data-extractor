@@ -106,16 +106,16 @@ class TestAuthManager(unittest.TestCase):
         self.assertIn("last remaining SuperAdmin", msg_role)
 
         # Create second SuperAdmin and ensure deletion is then allowed
-        self.auth.create_user("bob", "bobpass", role="SuperAdmin")
+        self.auth.create_user("bob", "bobpass123", role="SuperAdmin")
         ok_del2, _ = self.auth.delete_user("admin")
         self.assertTrue(ok_del2)
 
     def test_06_rbac_permission_matrix(self):
         """Verifies exact permission enforcement across all 4 predefined roles."""
-        self.auth.create_user("super", "pass1", role="SuperAdmin")
-        self.auth.create_user("netops", "pass2", role="NetOps")
-        self.auth.create_user("oper", "pass3", role="Operator")
-        self.auth.create_user("audit", "pass4", role="Auditor")
+        self.auth.create_user("super", "pass12345", role="SuperAdmin")
+        self.auth.create_user("netops", "pass23456", role="NetOps")
+        self.auth.create_user("oper", "pass34567", role="Operator")
+        self.auth.create_user("audit", "pass45678", role="Auditor")
 
         # SuperAdmin: has all permissions
         for perm in PERMISSIONS:
@@ -140,6 +140,30 @@ class TestAuthManager(unittest.TestCase):
         self.assertFalse(self.auth.has_permission("audit", "view_cfg"))
         self.assertFalse(self.auth.has_permission("audit", "view_json"))
         self.assertFalse(self.auth.has_permission("audit", "edit_cfg"))
+
+    def test_07_default_password_detection_and_length_enforcement(self):
+        """Verifies default password is flagged, short passwords rejected, and flag clears after update."""
+        # 1. Login with default admin password
+        sess = self.auth.authenticate("admin", "admin")
+        self.assertIsNotNone(sess)
+        self.assertTrue(sess.get("is_default_password"))
+
+        # 2. Short password rejected (< 8 chars)
+        ok_short, msg_short = self.auth.update_password("admin", "short")
+        self.assertFalse(ok_short)
+        self.assertIn("at least 8 characters", msg_short)
+
+        # 3. Valid new password updates and clears default password flag on session
+        ok_upd, _ = self.auth.update_password("admin", "StrongPassword2026!")
+        self.assertTrue(ok_upd)
+
+        sess_valid = self.auth.validate_session(sess["session_token"])
+        self.assertFalse(sess_valid.get("is_default_password"))
+
+        # 4. New login reflects is_default_password = False
+        new_sess = self.auth.authenticate("admin", "StrongPassword2026!")
+        self.assertIsNotNone(new_sess)
+        self.assertFalse(new_sess.get("is_default_password"))
 
 
 if __name__ == "__main__":

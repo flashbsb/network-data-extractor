@@ -191,8 +191,8 @@ class AuthManager:
         username = username.strip()
         if not username or len(username) < 3:
             return False, "Username must be at least 3 characters long"
-        if not password or len(password) < 4:
-            return False, "Password must be at least 4 characters long"
+        if not password or len(password) < 8:
+            return False, "Password must be at least 8 characters long"
         if role not in ROLE_PERMISSIONS:
             return False, f"Invalid role '{role}'. Allowed roles: {', '.join(ROLE_PERMISSIONS.keys())}"
 
@@ -218,8 +218,8 @@ class AuthManager:
 
     def update_password(self, username: str, new_password: str) -> Tuple[bool, str]:
         """Updates the password for an existing user."""
-        if not new_password or len(new_password) < 4:
-            return False, "Password must be at least 4 characters long"
+        if not new_password or len(new_password) < 8:
+            return False, "Password must be at least 8 characters long"
 
         data = self._load_users_data()
         if username not in data.get("users", {}):
@@ -232,6 +232,13 @@ class AuthManager:
         data["users"][username]["updated_at"] = int(time.time())
 
         self._save_users_data(data)
+
+        # Update active sessions for this user to reflect password change
+        is_default = (new_password == "admin")
+        for sess in self.sessions.values():
+            if sess.get("username") == username:
+                sess["is_default_password"] = is_default
+
         return True, "Password updated successfully"
 
     def update_role(self, username: str, new_role: str) -> Tuple[bool, str]:
@@ -303,12 +310,14 @@ class AuthManager:
         session_token = secrets.token_hex(32)
         csrf_token = secrets.token_hex(32)
         now = time.time()
+        is_default = (password == "admin")
         
         session_record = {
             "session_token": session_token,
             "csrf_token": csrf_token,
             "username": username,
             "role": user.get("role", "Operator"),
+            "is_default_password": is_default,
             "created_at": now,
             "expires_at": now + self.SESSION_TTL_SECONDS
         }
@@ -319,6 +328,7 @@ class AuthManager:
             "csrf_token": csrf_token,
             "username": username,
             "role": user.get("role", "Operator"),
+            "is_default_password": is_default,
             "expires_at": session_record["expires_at"]
         }
 

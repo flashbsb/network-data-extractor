@@ -502,6 +502,18 @@
             <span>🔒</span>
             <strong>Public Showcase Demo Mode:</strong> Operational features and modifications are simulated in a read-only browser sandbox without modifying disk files.
         </div>
+        <div id="defaultPasswordBanner" style="display:none; background:rgba(255, 204, 0, 0.08); border:1px solid var(--warning); border-radius:8px; padding:12px 18px; margin-bottom:12px; align-items:center; justify-content:space-between; gap:16px;">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <span style="font-size:1.35rem;">⚠️</span>
+                <div>
+                    <strong style="color:var(--warning); font-size:0.92rem; display:block;">Default Password In Use</strong>
+                    <span style="color:var(--text-dim); font-size:0.82rem;">You are currently logged in with the default password ("admin"). For security, please update your account password.</span>
+                </div>
+            </div>
+            <button class="btn-action" style="border-color:var(--warning); color:var(--warning); background:rgba(255, 204, 0, 0.1); white-space:nowrap; padding:6px 14px; font-weight:600;" onclick="openChangePasswordModal()">
+                🔑 Change Password Now
+            </button>
+        </div>
     </div>
 
     <!-- Main Content Area -->
@@ -786,6 +798,33 @@
                 </div>
             </form>
         </div>
+    <!-- Modal: Change Password -->
+    <div class="modal-overlay" id="changePasswordModal">
+        <div class="modal-card">
+            <h2 style="font-size:1.2rem; margin-bottom:8px; color:var(--accent);">🔑 Update Account Password</h2>
+            <p style="font-size:0.82rem; color:var(--text-dim); margin-bottom:16px;">
+                Enter your new password below. Passwords must be at least 8 characters long.
+            </p>
+            <div id="changePassAlert" style="display:none; padding:8px 12px; border-radius:6px; font-size:0.82rem; margin-bottom:14px;"></div>
+            <form onsubmit="handleChangePasswordSubmit(event)">
+                <div class="form-group">
+                    <label class="form-label">Username</label>
+                    <input type="text" class="form-input" id="changePassUser" readonly style="opacity:0.7; cursor:not-allowed;">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">New Password (min 8 characters)</label>
+                    <input type="password" class="form-input" id="changePassNew" required minlength="8" placeholder="••••••••" autocomplete="new-password">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Confirm New Password</label>
+                    <input type="password" class="form-input" id="changePassConfirm" required minlength="8" placeholder="••••••••" autocomplete="new-password">
+                </div>
+                <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px;">
+                    <button type="button" class="btn-action" onclick="closeChangePasswordModal()">Cancel</button>
+                    <button type="submit" class="btn-action btn-primary" id="btnSaveChangePass">Save Password</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <!-- Client Logic Adapter -->
@@ -855,6 +894,13 @@
                 if (uTab) uTab.style.display = 'none';
             }
 
+            // Display default password warning banner if default credentials are in use
+            if (user && user.is_default_password) {
+                document.getElementById('defaultPasswordBanner').style.display = 'flex';
+            } else {
+                document.getElementById('defaultPasswordBanner').style.display = 'none';
+            }
+
             // Load initial cockpit data
             loadExecutiveSummary();
         }
@@ -876,6 +922,78 @@
         async function handleLogout() {
             await api.logout();
             window.location.reload();
+        }
+
+        // --- Change Password Modal Logic ---
+        function openChangePasswordModal() {
+            const user = api.currentUser ? (api.currentUser.username || 'admin') : 'admin';
+            document.getElementById('changePassUser').value = user;
+            document.getElementById('changePassNew').value = '';
+            document.getElementById('changePassConfirm').value = '';
+            const alertBox = document.getElementById('changePassAlert');
+            alertBox.style.display = 'none';
+            document.getElementById('changePasswordModal').style.display = 'flex';
+            setTimeout(() => document.getElementById('changePassNew').focus(), 50);
+        }
+
+        function closeChangePasswordModal() {
+            document.getElementById('changePasswordModal').style.display = 'none';
+        }
+
+        async function handleChangePasswordSubmit(e) {
+            e.preventDefault();
+            const username = document.getElementById('changePassUser').value;
+            const newPass = document.getElementById('changePassNew').value;
+            const confirmPass = document.getElementById('changePassConfirm').value;
+            const alertBox = document.getElementById('changePassAlert');
+            const saveBtn = document.getElementById('btnSaveChangePass');
+
+            if (newPass.length < 8) {
+                alertBox.innerText = 'Password must be at least 8 characters long.';
+                alertBox.style.background = 'rgba(255, 51, 51, 0.15)';
+                alertBox.style.color = 'var(--danger)';
+                alertBox.style.border = '1px solid var(--danger)';
+                alertBox.style.display = 'block';
+                return;
+            }
+
+            if (newPass !== confirmPass) {
+                alertBox.innerText = 'Passwords do not match. Please re-enter.';
+                alertBox.style.background = 'rgba(255, 51, 51, 0.15)';
+                alertBox.style.color = 'var(--danger)';
+                alertBox.style.border = '1px solid var(--danger)';
+                alertBox.style.display = 'block';
+                return;
+            }
+
+            saveBtn.disabled = true;
+            saveBtn.innerText = 'Updating...';
+
+            try {
+                const res = await api.updateUserPassword(username, newPass);
+                alertBox.innerText = res.message || 'Password successfully updated!';
+                alertBox.style.background = 'rgba(0, 255, 102, 0.15)';
+                alertBox.style.color = 'var(--success)';
+                alertBox.style.border = '1px solid var(--success)';
+                alertBox.style.display = 'block';
+
+                // Hide default password warning banner
+                document.getElementById('defaultPasswordBanner').style.display = 'none';
+
+                setTimeout(() => {
+                    closeChangePasswordModal();
+                    saveBtn.disabled = false;
+                    saveBtn.innerText = 'Save Password';
+                }, 1200);
+            } catch (err) {
+                alertBox.innerText = err.message || 'Failed to update password.';
+                alertBox.style.background = 'rgba(255, 51, 51, 0.15)';
+                alertBox.style.color = 'var(--danger)';
+                alertBox.style.border = '1px solid var(--danger)';
+                alertBox.style.display = 'block';
+                saveBtn.disabled = false;
+                saveBtn.innerText = 'Save Password';
+            }
         }
 
         // --- Executive Cockpit Logic ---

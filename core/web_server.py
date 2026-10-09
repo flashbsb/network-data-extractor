@@ -195,7 +195,8 @@ class NDXRequestHandler(BaseHTTPRequestHandler):
                 "role": user_role,
                 "csrf_token": sess.get("csrf_token", ""),
                 "permissions": list(ROLE_PERMISSIONS.get(user_role, set())),
-                "description": user_info.get("description", "")
+                "description": user_info.get("description", ""),
+                "is_default_password": sess.get("is_default_password", False)
             })
             return
 
@@ -329,6 +330,7 @@ class NDXRequestHandler(BaseHTTPRequestHandler):
                     "username": sess["username"],
                     "role": sess["role"],
                     "csrf_token": sess["csrf_token"],
+                    "is_default_password": sess.get("is_default_password", False),
                     "expires_at": sess["expires_at"]
                 },
                 headers={"Set-Cookie": cookie_val}
@@ -439,7 +441,13 @@ class NDXRequestHandler(BaseHTTPRequestHandler):
             if not ok:
                 self.send_error_json(HTTPStatus.BAD_REQUEST, msg)
                 return
-            self.send_json(HTTPStatus.OK, {"success": True, "message": msg})
+            if sess["username"] == target_user:
+                sess["is_default_password"] = (new_pass == "admin")
+            self.send_json(HTTPStatus.OK, {
+                "success": True,
+                "message": msg,
+                "is_default_password": sess.get("is_default_password", False)
+            })
             return
 
         self.send_error_json(HTTPStatus.NOT_FOUND, "Endpoint not found")

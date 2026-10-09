@@ -32,7 +32,11 @@ class AdminAPIAdapter {
         if (this.isDemoMode) {
             return {
                 authenticated: !!this.mockSession,
-                user: this.mockSession ? { username: this.mockSession.username, role: this.mockSession.role } : null
+                user: this.mockSession ? {
+                    username: this.mockSession.username,
+                    role: this.mockSession.role,
+                    is_default_password: !!this.mockSession.is_default_password
+                } : null
             };
         }
 
@@ -56,13 +60,20 @@ class AdminAPIAdapter {
         if (this.isDemoMode) {
             // Showcase simulation
             if ((username === 'admin' && (password === 'admin' || password === 'demo')) || username.length >= 3) {
+                const isDefault = (username === 'admin' && password === 'admin');
                 this.mockSession = {
                     username: username || 'admin',
                     role: username === 'admin' ? 'SuperAdmin' : 'Operator',
-                    description: 'Public Showcase Session'
+                    description: 'Public Showcase Session',
+                    is_default_password: isDefault
                 };
                 sessionStorage.setItem('ndx_demo_admin_user', JSON.stringify(this.mockSession));
-                return { success: true, username: this.mockSession.username, role: this.mockSession.role };
+                return {
+                    success: true,
+                    username: this.mockSession.username,
+                    role: this.mockSession.role,
+                    is_default_password: isDefault
+                };
             }
             return { success: false, message: 'Invalid demo credentials. Use admin / demo' };
         }
@@ -77,7 +88,12 @@ class AdminAPIAdapter {
             if (res.ok && data.success) {
                 this.csrfToken = data.csrf_token;
                 this.currentUser = data;
-                return { success: true, username: data.username, role: data.role };
+                return {
+                    success: true,
+                    username: data.username,
+                    role: data.role,
+                    is_default_password: data.is_default_password
+                };
             }
             return { success: false, message: data.message || 'Authentication failed' };
         } catch (e) {
@@ -286,6 +302,32 @@ class AdminAPIAdapter {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || 'Failed to create user');
+        return data;
+    }
+
+    async updateUserPassword(username, newPassword) {
+        if (this.isDemoMode) {
+            const isDefault = (newPassword === 'admin');
+            if (this.mockSession && this.mockSession.username === username) {
+                this.mockSession.is_default_password = isDefault;
+                sessionStorage.setItem('ndx_demo_admin_user', JSON.stringify(this.mockSession));
+            }
+            return { success: true, message: `[Simulated] Password updated for ${username} in demo sandbox` };
+        }
+
+        const res = await fetch(`/api/v1/users/${username}/password`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': this.csrfToken
+            },
+            body: JSON.stringify({ new_password: newPassword })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Failed to update password');
+        if (this.currentUser && this.currentUser.username === username) {
+            this.currentUser.is_default_password = (newPassword === 'admin');
+        }
         return data;
     }
 
