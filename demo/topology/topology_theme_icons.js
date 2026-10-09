@@ -45,10 +45,34 @@
             rank: 6,
             description: 'BGP control-plane route reflector cluster nodes'
         },
+        dcn: {
+            label: 'Data Communication Network',
+            shortLabel: 'DCN',
+            rank: 7,
+            description: 'Carrier OAM & management network connecting network elements to NMS/OSS'
+        },
+        demarcator: {
+            label: 'Carrier Demarcator / EDD',
+            shortLabel: 'DEMARC',
+            rank: 8,
+            description: 'Carrier Ethernet demarcators, EDDs, and handoff NIDs'
+        },
+        customer_cpe: {
+            label: 'Customer Premises Equipment',
+            shortLabel: 'CPE',
+            rank: 9,
+            description: 'Customer branch routers and dedicated on-premise switches'
+        },
+        customer_sdwan: {
+            label: 'Customer SD-WAN Gateway',
+            shortLabel: 'SD-WAN',
+            rank: 10,
+            description: 'Customer branch SD-WAN gateways and security appliances'
+        },
         other: {
             label: 'Generic Element',
             shortLabel: 'OTHER',
-            rank: 7,
+            rank: 11,
             description: 'Unclassified endpoints, servers, or legacy elements'
         }
     };
@@ -107,6 +131,34 @@
                     border: '#2563eb',
                     text: '#eff6ff',
                     glow: 'rgba(96, 165, 250, 0.4)'
+                },
+                dcn: {
+                    primary: '#14b8a6',      // Crisp Teal
+                    fill: 'rgba(20, 184, 166, 0.16)',
+                    border: '#0d9488',
+                    text: '#ccfbf1',
+                    glow: 'rgba(20, 184, 166, 0.4)'
+                },
+                demarcator: {
+                    primary: '#f97316',      // Vivid Bronze / Orange
+                    fill: 'rgba(249, 115, 22, 0.16)',
+                    border: '#ea580c',
+                    text: '#ffedd5',
+                    glow: 'rgba(249, 115, 22, 0.4)'
+                },
+                customer_cpe: {
+                    primary: '#84cc16',      // Spring Lime
+                    fill: 'rgba(132, 204, 22, 0.16)',
+                    border: '#65a30d',
+                    text: '#ecfccb',
+                    glow: 'rgba(132, 204, 22, 0.4)'
+                },
+                customer_sdwan: {
+                    primary: '#06b6d4',      // Radiant Cyan
+                    fill: 'rgba(6, 182, 212, 0.16)',
+                    border: '#0891b2',
+                    text: '#cffafe',
+                    glow: 'rgba(6, 182, 212, 0.4)'
                 },
                 other: {
                     primary: '#a1a1aa',      // Neutral Zinc
@@ -179,6 +231,34 @@
                     text: '#1e40af',
                     glow: 'rgba(37, 99, 235, 0.2)'
                 },
+                dcn: {
+                    primary: '#0d9488',      // Deep Teal
+                    fill: '#ccfbf1',
+                    border: '#0f766e',
+                    text: '#115e59',
+                    glow: 'rgba(13, 148, 136, 0.2)'
+                },
+                demarcator: {
+                    primary: '#ea580c',      // Dark Orange
+                    fill: '#ffedd5',
+                    border: '#c2410c',
+                    text: '#9a3412',
+                    glow: 'rgba(234, 88, 12, 0.2)'
+                },
+                customer_cpe: {
+                    primary: '#65a30d',      // Dark Lime
+                    fill: '#ecfccb',
+                    border: '#4d7c0f',
+                    text: '#3f6212',
+                    glow: 'rgba(101, 163, 13, 0.2)'
+                },
+                customer_sdwan: {
+                    primary: '#0891b2',      // Deep Cyan
+                    fill: '#cffafe',
+                    border: '#0e7490',
+                    text: '#155e75',
+                    glow: 'rgba(8, 145, 178, 0.2)'
+                },
                 other: {
                     primary: '#52525b',      // Neutral Zinc
                     fill: '#f4f4f5',
@@ -249,6 +329,34 @@
                     border: '#ffffff',
                     text: '#ffffff',
                     glow: 'rgba(41, 121, 255, 0.6)'
+                },
+                dcn: {
+                    primary: '#00ffff',      // High Contrast Aqua
+                    fill: '#000000',
+                    border: '#ffffff',
+                    text: '#ffffff',
+                    glow: 'rgba(0, 255, 255, 0.6)'
+                },
+                demarcator: {
+                    primary: '#ff6d00',      // High Contrast Orange
+                    fill: '#000000',
+                    border: '#ffffff',
+                    text: '#ffffff',
+                    glow: 'rgba(255, 109, 0, 0.6)'
+                },
+                customer_cpe: {
+                    primary: '#aeea00',      // High Contrast Lime
+                    fill: '#000000',
+                    border: '#ffffff',
+                    text: '#ffffff',
+                    glow: 'rgba(174, 234, 0, 0.6)'
+                },
+                customer_sdwan: {
+                    primary: '#18ffff',      // High Contrast Cyan
+                    fill: '#000000',
+                    border: '#ffffff',
+                    text: '#ffffff',
+                    glow: 'rgba(24, 255, 255, 0.6)'
                 },
                 other: {
                     primary: '#e0e0e0',      // Silver White
@@ -355,6 +463,47 @@
             </svg>`;
         },
 
+        // DCN (Data Communication Network): Carrier OAM/Management router with telemetry wave links
+        dcn: function(color, border, fill) {
+            return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+                <rect x="7" y="10" width="34" height="28" rx="6" fill="${fill}" stroke="${border}" stroke-width="2"/>
+                <circle cx="16" cy="24" r="4.5" fill="${color}"/>
+                <circle cx="32" cy="24" r="4.5" fill="${color}"/>
+                <path d="M16 24 Q24 16 32 24 Q24 32 16 24" fill="none" stroke="${border}" stroke-width="2"/>
+                <circle cx="24" cy="24" r="2" fill="${color}"/>
+            </svg>`;
+        },
+
+        // Demarcator: Carrier Ethernet Demarcator / EDD NID with optical in/out arrows
+        demarcator: function(color, border, fill) {
+            return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+                <rect x="8" y="12" width="32" height="24" rx="4" fill="${fill}" stroke="${border}" stroke-width="2"/>
+                <line x1="24" y1="12" x2="24" y2="36" stroke="${border}" stroke-width="1.8" stroke-dasharray="2 2"/>
+                <polygon points="14,24 19,20 19,28" fill="${color}"/>
+                <polygon points="34,24 29,20 29,28" fill="${color}"/>
+                <circle cx="19" cy="24" r="2" fill="${border}"/>
+                <circle cx="29" cy="24" r="2" fill="${border}"/>
+            </svg>`;
+        },
+
+        // Customer CPE: On-premise customer router/switch
+        customer_cpe: function(color, border, fill) {
+            return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+                <circle cx="24" cy="24" r="19" fill="${fill}" stroke="${border}" stroke-width="2"/>
+                <rect x="15" y="15" width="18" height="18" rx="3" fill="none" stroke="${color}" stroke-width="2"/>
+                <circle cx="24" cy="24" r="3.5" fill="${color}"/>
+            </svg>`;
+        },
+
+        // Customer SD-WAN: Branch SD-WAN Gateway
+        customer_sdwan: function(color, border, fill) {
+            return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+                <polygon points="24,6 42,16 42,32 24,42 6,32 6,16" fill="${fill}" stroke="${border}" stroke-width="2"/>
+                <path d="M16 24 L24 18 L32 24 L24 30 Z" fill="none" stroke="${color}" stroke-width="2.2" stroke-linejoin="round"/>
+                <circle cx="24" cy="24" r="2.5" fill="${color}"/>
+            </svg>`;
+        },
+
         // Generic Element / Server / Host
         other: function(color, border, fill) {
             return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
@@ -456,6 +605,26 @@
             ctx.moveTo(x, y - radius * 0.5);
             ctx.lineTo(x + radius * 0.4, y + radius * 0.4);
             ctx.lineTo(x - radius * 0.4, y + radius * 0.4);
+            ctx.closePath();
+            ctx.fillStyle = style.primary;
+            ctx.fill();
+        } else if (tier === 'dcn') {
+            ctx.rect(x - radius * 0.45, y - radius * 0.35, radius * 0.9, radius * 0.7);
+            ctx.fillStyle = style.primary;
+            ctx.fill();
+        } else if (tier === 'demarcator') {
+            ctx.rect(x - radius * 0.35, y - radius * 0.35, radius * 0.7, radius * 0.7);
+            ctx.fillStyle = style.primary;
+            ctx.fill();
+        } else if (tier === 'customer_cpe') {
+            ctx.arc(x, y, radius * 0.35, 0, Math.PI * 2);
+            ctx.fillStyle = style.primary;
+            ctx.fill();
+        } else if (tier === 'customer_sdwan') {
+            ctx.moveTo(x, y - radius * 0.45);
+            ctx.lineTo(x + radius * 0.45, y);
+            ctx.lineTo(x, y + radius * 0.45);
+            ctx.lineTo(x - radius * 0.45, y);
             ctx.closePath();
             ctx.fillStyle = style.primary;
             ctx.fill();

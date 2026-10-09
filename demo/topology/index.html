@@ -1324,7 +1324,7 @@
         function buildTierPills(dataset) {
             const container = document.getElementById('tierPills');
             const tiersCount = dataset.stats ? (dataset.stats.tiers_count || {}) : {};
-            const allTiers = window.TopologyTheme ? window.TopologyTheme.getAllTiers() : ['core', 'core_agg', 'edge', 'metro', 'peering', 'router_reflector', 'other'];
+            const allTiers = window.TopologyTheme ? window.TopologyTheme.getAllTiers() : ['core', 'core_agg', 'edge', 'metro', 'peering', 'router_reflector', 'dcn', 'demarcator', 'customer_cpe', 'customer_sdwan', 'other'];
 
             let html = '<span class="filter-label">Tiers:</span>';
             allTiers.forEach(t => {

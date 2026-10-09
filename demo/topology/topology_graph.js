@@ -95,7 +95,7 @@
             this.nodeMap = new Map();
             this.activeType = 'summary'; // 'summary' or 'detailed'
             this.activeLayout = 'concentric'; // 'concentric', 'organic', 'site'
-            this.activeTiers = new Set(['core', 'core_agg', 'edge', 'metro', 'peering', 'router_reflector', 'other']);
+            this.activeTiers = new Set(window.TopologyTheme ? window.TopologyTheme.getAllTiers() : ['core', 'core_agg', 'edge', 'metro', 'peering', 'router_reflector', 'dcn', 'demarcator', 'customer_cpe', 'customer_sdwan', 'other']);
             this.searchQuery = '';
             
             // Phase 4 Drift State
@@ -372,6 +372,10 @@
                 case 'peering': return 17;
                 case 'router_reflector': return 18;
                 case 'metro': return 13;
+                case 'dcn': return 15;
+                case 'demarcator': return 13;
+                case 'customer_cpe': return 12;
+                case 'customer_sdwan': return 13;
                 default: return 12;
             }
         }
@@ -397,7 +401,7 @@
         }
 
         applyConcentricLayout(nodes) {
-            const tiersOrder = ['core', 'router_reflector', 'core_agg', 'edge', 'peering', 'metro', 'other'];
+            const tiersOrder = ['core', 'router_reflector', 'core_agg', 'edge', 'peering', 'metro', 'dcn', 'demarcator', 'customer_cpe', 'customer_sdwan', 'other'];
             const groups = {};
             tiersOrder.forEach(t => groups[t] = []);
 
@@ -413,7 +417,11 @@
                 edge: 390,
                 peering: 520,
                 metro: 680,
-                other: 840
+                dcn: 820,
+                demarcator: 960,
+                customer_cpe: 1100,
+                customer_sdwan: 1240,
+                other: 1380
             };
 
             tiersOrder.forEach(tier => {
@@ -1627,6 +1635,10 @@
                 'peering': { prIcon: 'router', fill: '#E98C2F', stroke: '#FFFFFF' },
                 'router_reflector': { prIcon: 'router', fill: '#0d9488', stroke: '#FFFFFF' },
                 'metro': { prIcon: 'l2_switch', fill: '#228122', stroke: '#FFFFFF' },
+                'dcn': { prIcon: 'l2_switch', fill: '#0d9488', stroke: '#FFFFFF' },
+                'demarcator': { prIcon: 'l2_switch', fill: '#ea580c', stroke: '#FFFFFF' },
+                'customer_cpe': { prIcon: 'router', fill: '#65a30d', stroke: '#FFFFFF' },
+                'customer_sdwan': { prIcon: 'router', fill: '#0891b2', stroke: '#FFFFFF' },
                 'other': { prIcon: 'router', fill: '#64748b', stroke: '#FFFFFF' }
             };
 

@@ -22,12 +22,16 @@ class InventoryEngine:
         _dir = os.path.dirname(os.path.abspath(__file__))
         config_path = os.path.normpath(os.path.join(_dir, "..", "config", "settings.json"))
         self.routing_hierarchy = {
-            "metro": ["SWAC", "SWAG"],
-            "edge": ["RTAC", "RTED"],
-            "core_agg": ["RTOC"],
             "core": ["RTIC"],
+            "core_agg": ["RTOC"],
+            "edge": ["RTAC", "RTED"],
+            "metro": ["SWAC", "SWAG", "SMAC", "SMAG", "RTMA", "SWL2", "SML2", "SWMC"],
             "peering": ["RTPR"],
-            "router_reflector": ["RTRR"]
+            "router_reflector": ["RTRR"],
+            "dcn": ["DRTD", "DRTA", "DSWA", "DRST"],
+            "demarcator": ["SWED", "EDEX", "SWGB", "SWCP", "SWCN"],
+            "customer_cpe": ["RTCE", "SWCE", "SWTP"],
+            "customer_sdwan": ["SDCE", "FGT40F"]
         }
         if os.path.exists(config_path):
             try:
@@ -132,12 +136,16 @@ class InventoryEngine:
             return 0
         hostname_upper = hostname.strip().upper()
         categories = [
-            ("metro", 1),
-            ("edge", 2),
-            ("core_agg", 3),
-            ("core", 4),
+            ("core", 1),
+            ("core_agg", 2),
+            ("edge", 3),
+            ("metro", 4),
             ("peering", 5),
-            ("router_reflector", 6)
+            ("router_reflector", 6),
+            ("dcn", 7),
+            ("demarcator", 8),
+            ("customer_cpe", 9),
+            ("customer_sdwan", 10)
         ]
         for key, rank in categories:
             prefixes = self.routing_hierarchy.get(key, [])

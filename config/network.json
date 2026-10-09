@@ -2,25 +2,53 @@
     "_help": "Network topology, device tier classification, interface patterns, and optic mappings.",
     "routing_hierarchy": {
         "_help": "Defines hostname prefixes and their rank for hierarchical path routing.",
-        "metro": [
-            "SWAC",
-            "SWAG"
+        "core": [
+            "RTIC"
+        ],
+        "core_agg": [
+            "RTOC"
         ],
         "edge": [
             "RTAC",
             "RTED"
         ],
-        "core_agg": [
-            "RTOC"
-        ],
-        "core": [
-            "RTIC"
+        "metro": [
+            "SWAC",
+            "SWAG",
+            "SMAC",
+            "SMAG",
+            "RTMA",
+            "SWL2",
+            "SML2",
+            "SWMC"
         ],
         "peering": [
             "RTPR"
         ],
         "router_reflector": [
             "RTRR"
+        ],
+        "dcn": [
+            "DRTD",
+            "DRTA",
+            "DSWA",
+            "DRST"
+        ],
+        "demarcator": [
+            "SWED",
+            "EDEX",
+            "SWGB",
+            "SWCP",
+            "SWCN"
+        ],
+        "customer_cpe": [
+            "RTCE",
+            "SWCE",
+            "SWTP"
+        ],
+        "customer_sdwan": [
+            "SDCE",
+            "FGT40F"
         ]
     },
     "tier_metadata": {
@@ -43,10 +71,10 @@
             "description": "Provider edge routers terminating customer and metro links"
         },
         "metro": {
-            "label": "Metro Switch",
+            "label": "Metro Switch / Access Router",
             "shortLabel": "METRO",
             "rank": 4,
-            "description": "Access switches and metro ethernet aggregation fabrics"
+            "description": "Access switches, metro routers (RTMA), and aggregation fabrics"
         },
         "peering": {
             "label": "Peering / IX Edge",
@@ -60,11 +88,35 @@
             "rank": 6,
             "description": "BGP control-plane route reflector cluster nodes"
         },
+        "dcn": {
+            "label": "Data Communication Network",
+            "shortLabel": "DCN",
+            "rank": 7,
+            "description": "Carrier OAM & management network connecting network elements to NMS/OSS"
+        },
+        "demarcator": {
+            "label": "Carrier Demarcator / EDD",
+            "shortLabel": "DEMARC",
+            "rank": 8,
+            "description": "Carrier Ethernet demarcators, EDDs, and handoff NIDs"
+        },
+        "customer_cpe": {
+            "label": "Customer Premises Equipment",
+            "shortLabel": "CPE",
+            "rank": 9,
+            "description": "Customer branch routers and dedicated on-premise switches"
+        },
+        "customer_sdwan": {
+            "label": "Customer SD-WAN Gateway",
+            "shortLabel": "SD-WAN",
+            "rank": 10,
+            "description": "Customer branch SD-WAN gateways and security appliances"
+        },
         "other": {
             "label": "Generic Element",
             "shortLabel": "OTHER",
-            "rank": 7,
-            "description": "Unclassified or auxiliary network devices"
+            "rank": 11,
+            "description": "Unclassified endpoints, servers, or legacy elements"
         }
     },
     "topology": {

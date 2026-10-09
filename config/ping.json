@@ -9,7 +9,11 @@
             "core_agg": ["edge", "core_agg", "core"],
             "core": ["edge", "core_agg", "core", "peering", "router_reflector"],
             "peering": ["core"],
-            "router_reflector": ["core"]
+            "router_reflector": ["core"],
+            "dcn": ["core", "core_agg"],
+            "demarcator": [],
+            "customer_cpe": [],
+            "customer_sdwan": []
         },
         "count": 5,
         "datagram_size": 100,

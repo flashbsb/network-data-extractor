@@ -112,7 +112,11 @@ class TopologyDataEngine:
                 "metro": 4,
                 "peering": 5,
                 "router_reflector": 6,
-                "other": 7
+                "dcn": 7,
+                "demarcator": 8,
+                "customer_cpe": 9,
+                "customer_sdwan": 10,
+                "other": 11
             }
 
         for tier, prefixes in self.routing_hierarchy.items():
@@ -120,23 +124,31 @@ class TopologyDataEngine:
                 for p in prefixes:
                     p_clean = str(p).strip().upper()
                     if prefix.startswith(p_clean) or p_clean in prefix:
-                        return (tier, rank_map.get(tier, 7))
+                        return (tier, rank_map.get(tier, 11))
         
         # Fallback heuristics
         if "RTIC" in clean_name or "CORE" in clean_name:
             return ("core", rank_map.get("core", 1))
-        if "RTOC" in clean_name or "AGGR" in clean_name:
+        if "RTOC" in clean_name:
             return ("core_agg", rank_map.get("core_agg", 2))
-        if "RTAC" in clean_name or "RTED" in clean_name or "EDGE" in clean_name:
-            return ("edge", rank_map.get("edge", 3))
-        if "SW" in clean_name or "METRO" in clean_name:
-            return ("metro", rank_map.get("metro", 4))
-        if "PTT" in clean_name or "IX" in clean_name or "RTPR" in clean_name:
-            return ("peering", rank_map.get("peering", 5))
         if "RTRR" in clean_name:
             return ("router_reflector", rank_map.get("router_reflector", 6))
+        if "PTT" in clean_name or "IX" in clean_name or "RTPR" in clean_name:
+            return ("peering", rank_map.get("peering", 5))
+        if "RTAC" in clean_name or "RTED" in clean_name or "EDGE" in clean_name:
+            return ("edge", rank_map.get("edge", 3))
+        if any(p in clean_name for p in ["DRTA", "DRTD", "DSWA", "DRST", "DCN"]):
+            return ("dcn", rank_map.get("dcn", 7))
+        if any(p in clean_name for p in ["SWED", "EDEX", "DEMARC", "SWGB", "SWCP", "SWCN"]):
+            return ("demarcator", rank_map.get("demarcator", 8))
+        if any(p in clean_name for p in ["SDCE", "FGT40F", "SDWAN", "SD-WAN"]):
+            return ("customer_sdwan", rank_map.get("customer_sdwan", 10))
+        if any(p in clean_name for p in ["RTCE", "SWCE", "SWTP", "CPE"]):
+            return ("customer_cpe", rank_map.get("customer_cpe", 9))
+        if any(p in clean_name for p in ["SWAC", "SWAG", "SMAC", "SMAG", "RTMA", "SWL2", "METRO"]):
+            return ("metro", rank_map.get("metro", 4))
             
-        return ("other", rank_map.get("other", 7))
+        return ("other", rank_map.get("other", 11))
 
     def get_site_for_hostname(self, hostname: str) -> str:
         """Extracts site/location code from hostname (e.g., RTAC-BHE02-02 -> BHE02)."""

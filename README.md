@@ -422,6 +422,7 @@ python3 network-data-extractor.py --serve --host 0.0.0.0 --port 9090 --users-fil
 * **Cryptographic Security & RBAC:** PBKDF2-HMAC-SHA256 credentials with sliding 4h session cookies (`HttpOnly; SameSite=Lax`) and strict CSRF tokens (`X-CSRF-Token`). Features 4 granular roles: `SuperAdmin`, `NetOps`, `Operator`, and `Auditor`.
 * **Default Credentials:** Initialized out-of-the-box with `admin` / `admin`. Passwords can be changed directly from the Web UI profile modal.
 * **Executive Telemetry Cockpit:** Deep snapshot selector (`[ 📅 Select Snapshot ▾ ]`) inspecting historical runs with real-time SSH success/failure stats, ICMP SLA metrics, interface up/down distribution, LLDP alerts, and 1-click drilldowns.
+* **Target Element Drilldown & Boolean Filter:** Interactive table filtering 5,700+ target nodes with advanced boolean queries (`&`, `|`, `!`, `()`, `"..."`, `status:ok`, `status:fail`, `host:`) and 1-click UTF-8 BOM CSV export for Excel.
 * **Cron Health Inspector:** Live monitoring of scheduled runs (`cron_execution.log`) with elapsed run hours, schedule delay warnings (> 96h), and real-time structured status tokens (`HEALTHY`, `RUNNING`, `DELAYED`, `ERROR`).
 * **In-Browser Configuration Management:** Integrated JSON validator for system settings (`extractor.json`, etc.) and `.cfg` editor with automated production directory prioritization and strict path-traversal isolation.
 * **Zero-Crash Public Showcase Sandbox:** Full GitHub Pages client simulation via `web/admin/admin_adapter.js`.

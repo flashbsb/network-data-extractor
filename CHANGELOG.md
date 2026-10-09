@@ -2,6 +2,32 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.93.0] - 2026-10-09
+### Added
+- **Target Element Drilldown & Boolean Query Filter (`web/admin/index.html`)**:
+  - Live query engine with boolean expression parser supporting logical AND (`&`, `;`), OR (`|`, `,`), NOT (`!`, `-`), parenthetical grouping `( )`, and exact phrase matching `"..."`.
+  - Field-targeted filters: `status:` (`status:ok`, `status:fail`, `status:timeout`), `host:` / `element:`, `error:` / `diag:`.
+  - Resilient syntax recovery preventing UI lockups during live typing of unclosed expressions.
+  - Live result matching counter (e.g., `15 / 255`).
+  - 1-Click CSV export button (`📥 Export CSV`) downloading active filtered elements in UTF-8 BOM format with detailed diagnostic reasons.
+- **Comprehensive Carrier Network Nomenclature & 10-Tier Hierarchy Expansion (`config/network.json`, `config/settings.json`, `config/ping.json`, `core/topology_*.py`, `core/inventory_engine.py`, `core/ping_matrix.py`)**:
+  - Full decoding of carrier naming standard across 5,792 production elements (`[PREFIX]-[SITE]-[ID]`).
+  - Expanded `routing_hierarchy` across 26 prefixes into 10 architectural tiers:
+    - `core`: `RTIC` (Inner Core backbone)
+    - `core_agg`: `RTOC` (Outer Core regional transit)
+    - `edge`: `RTED`, `RTAC` (Provider Edge)
+    - `metro`: `SWAC`, `SWAG`, `SMAC`, `SMAG`, `RTMA`, `SWL2`, `SML2`, `SWMC` (Metro switches and Metro Access Routers `RTMA`)
+    - `peering`: `RTPR` (Internet Exchange & Transit Peering)
+    - `router_reflector`: `RTRR` (BGP Control-Plane Route Reflectors)
+    - `dcn`: `DRTD`, `DRTA`, `DSWA`, `DRST` (Carrier Data Communication Network / OAM Management)
+    - `demarcator`: `SWED`, `EDEX`, `SWGB`, `SWCP`, `SWCN` (Carrier Ethernet Demarcators / EDDs / NIDs)
+    - `customer_cpe`: `RTCE`, `SWCE`, `SWTP` (Customer Premises Equipment routers and switches)
+    - `customer_sdwan`: `SDCE`, `FGT40F...` (Customer SD-WAN gateways and security appliances)
+    - `other`: Unclassified auxiliary elements.
+  - Safe selective ping rules (`matrix_rules`) isolating customer edge/SD-WAN and demarcators from continuous SLA ping sweeps to preserve fast collection times.
+  - Dedicated SVG vector templates and theme palettes across Dark, Light, and HighText themes enforcing strict Purple Ban rules.
+  - Dynamically recalculated orbital layout (`ringRadii` up to 11 concentric rings) and Draw.io export styles.
+
 ## [1.92.0] - 2026-10-08
 ### Added
 - **Web Administration & Operations Portal (`--serve`, `web/admin/`, `core/web_server.py`)**:

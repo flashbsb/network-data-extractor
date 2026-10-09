@@ -502,6 +502,18 @@
             <span>🔒</span>
             <strong>Public Showcase Demo Mode:</strong> Operational features and modifications are simulated in a read-only browser sandbox without modifying disk files.
         </div>
+        <div id="defaultPasswordBanner" style="display:none; background:rgba(255, 204, 0, 0.08); border:1px solid var(--warning); border-radius:8px; padding:12px 18px; margin-bottom:12px; align-items:center; justify-content:space-between; gap:16px;">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <span style="font-size:1.35rem;">⚠️</span>
+                <div>
+                    <strong style="color:var(--warning); font-size:0.92rem; display:block;">Default Password In Use</strong>
+                    <span style="color:var(--text-dim); font-size:0.82rem;">You are currently logged in with the default password ("admin"). For security, please update your account password.</span>
+                </div>
+            </div>
+            <button class="btn-action" style="border-color:var(--warning); color:var(--warning); background:rgba(255, 204, 0, 0.1); white-space:nowrap; padding:6px 14px; font-weight:600;" onclick="openChangePasswordModal()">
+                🔑 Change Password Now
+            </button>
+        </div>
     </div>
 
     <!-- Main Content Area -->
@@ -559,6 +571,7 @@
                         <span style="color:var(--text-dim); font-size:0.9rem;">/ <span id="runTotalElements">0</span> elements OK</span>
                     </div>
                     <div class="metric-subtitle" style="display:flex; justify-content:space-between; margin-top:8px;">
+                        <span>Failed: <b id="runFailCount" style="color:var(--danger);">0</b></span>
                         <span>Timeouts: <b id="runTimeoutCount" style="color:var(--warning);">0</b></span>
                         <span>Auth Failures: <b id="runAuthFailCount" style="color:var(--danger);">0</b></span>
                     </div>
@@ -593,9 +606,25 @@
 
             <!-- Elements Status Drilldown Table -->
             <div class="panel-card">
-                <div class="panel-header">
-                    <div class="panel-title"><span>📋</span> Target Element Collection Status</div>
-                    <span style="font-size:0.75rem; color:var(--text-dim);" id="tableSubtitle">Snapshot targets</span>
+                <div class="panel-header" style="flex-wrap:wrap; gap:12px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <div class="panel-title"><span>📋</span> Target Element Collection Status</div>
+                        <span style="font-size:0.75rem; color:var(--text-dim);" id="tableSubtitle">Snapshot targets</span>
+                    </div>
+                    <!-- Search Filter & CSV Export Toolbar -->
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                        <div style="position:relative; display:flex; align-items:center;">
+                            <input type="text" class="form-input" id="elementsSearchInput" 
+                                   placeholder="Filter (e.g. fail | timeout, !ok, status:fail)..." 
+                                   style="padding:6px 12px; font-size:0.8rem; width:280px; height:32px; background:var(--bg-card); border-color:var(--border);"
+                                   oninput="applyElementsFilter()"
+                                   title="Boolean query: & (AND), | (OR), ! (NOT), parentheses ( ), status:fail, status:ok">
+                            <span id="elementsFilterCount" style="position:absolute; right:10px; font-size:0.72rem; color:var(--text-dim); pointer-events:none;"></span>
+                        </div>
+                        <button class="btn-action" style="padding:6px 12px; font-size:0.8rem; height:32px; display:inline-flex; align-items:center; gap:6px;" onclick="exportElementsCSV()" title="Export current filtered list to CSV">
+                            <span>📥</span> Export CSV
+                        </button>
+                    </div>
                 </div>
                 <div style="max-height: 280px; overflow-y: auto;">
                     <table class="data-table">
@@ -786,6 +815,33 @@
                 </div>
             </form>
         </div>
+    <!-- Modal: Change Password -->
+    <div class="modal-overlay" id="changePasswordModal">
+        <div class="modal-card">
+            <h2 style="font-size:1.2rem; margin-bottom:8px; color:var(--accent);">🔑 Update Account Password</h2>
+            <p style="font-size:0.82rem; color:var(--text-dim); margin-bottom:16px;">
+                Enter your new password below. Passwords must be at least 8 characters long.
+            </p>
+            <div id="changePassAlert" style="display:none; padding:8px 12px; border-radius:6px; font-size:0.82rem; margin-bottom:14px;"></div>
+            <form onsubmit="handleChangePasswordSubmit(event)">
+                <div class="form-group">
+                    <label class="form-label">Username</label>
+                    <input type="text" class="form-input" id="changePassUser" readonly style="opacity:0.7; cursor:not-allowed;">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">New Password (min 8 characters)</label>
+                    <input type="password" class="form-input" id="changePassNew" required minlength="8" placeholder="••••••••" autocomplete="new-password">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Confirm New Password</label>
+                    <input type="password" class="form-input" id="changePassConfirm" required minlength="8" placeholder="••••••••" autocomplete="new-password">
+                </div>
+                <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px;">
+                    <button type="button" class="btn-action" onclick="closeChangePasswordModal()">Cancel</button>
+                    <button type="submit" class="btn-action btn-primary" id="btnSaveChangePass">Save Password</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <!-- Client Logic Adapter -->
@@ -794,6 +850,8 @@
         const api = new AdminAPIAdapter();
         let currentSnapshot = '';
         let activeConfigFile = '';
+        let allSnapshotElements = [];
+        let currentFilteredElements = [];
 
         // --- Theme Switcher ---
         function toggleTheme() {
@@ -855,6 +913,13 @@
                 if (uTab) uTab.style.display = 'none';
             }
 
+            // Display default password warning banner if default credentials are in use
+            if (user && user.is_default_password) {
+                document.getElementById('defaultPasswordBanner').style.display = 'flex';
+            } else {
+                document.getElementById('defaultPasswordBanner').style.display = 'none';
+            }
+
             // Load initial cockpit data
             loadExecutiveSummary();
         }
@@ -876,6 +941,78 @@
         async function handleLogout() {
             await api.logout();
             window.location.reload();
+        }
+
+        // --- Change Password Modal Logic ---
+        function openChangePasswordModal() {
+            const user = api.currentUser ? (api.currentUser.username || 'admin') : 'admin';
+            document.getElementById('changePassUser').value = user;
+            document.getElementById('changePassNew').value = '';
+            document.getElementById('changePassConfirm').value = '';
+            const alertBox = document.getElementById('changePassAlert');
+            alertBox.style.display = 'none';
+            document.getElementById('changePasswordModal').style.display = 'flex';
+            setTimeout(() => document.getElementById('changePassNew').focus(), 50);
+        }
+
+        function closeChangePasswordModal() {
+            document.getElementById('changePasswordModal').style.display = 'none';
+        }
+
+        async function handleChangePasswordSubmit(e) {
+            e.preventDefault();
+            const username = document.getElementById('changePassUser').value;
+            const newPass = document.getElementById('changePassNew').value;
+            const confirmPass = document.getElementById('changePassConfirm').value;
+            const alertBox = document.getElementById('changePassAlert');
+            const saveBtn = document.getElementById('btnSaveChangePass');
+
+            if (newPass.length < 8) {
+                alertBox.innerText = 'Password must be at least 8 characters long.';
+                alertBox.style.background = 'rgba(255, 51, 51, 0.15)';
+                alertBox.style.color = 'var(--danger)';
+                alertBox.style.border = '1px solid var(--danger)';
+                alertBox.style.display = 'block';
+                return;
+            }
+
+            if (newPass !== confirmPass) {
+                alertBox.innerText = 'Passwords do not match. Please re-enter.';
+                alertBox.style.background = 'rgba(255, 51, 51, 0.15)';
+                alertBox.style.color = 'var(--danger)';
+                alertBox.style.border = '1px solid var(--danger)';
+                alertBox.style.display = 'block';
+                return;
+            }
+
+            saveBtn.disabled = true;
+            saveBtn.innerText = 'Updating...';
+
+            try {
+                const res = await api.updateUserPassword(username, newPass);
+                alertBox.innerText = res.message || 'Password successfully updated!';
+                alertBox.style.background = 'rgba(0, 255, 102, 0.15)';
+                alertBox.style.color = 'var(--success)';
+                alertBox.style.border = '1px solid var(--success)';
+                alertBox.style.display = 'block';
+
+                // Hide default password warning banner
+                document.getElementById('defaultPasswordBanner').style.display = 'none';
+
+                setTimeout(() => {
+                    closeChangePasswordModal();
+                    saveBtn.disabled = false;
+                    saveBtn.innerText = 'Save Password';
+                }, 1200);
+            } catch (err) {
+                alertBox.innerText = err.message || 'Failed to update password.';
+                alertBox.style.background = 'rgba(255, 51, 51, 0.15)';
+                alertBox.style.color = 'var(--danger)';
+                alertBox.style.border = '1px solid var(--danger)';
+                alertBox.style.display = 'block';
+                saveBtn.disabled = false;
+                saveBtn.innerText = 'Save Password';
+            }
         }
 
         // --- Executive Cockpit Logic ---
@@ -922,6 +1059,8 @@
                 const elH = tel.elements_health;
                 document.getElementById('runTotalElements').innerText = elH.total;
                 document.getElementById('runOkCount').innerText = elH.counts.ok;
+                const failEl = document.getElementById('runFailCount');
+                if (failEl) failEl.innerText = elH.counts.failed;
                 document.getElementById('runTimeoutCount').innerText = elH.counts.timeout;
                 document.getElementById('runAuthFailCount').innerText = elH.counts.auth_fail;
 
@@ -939,28 +1078,220 @@
                 document.getElementById('runTotalLinks').innerText = top.total_links;
                 document.getElementById('runLldpMismatches').innerText = top.lldp_mismatches;
 
-                // Render elements table
-                const tbody = document.getElementById('elementsTableBody');
-                if (!elH.elements || elH.elements.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--text-dim);">No elements logged for this snapshot.</td></tr>`;
-                } else {
-                    tbody.innerHTML = elH.elements.map(el => {
-                        const isOk = el.status === 'ok';
-                        const badge = isOk 
-                            ? `<span style="color:var(--success); font-weight:700;">OK</span>` 
-                            : `<span style="color:var(--danger); font-weight:700;">${el.status.toUpperCase()}</span>`;
-                        return `
-                            <tr>
-                                <td style="font-family:'JetBrains Mono',monospace; font-weight:600;">${el.element}</td>
-                                <td>${badge}</td>
-                                <td style="color:${isOk ? 'var(--text-dim)' : 'var(--danger)'};">${el.error || '-'}</td>
-                            </tr>
-                        `;
-                    }).join('');
-                }
+                // Populate snapshot elements and render via filter
+                allSnapshotElements = elH.elements || [];
+                applyElementsFilter();
             } catch (err) {
                 console.error(err);
             }
+        }
+
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function evaluateBooleanFilter(node, query) {
+            if (!query || !query.trim()) return true;
+
+            try {
+                const tokenize = (str) => {
+                    const tokens = [];
+                    let i = 0;
+                    while (i < str.length) {
+                        const c = str[i];
+                        if (/\s/.test(c)) { i++; continue; }
+                        if (c === '(' || c === ')') { tokens.push({ type: c }); i++; continue; }
+                        if (c === '&' || c === ';') { tokens.push({ type: 'AND' }); i++; continue; }
+                        if (c === '|' || c === ',') { tokens.push({ type: 'OR' }); i++; continue; }
+                        if (c === '!' || c === '-') { tokens.push({ type: 'NOT' }); i++; continue; }
+                        if (c === '"' || c === "'") {
+                            const quote = c;
+                            i++;
+                            let val = '';
+                            while (i < str.length && str[i] !== quote) { val += str[i]; i++; }
+                            if (i < str.length) i++;
+                            tokens.push({ type: 'TERM', value: val });
+                            continue;
+                        }
+                        let val = '';
+                        while (i < str.length && !/[\s()&;|,!-]/.test(str[i])) { val += str[i]; i++; }
+                        if (val) {
+                            const up = val.toUpperCase();
+                            if (up === 'AND') tokens.push({ type: 'AND' });
+                            else if (up === 'OR') tokens.push({ type: 'OR' });
+                            else if (up === 'NOT') tokens.push({ type: 'NOT' });
+                            else tokens.push({ type: 'TERM', value: val });
+                        }
+                    }
+                    return tokens;
+                };
+
+                const insertImplicitAnd = (tokens) => {
+                    const res = [];
+                    for (let i = 0; i < tokens.length; i++) {
+                        res.push(tokens[i]);
+                        if (i < tokens.length - 1) {
+                            const curr = tokens[i];
+                            const next = tokens[i+1];
+                            const currIsOperand = (curr.type === 'TERM' || curr.type === ')');
+                            const nextIsOperand = (next.type === 'TERM' || next.type === '(' || next.type === 'NOT');
+                            if (currIsOperand && nextIsOperand) {
+                                res.push({ type: 'AND' });
+                            }
+                        }
+                    }
+                    return res;
+                };
+
+                const matchTerm = (targetNode, term) => {
+                    if (!term) return true;
+                    const colonIdx = term.indexOf(':');
+                    if (colonIdx > 0) {
+                        const field = term.substring(0, colonIdx).toLowerCase();
+                        const val = term.substring(colonIdx + 1).toLowerCase();
+                        if (field === 'status') return (targetNode.status || '').toLowerCase().includes(val);
+                        if (field === 'element' || field === 'host' || field === 'name') return (targetNode.element || '').toLowerCase().includes(val);
+                        if (field === 'error' || field === 'diag' || field === 'msg') return (targetNode.error || '').toLowerCase().includes(val);
+                    }
+                    const lowerTerm = term.toLowerCase();
+                    const elMatch = (targetNode.element || '').toLowerCase().includes(lowerTerm);
+                    const stMatch = (targetNode.status || '').toLowerCase().includes(lowerTerm);
+                    const errMatch = (targetNode.error || '').toLowerCase().includes(lowerTerm);
+                    return elMatch || stMatch || errMatch;
+                };
+
+                const tokens = insertImplicitAnd(tokenize(query));
+                if (tokens.length === 0) return true;
+
+                let pos = 0;
+
+                const parseOr = () => {
+                    let left = parseAnd();
+                    while (pos < tokens.length && tokens[pos].type === 'OR') {
+                        pos++;
+                        const right = parseAnd();
+                        left = left || right;
+                    }
+                    return left;
+                };
+
+                const parseAnd = () => {
+                    let left = parseUnary();
+                    while (pos < tokens.length && tokens[pos].type === 'AND') {
+                        pos++;
+                        const right = parseUnary();
+                        left = left && right;
+                    }
+                    return left;
+                };
+
+                const parseUnary = () => {
+                    if (pos < tokens.length && tokens[pos].type === 'NOT') {
+                        pos++;
+                        return !parseUnary();
+                    }
+                    return parsePrimary();
+                };
+
+                const parsePrimary = () => {
+                    if (pos >= tokens.length) return true;
+                    const tok = tokens[pos];
+                    if (tok.type === '(') {
+                        pos++;
+                        const val = parseOr();
+                        if (pos < tokens.length && tokens[pos].type === ')') pos++;
+                        return val;
+                    }
+                    if (tok.type === 'TERM') {
+                        pos++;
+                        return matchTerm(node, tok.value);
+                    }
+                    pos++;
+                    return true;
+                };
+
+                return parseOr();
+            } catch (e) {
+                const q = query.toLowerCase().trim();
+                return (node.element || '').toLowerCase().includes(q) ||
+                       (node.status || '').toLowerCase().includes(q) ||
+                       (node.error || '').toLowerCase().includes(q);
+            }
+        }
+
+        function applyElementsFilter() {
+            const input = document.getElementById('elementsSearchInput');
+            const query = input ? input.value.trim() : '';
+            const tbody = document.getElementById('elementsTableBody');
+            const countEl = document.getElementById('elementsFilterCount');
+
+            currentFilteredElements = allSnapshotElements.filter(el => evaluateBooleanFilter(el, query));
+
+            if (countEl) {
+                if (!query) {
+                    countEl.innerText = allSnapshotElements.length ? `${allSnapshotElements.length}` : '';
+                } else {
+                    countEl.innerText = `${currentFilteredElements.length} / ${allSnapshotElements.length}`;
+                }
+            }
+
+            if (!allSnapshotElements || allSnapshotElements.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--text-dim);">No elements logged for this snapshot.</td></tr>`;
+                return;
+            }
+
+            if (currentFilteredElements.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--text-dim); padding:20px;">No elements match query "${escapeHtml(query)}"</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = currentFilteredElements.map(el => {
+                const isOk = el.status === 'ok';
+                const badge = isOk 
+                    ? `<span style="color:var(--success); font-weight:700;">OK</span>` 
+                    : `<span style="color:var(--danger); font-weight:700;">${escapeHtml((el.status || 'FAIL').toUpperCase())}</span>`;
+                return `
+                    <tr>
+                        <td style="font-family:'JetBrains Mono',monospace; font-weight:600;">${escapeHtml(el.element || '')}</td>
+                        <td>${badge}</td>
+                        <td style="color:${isOk ? 'var(--text-dim)' : 'var(--danger)'};">${isOk ? '-' : escapeHtml(el.error || '-')}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function exportElementsCSV() {
+            if (!currentFilteredElements || currentFilteredElements.length === 0) {
+                alert('No elements to export in the current view.');
+                return;
+            }
+
+            const headers = ['Hostname', 'Status', 'Error Diagnostics'];
+            const rows = currentFilteredElements.map(el => {
+                const isOk = el.status === 'ok';
+                const host = (el.element || '').replace(/"/g, '""');
+                const status = (el.status || '').replace(/"/g, '""');
+                const err = (isOk ? '-' : (el.error || '-')).replace(/"/g, '""');
+                return `"${host}";"${status}";"${err}"`;
+            });
+
+            const csvContent = '\uFEFF' + [headers.map(h => `"${h}"`).join(';'), ...rows].join('\r\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            const filename = `target_elements_${currentSnapshot || 'snapshot'}.csv`;
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
         }
 
         function openRunDashboard(type) {

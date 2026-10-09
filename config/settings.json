@@ -125,7 +125,11 @@
             "core_agg": ["edge", "core_agg", "core"],
             "core": ["edge", "core_agg", "core", "peering", "router_reflector"],
             "peering": ["core"],
-            "router_reflector": ["core"]
+            "router_reflector": ["core"],
+            "dcn": ["core", "core_agg"],
+            "demarcator": [],
+            "customer_cpe": [],
+            "customer_sdwan": []
         },
         "count": 5,
         "datagram_size": 100,
@@ -161,25 +165,53 @@
     },
     "routing_hierarchy": {
         "_help": "Defines hostname prefixes and their rank for hierarchical path routing.",
-        "metro": [
-            "SWAC",
-            "SWAG"
+        "core": [
+            "RTIC"
+        ],
+        "core_agg": [
+            "RTOC"
         ],
         "edge": [
             "RTAC",
             "RTED"
         ],
-        "core_agg": [
-            "RTOC"
-        ],
-        "core": [
-            "RTIC"
+        "metro": [
+            "SWAC",
+            "SWAG",
+            "SMAC",
+            "SMAG",
+            "RTMA",
+            "SWL2",
+            "SML2",
+            "SWMC"
         ],
         "peering": [
             "RTPR"
         ],
         "router_reflector": [
             "RTRR"
+        ],
+        "dcn": [
+            "DRTD",
+            "DRTA",
+            "DSWA",
+            "DRST"
+        ],
+        "demarcator": [
+            "SWED",
+            "EDEX",
+            "SWGB",
+            "SWCP",
+            "SWCN"
+        ],
+        "customer_cpe": [
+            "RTCE",
+            "SWCE",
+            "SWTP"
+        ],
+        "customer_sdwan": [
+            "SDCE",
+            "FGT40F"
         ]
     },
     "retention": {

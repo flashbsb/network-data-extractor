@@ -76,14 +76,31 @@ def read_icmp_commands(path):
     return commands
 
 def get_element_role(hostname, json_config):
+    if not hostname:
+        return None
     routing_hierarchy = json_config.get("routing_hierarchy", {})
-    hostname_upper = hostname.upper()
+    hostname_upper = hostname.strip().upper()
+    parts = re.split(r"[-_.]", hostname_upper)
+    prefix_token = parts[0] if parts else hostname_upper
+
+    # 1. Token-first match (standard naming convention: PREFIX-SITE-ID)
     for role, prefixes in routing_hierarchy.items():
         if role.startswith("_help"):
             continue
         if isinstance(prefixes, list):
             for prefix in prefixes:
-                if prefix.upper() in hostname_upper:
+                p_up = prefix.upper()
+                if prefix_token.startswith(p_up) or p_up == prefix_token:
+                    return role
+
+    # 2. Substring fallback for non-standard appliances (e.g. FGT40F...)
+    for role, prefixes in routing_hierarchy.items():
+        if role.startswith("_help"):
+            continue
+        if isinstance(prefixes, list):
+            for prefix in prefixes:
+                p_up = prefix.upper()
+                if p_up in hostname_upper:
                     return role
     return None
 
