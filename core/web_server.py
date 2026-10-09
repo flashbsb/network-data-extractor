@@ -633,11 +633,15 @@ class NDXWebServer(ThreadingHTTPServer):
                 except Exception:
                     pass
 
+            has_ping = (
+                os.path.isfile(os.path.join(r_path, "ping-matrix", "resume", "ping_matrix_list.json"))
+                or os.path.isfile(os.path.join(r_path, "resume", "ping_matrix_list.json"))
+            )
             entries.append({
                 "id": name,
                 "formatted_date": formatted_date,
                 "node_count": node_cnt,
-                "has_ping": os.path.isfile(os.path.join(r_path, "resume", "ping_matrix_list.json")),
+                "has_ping": has_ping,
                 "has_topology": os.path.isfile(os.path.join(r_path, "connections", "topology.connections.SUM.csv"))
             })
 
@@ -651,7 +655,12 @@ class NDXWebServer(ThreadingHTTPServer):
 
         resume_dir = os.path.join(run_dir, "resume")
         status_file = os.path.join(resume_dir, "status.elements.csv")
-        ping_file = os.path.join(resume_dir, "ping_matrix_list.json")
+
+        # Discover ping_matrix_list.json in ping-matrix subfolder or resume
+        ping_file = os.path.join(run_dir, "ping-matrix", "resume", "ping_matrix_list.json")
+        if not os.path.isfile(ping_file):
+            ping_file = os.path.join(resume_dir, "ping_matrix_list.json")
+
         interfaces_file = os.path.join(resume_dir, "interfaces_all.csv")
         conn_file = os.path.join(run_dir, "connections", "topology.connections.SUM.csv")
         lldp_file = os.path.join(resume_dir, "lldp_mismatch_report.csv")
@@ -663,20 +672,73 @@ class NDXWebServer(ThreadingHTTPServer):
             try:
                 with open(status_file, "r", encoding="utf-8", errors="ignore") as f:
                     for row in csv.DictReader(f, delimiter=";"):
-                        el = row.get("element", "").strip()
+                        el = (row.get("element") or row.get("element_name") or "").strip()
                         st = row.get("status", "ok").strip().lower()
-                        err = row.get("error", "") or row.get("details", "")
-                        elements_list.append({"element": el, "status": st, "error": err})
-                        if st == "ok":
-                            status_counts["ok"] += 1
-                        else:
-                            status_counts["failed"] += 1
-                            if "auth" in err.lower():
-                                status_counts["auth_fail"] += 1
-                            elif "time" in err.lower():
-                                status_counts["timeout"] += 1
+                        # OK elements must NOT show working_key or platform profile as error
+                        raw_err = (row.get("error") or row.get("details") or "").strip()
+                        err = raw_err if st != "ok" and raw_err != "-" else ""
+                        if el:
+                            elements_list.append({"element": el, "status": st, "error": err})
+                            if st == "ok":
+                                status_counts["ok"] += 1
+                            else:
+                                status_counts["failed"] += 1
+                                if "auth" in str(err).lower():
+                                    status_counts["auth_fail"] += 1
+                                elif "time" in str(err).lower():
+                                    status_counts["timeout"] += 1
             except Exception:
                 pass
+
+        # Enrich failed elements with exact diagnostics from commands.log if error is missing
+        failed_with_no_diag = [e for e in elements_list if e["status"] != "ok" and not e["error"]]
+        if failed_with_no_diag:
+            commands_log_text = ""
+            direct_log = os.path.join(run_dir, "log", "commands.log")
+            if os.path.isfile(direct_log):
+                try:
+                    with open(direct_log, "r", encoding="utf-8", errors="ignore") as f:
+                        commands_log_text = f.read()
+                except Exception:
+                    pass
+            elif os.path.isfile(os.path.join(run_dir, "log.zip")):
+                try:
+                    import zipfile
+                    with zipfile.ZipFile(os.path.join(run_dir, "log.zip")) as z:
+                        if "commands.log" in z.namelist():
+                            with z.open("commands.log") as f:
+                                commands_log_text = f.read().decode("utf-8", errors="ignore")
+                except Exception:
+                    pass
+
+            if commands_log_text:
+                failed_lookup = {e["element"]: e for e in failed_with_no_diag}
+                for match in re.finditer(r"Connection/Execution failed for ([^\s]+) at [^\s]+ with key '[^']+': (.*)", commands_log_text):
+                    h = match.group(1).strip()
+                    err_msg = match.group(2).strip()
+                    if h in failed_lookup and not failed_lookup[h]["error"]:
+                        failed_lookup[h]["error"] = err_msg
+                        if "time" in err_msg.lower():
+                            status_counts["timeout"] += 1
+                        elif "auth" in err_msg.lower():
+                            status_counts["auth_fail"] += 1
+
+        # Resilient fallback: If status.elements.csv has empty element column, recover from filtered_elements.cfg
+        if not elements_list:
+            filtered_cfg = os.path.join(run_dir, "filtered_elements.cfg")
+            if not os.path.isfile(filtered_cfg):
+                filtered_cfg = os.path.join(run_dir, "ping-matrix", "filtered_elements.cfg")
+            if os.path.isfile(filtered_cfg):
+                try:
+                    with open(filtered_cfg, "r", encoding="utf-8", errors="ignore") as f:
+                        for line in f:
+                            line = line.strip()
+                            if line and not line.startswith("#"):
+                                el = line.split(";")[0].strip()
+                                elements_list.append({"element": el, "status": "ok", "error": ""})
+                                status_counts["ok"] += 1
+                except Exception:
+                    pass
 
         # 2. Ping Telemetry Health
         ping_summary = {"total": 0, "healthy": 0, "warning": 0, "critical": 0, "dead": 0, "avg_latency_ms": 0.0}
@@ -686,15 +748,19 @@ class NDXWebServer(ThreadingHTTPServer):
                     p_data = json.load(f)
                     meta = p_data.get("metadata", {})
                     health = meta.get("network_health", {})
-                    ping_summary["total"] = meta.get("total_pings", 0)
+                    ping_summary["total"] = health.get("total_links", meta.get("total_pings", meta.get("total_tests", 0)))
                     ping_summary["healthy"] = health.get("healthy", 0)
                     ping_summary["warning"] = health.get("warning", 0)
                     ping_summary["critical"] = health.get("critical", 0)
                     ping_summary["dead"] = health.get("dead", 0)
 
-                    # Compute global latency
-                    node_stats = p_data.get("node_stats", {})
-                    lats = [s.get("avg_global_latency", 0) for s in node_stats.values() if s.get("avg_global_latency")]
+                    # Compute global latency from metadata.node_stats or root node_stats
+                    node_stats = meta.get("node_stats") or p_data.get("node_stats", {})
+                    lats = [
+                        s.get("avg_global_latency", 0)
+                        for s in node_stats.values()
+                        if isinstance(s, dict) and s.get("avg_global_latency", -1) > 0
+                    ]
                     if lats:
                         ping_summary["avg_latency_ms"] = round(sum(lats) / len(lats), 2)
             except Exception:

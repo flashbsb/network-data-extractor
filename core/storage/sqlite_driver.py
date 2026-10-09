@@ -612,14 +612,11 @@ class SQLiteDriver(StorageDriver):
 
         rows = []
         for s in elements_status:
-            rows.append(
-                (
-                    run_id,
-                    str(s.get("element", "")).strip(),
-                    str(s.get("status", "")).strip().lower(),
-                    json.dumps(s.get("details", {})),
-                )
-            )
+            el = str(s.get("element") or s.get("element_name") or "").strip()
+            st = str(s.get("status", "")).strip().lower()
+            det = s.get("details") or s.get("error") or s.get("working_key", "")
+            det_str = json.dumps(det) if isinstance(det, dict) else str(det)
+            rows.append((run_id, el, st, det_str))
 
         def _op(conn):
             with conn:

@@ -207,11 +207,22 @@ class FilesystemDriver(StorageDriver):
         os.makedirs(dirs["resume"], exist_ok=True)
 
         csv_path = os.path.join(dirs["resume"], "status.elements.csv")
-        headers = ["element", "status", "details"]
+        headers = ["element_name", "element", "real_hostname", "timestamp", "status", "working_key", "details"]
         with open(csv_path, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=headers, delimiter=";", extrasaction="ignore")
             writer.writeheader()
-            writer.writerows(elements_status)
+            for s in elements_status:
+                el = s.get("element_name") or s.get("element", "")
+                row = {
+                    "element_name": el,
+                    "element": el,
+                    "real_hostname": s.get("real_hostname", "-"),
+                    "timestamp": s.get("timestamp", "-"),
+                    "status": s.get("status", "ok"),
+                    "working_key": s.get("working_key", "-"),
+                    "details": s.get("details", "")
+                }
+                writer.writerow(row)
 
     # --- Query APIs ---
 
