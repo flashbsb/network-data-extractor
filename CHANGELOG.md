@@ -24,7 +24,7 @@ All notable changes to the **Network Data Extractor** project will be documented
   - Added non-destructive automatic LLDP backfill for pre-existing runs in SQLite database without requiring `--force` or full re-ingestion.
   - Implemented `get_lldp_neighbors()` across `StorageDriver`, `FilesystemDriver`, `SQLiteDriver`, and `StorageManager`.
   - Added flexible CSV header normalization (`element`, `local_intf`, `system_name`, `port_id`, `mgmt_ipv4`) in `save_lldp_neighbors()`.
-  - Enhanced `storage_manager.py init` to automatically discover and seed `elements.cfg` from parent paths (`../d-network-data-extractor/config/elements.cfg`).
+  - Enhanced `storage_manager.py init` to automatically discover and seed `elements.cfg` from parent paths (`config/elements.cfg` or workspace hierarchy).
 - **Integration Tests & Zero Leakage Compliance (`tools/test_web_server.py`, `tools/test_storage_manager.py`)**:
   - Added test cases `test_07_system_capabilities_unauthenticated` and `test_08_shadow_network_and_lldp_analytics`.
   - Re-verified full test suite (28 tests passing) and zero production leakage audit passing cleanly.

@@ -503,6 +503,12 @@ if getattr(args, "serve", False):
     print(f"[*] Press {C_YELLOW}Ctrl+C{C_RESET} to gracefully stop the server.\n")
 
     try:
+        from core.root_portal_engine import generate_root_portal
+        generate_root_portal(args.outbase)
+    except Exception:
+        pass
+
+    try:
         httpd = NDXWebServer(outbase=args.outbase, host=bind_host, port=bind_port, users_file=args.users_file)
         httpd.serve_forever()
     except KeyboardInterrupt:
