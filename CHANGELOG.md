@@ -2,6 +2,27 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.97.0] - 2026-10-13
+### Added
+- **Capabilities-Aware Storage Handshake & Indicator Badge (`core/theme_system.py`, `core/web_server.py`, `web/admin/index.html`, `templates/ping-matrix/history.html`)**:
+  - Implemented unauthenticated `GET /api/v1/system/capabilities` endpoint probing SQLite backend connectivity and active storage modes (`hybrid`, `db_only`, `files_only`).
+  - Added visual storage retrieval badge beside the theme button (`#themeBtn`) dynamically rendering `🗄️ DB Mode` (when SQLite is active) or `📁 Files Mode` (when operating from static files or offline showcase).
+  - Graceful degradation: in Files/Offline mode, advanced multi-run correlation views gracefully fall back or hide without throwing console errors or breaking navigation.
+- **Passive Discovery & Shadow Network Reporting (`core/web_server.py`, `web/admin/index.html`, `web/admin/admin_adapter.js`)**:
+  - Implemented backend passive discovery engine (`get_shadow_network()`) correlating LLDP neighbor adjacencies across runs against the managed inventory catalog (`elements` table and `status.elements.csv`).
+  - Discovers unmanaged CPEs, transit peers, and rogue leaf switches passively detected by managed nodes without adding them to collection targets (Option A).
+  - Added dedicated Admin Portal Tab: `📡 Shadow Network & Discovery` (`#pane-shadow`) with KPI summary cards (Total Discovered, Multi-Attached Peers, Active Adjacencies), live search filtering, global vs point-in-time scope selector, and Excel UTF-8 BOM CSV export.
+- **Universal CSV Export Standardization across Portals**:
+  - `templates/ping-matrix/history.html`: Added Excel-compatible CSV export button (`📥 Export CSV`) for the currently selected circuit telemetry series and one-click `📥 CSV` buttons for all 4 ranking headers (Recent Anomalies, Top Worst Circuits, Degradation Trends, Instability Ranking).
+  - `web/admin/index.html`: Added `📥 Export CSV` buttons in offcanvas diagnostic drawers for dead ICMP test pairs and LLDP topology mismatches.
+- **Backend Analytics Endpoints (`core/web_server.py`)**:
+  - Added `GET /api/v1/analytics/shadow-network` with run-specific or global scope.
+  - Added `GET /api/v1/analytics/lldp-mismatches` with cabling discrepancy analysis.
+  - Added `shadow_network` report resolution in `GET /api/v1/reports/download/{run_id}/shadow_network`.
+- **Integration Tests & Zero Leakage Compliance (`tools/test_web_server.py`)**:
+  - Added test cases `test_07_system_capabilities_unauthenticated` and `test_08_shadow_network_and_lldp_analytics`.
+  - Re-verified full test suite (28 tests passing) and zero production leakage audit passing cleanly.
+
 ## [1.96.0] - 2026-10-13
 ### Changed
 - **Universal Light Theme Default (`core/theme_system.py`, `web/admin/index.html`, `templates/ping-matrix/`)**:

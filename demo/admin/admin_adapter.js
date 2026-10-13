@@ -556,6 +556,87 @@ class AdminAPIAdapter {
         if (!res.ok) throw new Error(data.message || 'Failed to delete user');
         return data;
     }
+
+    async getCapabilities() {
+        if (this.isDemoMode) {
+            return {
+                status: "ok",
+                db_available: false,
+                storage_mode: "files_only",
+                active_mode: "files",
+                db_type: null,
+                features: {
+                    shadow_network: true,
+                    lldp_mismatches_analytics: true,
+                    historical_trends: true,
+                    circuit_telemetry: true
+                }
+            };
+        }
+        try {
+            const res = await fetch('/api/v1/system/capabilities');
+            if (res.ok) return await res.json();
+        } catch (e) {}
+        return {
+            status: "ok",
+            db_available: false,
+            storage_mode: "files_only",
+            active_mode: "files"
+        };
+    }
+
+    async getShadowNetwork(runId) {
+        if (this.isDemoMode) {
+            return {
+                status: "ok",
+                source: "demo",
+                run_id: runId || "all_runs",
+                total_shadow_elements: 4,
+                shadow_elements: [
+                    {
+                        shadow_hostname: "CPE-BANCO-CENTRAL-01",
+                        detected_ip: "192.0.2.254",
+                        detected_by_node_count: 2,
+                        connected_managed_nodes: ["RT-CORE-BSB-01", "SW-DIST-BSB-01"],
+                        remote_interfaces: ["TenGigE0/0/0/1"],
+                        first_seen: "2026-09-08 15:38:13",
+                        last_seen: "2026-10-08 15:35:13"
+                    },
+                    {
+                        shadow_hostname: "UPSTREAM-TRANSIT-L3-01",
+                        detected_ip: "198.51.100.1",
+                        detected_by_node_count: 2,
+                        connected_managed_nodes: ["RT-CORE-FOR-01", "PTT-IX-FOR-01"],
+                        remote_interfaces: ["HundredGigE0/1/0/0"],
+                        first_seen: "2026-09-08 15:38:13",
+                        last_seen: "2026-10-08 15:35:13"
+                    },
+                    {
+                        shadow_hostname: "SW-OOB-MANAGEMENT-RJO",
+                        detected_ip: "198.51.100.15",
+                        detected_by_node_count: 1,
+                        connected_managed_nodes: ["SW-DIST-RJO-02"],
+                        remote_interfaces: ["GigabitEthernet0/1"],
+                        first_seen: "2026-09-22 14:10:13",
+                        last_seen: "2026-10-08 15:35:13"
+                    },
+                    {
+                        shadow_hostname: "EDGE-PARTNER-IX-SP",
+                        detected_ip: "203.0.113.111",
+                        detected_by_node_count: 1,
+                        connected_managed_nodes: ["PTT-IX-SPO-01"],
+                        remote_interfaces: ["Ethernet1/1"],
+                        first_seen: "2026-10-02 13:49:13",
+                        last_seen: "2026-10-08 15:35:13"
+                    }
+                ]
+            };
+        }
+        const url = `/api/v1/analytics/shadow-network${runId ? `?run=${encodeURIComponent(runId)}` : ''}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Failed to load shadow network');
+        return await res.json();
+    }
 }
 
 window.AdminAPIAdapter = AdminAPIAdapter;

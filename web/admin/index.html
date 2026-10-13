@@ -532,6 +532,33 @@
             font-weight: 600;
         }
 
+        /* Storage Mode Badge */
+        .storage-mode-badge {
+            padding: 4px 10px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border-radius: 20px;
+            background: var(--bg-card);
+            color: var(--text-dim);
+            border: 1px solid var(--border);
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            user-select: none;
+            white-space: nowrap;
+            transition: all 0.2s ease;
+        }
+        .storage-mode-badge.badge-db {
+            border-color: rgba(16, 185, 129, 0.4);
+            color: var(--success);
+            background: rgba(16, 185, 129, 0.08);
+        }
+        .storage-mode-badge.badge-files {
+            border-color: rgba(56, 189, 248, 0.4);
+            color: var(--accent);
+            background: rgba(56, 189, 248, 0.08);
+        }
+
         /* Offcanvas Diagnostic Drawer */
         .offcanvas-backdrop {
             position: fixed;
@@ -647,6 +674,7 @@
                 <span id="navUsername">admin</span>
                 <span class="role-tag" id="navRole">SuperAdmin</span>
             </div>
+            <span class="storage-mode-badge badge-files" id="storageModeBadge" title="Data retrieval storage backend">📁 Files Mode</span>
             <button class="btn-action" onclick="toggleTheme()" id="themeBtn" title="Cycle Theme">☀️ Light</button>
             <a href="/" class="btn-action" title="Open Public NOC Portal">🌐 Root Portal</a>
             <button class="btn-action btn-danger" id="logoutBtn" style="display:none;" onclick="handleLogout()">🚪 Logout</button>
@@ -656,6 +684,7 @@
     <!-- Main Tabs -->
     <nav class="tabs-header" id="tabsHeader" style="display:none;">
         <button class="tab-btn active" onclick="switchTab('cockpit')">📊 Executive Cockpit</button>
+        <button class="tab-btn" id="tabShadowBtn" onclick="switchTab('shadow')">📡 Shadow Network</button>
         <button class="tab-btn" onclick="switchTab('config')">⚙️ Configuration Manager</button>
         <button class="tab-btn" onclick="switchTab('cron')">🕒 Cron Telemetry</button>
         <button class="tab-btn" id="tabUsersBtn" onclick="switchTab('users')">👥 Access Control</button>
@@ -983,6 +1012,75 @@
                     </div>
                 </div>
             </div>
+        <!-- TAB: SHADOW NETWORK & DISCOVERY -->
+        <section class="tab-pane" id="pane-shadow">
+            <div class="panel-card">
+                <div class="panel-header" style="flex-wrap:wrap; gap:12px;">
+                    <div>
+                        <div class="panel-title"><span>📡</span> Shadow Network & Passive Discovery</div>
+                        <p style="font-size:0.8rem; color:var(--text-dim); margin-top:4px;">
+                            Unmanaged neighbors, transit uplinks, and customer edge devices detected via LLDP adjacencies that are not registered in the managed device inventory.
+                        </p>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <button class="btn-action" style="padding:6px 12px; font-size:0.8rem; height:32px; display:inline-flex; align-items:center; gap:6px;" onclick="exportShadowNetworkCSV()" title="Export unmanaged shadow elements to CSV">
+                            <span>📥</span> Export CSV
+                        </button>
+                    </div>
+                </div>
+
+                <!-- KPI / Summary metrics -->
+                <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 20px;">
+                    <div class="kpi-card" style="border-left: 4px solid var(--warning);">
+                        <div class="kpi-sub" style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-dim);">Total Discovered Elements</div>
+                        <div class="kpi-val" id="shadowTotalCount" style="font-size:1.6rem; font-weight:700; color:var(--text); margin-top:4px;">0</div>
+                    </div>
+                    <div class="kpi-card" style="border-left: 4px solid var(--accent);">
+                        <div class="kpi-sub" style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-dim);">Multi-Attached Peers</div>
+                        <div class="kpi-val" id="shadowMultiAttachedCount" style="font-size:1.6rem; font-weight:700; color:var(--accent); margin-top:4px;">0</div>
+                    </div>
+                    <div class="kpi-card" style="border-left: 4px solid var(--success);">
+                        <div class="kpi-sub" style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-dim);">Active Adjacencies</div>
+                        <div class="kpi-val" id="shadowAdjacenciesCount" style="font-size:1.6rem; font-weight:700; color:var(--success); margin-top:4px;">0</div>
+                    </div>
+                </div>
+
+                <!-- Search & Filters -->
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
+                    <div style="position:relative; display:flex; align-items:center;">
+                        <input type="text" class="form-input" id="shadowSearchInput" 
+                               placeholder="Filter unmanaged elements (e.g. CPE, !192, transit)..." 
+                               style="padding:6px 12px; font-size:0.8rem; width:300px; height:32px; background:var(--bg-card); border-color:var(--border);"
+                               oninput="applyShadowFilter()">
+                        <span id="shadowFilterCount" style="position:absolute; right:10px; font-size:0.72rem; color:var(--text-dim); pointer-events:none;"></span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:0.8rem; color:var(--text-dim);">Scope:</span>
+                        <select class="form-select" id="shadowScopeSelect" style="padding:4px 8px; font-size:0.8rem; height:32px; width:auto;" onchange="loadShadowNetwork()">
+                            <option value="all">Across All Runs (Global)</option>
+                            <option value="current">Current Snapshot Only</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="max-height: 480px; overflow-y: auto;">
+                    <table class="data-table" id="shadowTable">
+                        <thead>
+                            <tr>
+                                <th>Discovered Unmanaged Hostname</th>
+                                <th>Detected Mgmt IP</th>
+                                <th>Adjacency Count</th>
+                                <th>Connected Managed Nodes</th>
+                                <th>Remote Interfaces</th>
+                                <th>Last Seen</th>
+                            </tr>
+                        </thead>
+                        <tbody id="shadowTableBody">
+                            <tr><td colspan="6" style="text-align:center; color:var(--text-dim); padding:20px;">Click tab or switch scope to scan for unmanaged shadow elements.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </section>
 
         <!-- TAB 2: CONFIGURATION MANAGER -->
@@ -1245,6 +1343,7 @@
             const btn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick').includes(tabId));
             if (btn) btn.classList.add('active');
 
+            if (tabId === 'shadow') loadShadowNetwork();
             if (tabId === 'config') loadConfigsList();
             if (tabId === 'cron') loadCronTelemetry();
             if (tabId === 'users') loadUsersList();
@@ -1252,6 +1351,7 @@
 
         // --- Authentication Flow ---
         async function checkAuth() {
+            detectStorageCapabilities();
             if (api.isDemoMode) {
                 document.getElementById('envBadge').innerText = 'Demo Showcase';
                 document.getElementById('envBadge').style.borderColor = 'var(--warning)';
@@ -1550,7 +1650,10 @@
                     bodyEl.innerHTML = `
                         <div style="margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;">
                             <span style="font-size:0.8rem; color:var(--text-dim);">${deadPairs.length} critical dead test(s) found</span>
-                            <button class="btn-action" style="font-size:0.75rem; padding:3px 8px;" onclick="openRunDashboard('ping-matrix')">🚀 Open in Ping Matrix</button>
+                            <div style="display:flex; gap:8px;">
+                                <button class="btn-action" style="font-size:0.75rem; padding:3px 8px;" onclick="exportDiagnosticDrawerCSV('icmp_dead')">📥 Export CSV</button>
+                                <button class="btn-action" style="font-size:0.75rem; padding:3px 8px;" onclick="openRunDashboard('ping-matrix')">🚀 Open in Ping Matrix</button>
+                            </div>
                         </div>
                         <div style="display:flex; flex-direction:column; gap:8px;">
                             ${deadPairs.map(p => {
@@ -1584,7 +1687,10 @@
                     bodyEl.innerHTML = `
                         <div style="margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;">
                             <span style="font-size:0.8rem; color:var(--text-dim);">${mismatches.length} mismatch event(s) logged</span>
-                            <button class="btn-action" style="font-size:0.75rem; padding:3px 8px;" onclick="openRunDashboard('topology')">🕸️ Open in Topology</button>
+                            <div style="display:flex; gap:8px;">
+                                <button class="btn-action" style="font-size:0.75rem; padding:3px 8px;" onclick="exportDiagnosticDrawerCSV('lldp')">📥 Export CSV</button>
+                                <button class="btn-action" style="font-size:0.75rem; padding:3px 8px;" onclick="openRunDashboard('topology')">🕸️ Open in Topology</button>
+                            </div>
                         </div>
                         <div style="display:flex; flex-direction:column; gap:8px;">
                             ${mismatches.map(m => {
@@ -2214,6 +2320,206 @@
                 return;
             }
             window.location.href = `/api/v1/reports/download/${currentSnapshot}/${type}`;
+        }
+
+        // --- Storage Capabilities Detection ---
+        async function detectStorageCapabilities() {
+            const badge = document.getElementById('storageModeBadge');
+            if (!badge) return;
+            try {
+                const caps = await api.getCapabilities();
+                if (caps && caps.db_available) {
+                    badge.className = 'storage-mode-badge badge-db';
+                    badge.innerHTML = '🗄️ DB Mode';
+                    badge.title = 'Active Backend: SQLite High-Performance Relational Database';
+                    return;
+                }
+            } catch (e) {}
+            badge.className = 'storage-mode-badge badge-files';
+            badge.innerHTML = '📁 Files Mode';
+            badge.title = 'Active Backend: Static JSON & Flat Files';
+        }
+
+        // --- Shadow Network & Passive Discovery Logic ---
+        let currentShadowElements = [];
+        let currentFilteredShadowElements = [];
+
+        async function loadShadowNetwork() {
+            const tbody = document.getElementById('shadowTableBody');
+            if (tbody) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-dim); padding:20px;">Scanning for unmanaged shadow elements...</td></tr>';
+            }
+            try {
+                const scope = document.getElementById('shadowScopeSelect')?.value || 'all';
+                const runId = scope === 'current' ? currentSnapshot : null;
+                const data = await api.getShadowNetwork(runId);
+                currentShadowElements = (data && data.shadow_elements) || [];
+                
+                // Update KPIs
+                const totalCount = currentShadowElements.length;
+                const multiAttached = currentShadowElements.filter(e => (e.detected_by_node_count || 1) > 1).length;
+                const totalAdjacencies = currentShadowElements.reduce((acc, e) => acc + (e.detected_by_node_count || 1), 0);
+
+                if (document.getElementById('shadowTotalCount')) document.getElementById('shadowTotalCount').innerText = totalCount;
+                if (document.getElementById('shadowMultiAttachedCount')) document.getElementById('shadowMultiAttachedCount').innerText = multiAttached;
+                if (document.getElementById('shadowAdjacenciesCount')) document.getElementById('shadowAdjacenciesCount').innerText = totalAdjacencies;
+
+                applyShadowFilter();
+            } catch (err) {
+                if (tbody) {
+                    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--danger); padding:20px;">Failed to load shadow network: ${escapeHtml(err.message)}</td></tr>`;
+                }
+            }
+        }
+
+        function applyShadowFilter() {
+            const q = (document.getElementById('shadowSearchInput')?.value || '').trim().toLowerCase();
+            if (!q) {
+                currentFilteredShadowElements = currentShadowElements;
+            } else {
+                currentFilteredShadowElements = currentShadowElements.filter(e => {
+                    const host = (e.shadow_hostname || '').toLowerCase();
+                    const ip = (e.detected_ip || '').toLowerCase();
+                    const nodes = (Array.isArray(e.connected_managed_nodes) ? e.connected_managed_nodes.join(' ') : String(e.connected_managed_nodes || '')).toLowerCase();
+                    return host.includes(q) || ip.includes(q) || nodes.includes(q);
+                });
+            }
+
+            const countEl = document.getElementById('shadowFilterCount');
+            if (countEl) {
+                countEl.innerText = `${currentFilteredShadowElements.length} / ${currentShadowElements.length}`;
+            }
+
+            renderShadowTable();
+        }
+
+        function renderShadowTable() {
+            const tbody = document.getElementById('shadowTableBody');
+            if (!tbody) return;
+
+            if (currentFilteredShadowElements.length === 0) {
+                tbody.innerHTML = `
+                    <tr><td colspan="6" style="text-align:center; color:var(--text-dim); padding:24px;">
+                        No unmanaged shadow elements matching filter.
+                    </td></tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = currentFilteredShadowElements.map(e => {
+                const nodesList = Array.isArray(e.connected_managed_nodes) ? e.connected_managed_nodes : [e.connected_managed_nodes];
+                const intfsList = Array.isArray(e.remote_interfaces) ? e.remote_interfaces : [e.remote_interfaces];
+                const multiBadge = (e.detected_by_node_count > 1) 
+                    ? `<span class="badge-cat badge-cat-flapping" style="margin-left:6px; font-size:0.65rem;">Multi-Peer (${e.detected_by_node_count})</span>` 
+                    : '';
+
+                return `
+                    <tr>
+                        <td style="font-family:'JetBrains Mono',monospace; font-weight:700;">
+                            <span style="color:var(--accent);">${escapeHtml(e.shadow_hostname)}</span>
+                            ${multiBadge}
+                        </td>
+                        <td style="font-family:'JetBrains Mono',monospace; color:var(--text-dim);">${escapeHtml(e.detected_ip || '-')}</td>
+                        <td><b>${e.detected_by_node_count || 1}</b></td>
+                        <td style="font-size:0.8rem;">
+                            ${nodesList.map(n => `<span class="filter-pill" style="margin:2px; font-size:0.7rem;">${escapeHtml(n)}</span>`).join('')}
+                        </td>
+                        <td style="font-family:'JetBrains Mono',monospace; font-size:0.75rem; color:var(--text-dim);">
+                            ${intfsList.map(i => escapeHtml(i)).join(', ') || '-'}
+                        </td>
+                        <td style="font-size:0.75rem; color:var(--text-dim);">${escapeHtml(e.last_seen || '-')}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function exportShadowNetworkCSV() {
+            if (!currentFilteredShadowElements || currentFilteredShadowElements.length === 0) {
+                alert('No shadow network elements to export.');
+                return;
+            }
+
+            const headers = ['Shadow_Hostname', 'Detected_IP', 'Adjacency_Count', 'Connected_Managed_Nodes', 'Remote_Interfaces', 'First_Seen', 'Last_Seen'];
+            const rows = currentFilteredShadowElements.map(e => {
+                const nodes = Array.isArray(e.connected_managed_nodes) ? e.connected_managed_nodes.join(', ') : (e.connected_managed_nodes || '');
+                const intfs = Array.isArray(e.remote_interfaces) ? e.remote_interfaces.join(', ') : (e.remote_interfaces || '');
+                return [
+                    `"${(e.shadow_hostname || '').replace(/"/g, '""')}"`,
+                    `"${(e.detected_ip || '').replace(/"/g, '""')}"`,
+                    e.detected_by_node_count || 1,
+                    `"${nodes.replace(/"/g, '""')}"`,
+                    `"${intfs.replace(/"/g, '""')}"`,
+                    `"${(e.first_seen || '').replace(/"/g, '""')}"`,
+                    `"${(e.last_seen || '').replace(/"/g, '""')}"`
+                ].join(';');
+            });
+
+            const csvContent = '\uFEFF' + [headers.map(h => `"${h}"`).join(';'), ...rows].join('\r\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const scope = document.getElementById('shadowScopeSelect')?.value || 'all';
+            a.href = url;
+            a.download = `shadow_network_discovery_${scope}_${Date.now()}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // --- Drawer CSV Export Helper ---
+        function exportDiagnosticDrawerCSV(type) {
+            if (type === 'icmp_dead') {
+                const deadPairs = (currentSnapshotTelemetry && currentSnapshotTelemetry.ping_health && currentSnapshotTelemetry.ping_health.dead_pairs) || [];
+                if (!deadPairs.length) {
+                    alert("No dead targets to export.");
+                    return;
+                }
+                const headers = ["Snapshot", "Origin", "Destination", "Packet_Loss_pct", "Avg_Latency_ms", "Status"];
+                const rows = deadPairs.map(p => [
+                    `"${currentSnapshot}"`,
+                    `"${(p.origin || '').replace(/"/g, '""')}"`,
+                    `"${(p.dest || '').replace(/"/g, '""')}"`,
+                    p.loss_pct !== undefined ? p.loss_pct : 100,
+                    (p.avg_ms !== null && p.avg_ms !== undefined) ? p.avg_ms : "",
+                    `"Dead / Unreachable"`
+                ].join(';'));
+                const csvContent = '\uFEFF' + [headers.map(h => `"${h}"`).join(';'), ...rows].join('\r\n');
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `ndx_dead_targets_${currentSnapshot || 'latest'}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } else if (type === 'lldp') {
+                const mismatches = (currentSnapshotTelemetry && currentSnapshotTelemetry.topology_health && currentSnapshotTelemetry.topology_health.lldp_mismatches_list) || [];
+                if (!mismatches.length) {
+                    alert("No LLDP mismatches to export.");
+                    return;
+                }
+                const headers = ["Snapshot", "Local_Host", "Local_Interface", "Mismatch_Reason", "Actual_Remote_Host", "Configured_Description"];
+                const rows = mismatches.map(m => [
+                    `"${currentSnapshot}"`,
+                    `"${(m.Element || m.local_element || m.local_node || '').replace(/"/g, '""')}"`,
+                    `"${(m.Interface || m.local_interface || m.local_intf || '').replace(/"/g, '""')}"`,
+                    `"${(m.Mismatch_Reason || m.reason || m.diagnostic || '').replace(/"/g, '""')}"`,
+                    `"${(m.Actual_LLDP_Neighbor || m.remote_element || m.remote_node || '').replace(/"/g, '""')}"`,
+                    `"${(m.Configured_Description || m.description || '').replace(/"/g, '""')}"`
+                ].join(';'));
+                const csvContent = '\uFEFF' + [headers.map(h => `"${h}"`).join(';'), ...rows].join('\r\n');
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `ndx_lldp_mismatches_${currentSnapshot || 'latest'}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
         }
 
         // Run bootstrap on DOM ready

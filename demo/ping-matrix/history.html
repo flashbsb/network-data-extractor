@@ -112,6 +112,32 @@
             box-shadow: 0 0 10px rgba(2, 132, 199, 0.2);
         }
 
+        .storage-mode-badge {
+            padding: 4px 10px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border-radius: 20px;
+            background: var(--panel-bg);
+            color: var(--text-dim);
+            border: 1px solid var(--border-color);
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            user-select: none;
+            white-space: nowrap;
+            transition: all 0.2s ease;
+        }
+        .storage-mode-badge.badge-db {
+            border-color: rgba(16, 185, 129, 0.4);
+            color: var(--color-healthy);
+            background: rgba(16, 185, 129, 0.08);
+        }
+        .storage-mode-badge.badge-files {
+            border-color: rgba(2, 132, 199, 0.4);
+            color: var(--color-action);
+            background: rgba(2, 132, 199, 0.08);
+        }
+
         .hud-title h1 {
             font-size: 2rem;
             font-weight: 800;
@@ -601,6 +627,7 @@
             <p>Baseline Analysis, Anomalies, and Temporal Performance • Version 1.1 (Dynamic Load + Cache Busting)</p>
         </div>
         <div class="header-actions" style="display: flex; align-items: center; gap: 15px; flex-shrink: 0;">
+            <span class="storage-mode-badge badge-files" id="storageModeBadge" title="Data retrieval storage backend">📁 Files Mode</span>
             <button type="button" class="theme-toggle-btn" id="themeBtn" onclick="toggleAppTheme()" aria-label="Cycle visual theme" title="Cycle Theme: Light ➔ Dark ➔ HighText">☀️ Light</button>
             <a class="back-portal" href="../index.html">← Network Portal</a>
         </div>
@@ -624,7 +651,7 @@
                 <span class="info-tooltip" title="Outbound: direct path. Inbound: reverse path. Bidirectional: average of both paths. Worst Case: maximum loss/latency at each snapshot." style="cursor: help; color: var(--text-dim); font-size: 0.8rem; transition: color 0.2s;">ℹ️</span>
             </label>
             <div class="quick-select-pills" id="directionPills">
-                <button class="pill-btn active" data-value="all" onclick="setDirectionFilter('all', this)" title="Exibe todas as direções (Outbound, Inbound e Pior Caso) simultaneamente no gráfico de latência.">Todas as Direções: A ⇄ B</button>
+                <button class="pill-btn active" data-value="all" onclick="setDirectionFilter('all', this)" title="Displays all directions (Outbound, Inbound, and Worst Case) simultaneously on the latency chart.">All Directions: A ⇄ B</button>
                 <button class="pill-btn" data-value="direct" onclick="setDirectionFilter('direct', this)" title="Displays statistics from Origin (A) to Destination (B).">Outbound: A 🡲 B</button>
                 <button class="pill-btn" data-value="reverse" onclick="setDirectionFilter('reverse', this)" title="Displays statistics from Destination (B) to Origin (A).">Inbound: B 🡰 A</button>
                 <button class="pill-btn" data-value="both" onclick="setDirectionFilter('both', this)" title="Displays the mathematical average of both directions.">Bidirectional: A ⇄ B</button>
@@ -643,6 +670,10 @@
         <div class="input-group" id="btnPathLinkGroup" style="display: none;">
             <label>Path Actions</label>
             <button class="action-btn" onclick="goToPath()" style="height: 38px;">🗺️ Route Analysis (Dijkstra)</button>
+        </div>
+        <div class="input-group" id="btnExportGroup">
+            <label>Export Data</label>
+            <button class="action-btn" onclick="exportCircuitHistoryCSV()" style="height: 38px; display: inline-flex; align-items: center; gap: 6px;" title="Export historical metrics to CSV">📥 Export CSV</button>
         </div>
 
         <!-- Thresholds Sliders -->
@@ -765,8 +796,9 @@
             <div class="rankings-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; margin-bottom: 25px;">
                 <!-- Anomalies -->
                 <div class="sidebar-panel" style="max-height: none;">
-                    <div class="panel-header" style="margin-bottom:10px;">
+                    <div class="panel-header" style="margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
                         <h2>Recent Anomalies</h2>
+                        <button class="action-btn" style="padding:2px 8px; font-size:0.7rem; height:24px;" onclick="exportTableToCSV('tblAnomalies', 'ndx_ping_anomalies.csv', ['Date', 'Link', 'Measured', 'Deviation'])" title="Export to CSV">📥 CSV</button>
                     </div>
                     <table class="list-table">
                         <thead>
@@ -783,8 +815,9 @@
 
                 <!-- Top Worst -->
                 <div class="sidebar-panel" style="max-height: none;">
-                    <div class="panel-header" style="margin-bottom:10px;">
+                    <div class="panel-header" style="margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
                         <h2>Top 10 Worst Circuits (Last 10 Snapshots)</h2>
+                        <button class="action-btn" style="padding:2px 8px; font-size:0.7rem; height:24px;" onclick="exportTableToCSV('tblWorst', 'ndx_top_worst_circuits.csv', ['Origin ⇄ Destination', 'Avg Loss', 'Avg Latency'])" title="Export to CSV">📥 CSV</button>
                     </div>
                     <table class="list-table">
                         <thead>
@@ -800,8 +833,9 @@
 
                 <!-- Worsening Trend -->
                 <div class="sidebar-panel" style="max-height: none;">
-                    <div class="panel-header" style="margin-bottom:10px;">
+                    <div class="panel-header" style="margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
                         <h2>Degradation Trend (Regression)</h2>
+                        <button class="action-btn" style="padding:2px 8px; font-size:0.7rem; height:24px;" onclick="exportTableToCSV('tblTrends', 'ndx_degradation_trends.csv', ['Link', 'Coefficient (Δ/run)', 'Evolution'])" title="Export to CSV">📥 CSV</button>
                     </div>
                     <table class="list-table">
                         <thead>
@@ -817,8 +851,9 @@
 
                 <!-- Instability (Variance) -->
                 <div class="sidebar-panel" style="max-height: none;">
-                    <div class="panel-header" style="margin-bottom:10px;">
+                    <div class="panel-header" style="margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
                         <h2>Instability Ranking (Std Dev)</h2>
+                        <button class="action-btn" style="padding:2px 8px; font-size:0.7rem; height:24px;" onclick="exportTableToCSV('tblStability', 'ndx_instability_ranking.csv', ['Circuit', 'Std Dev (σ)', 'Avg Latency'])" title="Export to CSV">📥 CSV</button>
                     </div>
                     <table class="list-table">
                         <thead>
@@ -1888,7 +1923,99 @@
             if (menu) menu.style.display = 'none';
         });
 
+        // Universal CSV Export Helpers
+        function downloadCSV(filename, csvContent) {
+            const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+
+        function exportTableToCSV(tableId, filename, headers) {
+            const table = document.getElementById(tableId);
+            if (!table) return;
+            const rows = Array.from(table.querySelectorAll('tr'));
+            if (!rows.length) {
+                alert("No table data available to export.");
+                return;
+            }
+
+            const lines = [];
+            if (headers && headers.length > 0) {
+                lines.push(headers.map(h => `"${String(h).replace(/"/g, '""')}"`).join(';'));
+            }
+
+            rows.forEach(tr => {
+                const cells = Array.from(tr.querySelectorAll('th, td'));
+                if (!cells.length) return;
+                if (headers && tr.parentElement && tr.parentElement.tagName.toLowerCase() === 'thead') return;
+                const rowData = cells.map(cell => {
+                    const text = cell.innerText.trim().replace(/\s+/g, ' ');
+                    return `"${text.replace(/"/g, '""')}"`;
+                });
+                lines.push(rowData.join(';'));
+            });
+
+            downloadCSV(filename, lines.join('\r\n'));
+        }
+
+        function exportCircuitHistoryCSV() {
+            const origin = document.getElementById('selOrigin') ? document.getElementById('selOrigin').value : '';
+            const dest = document.getElementById('selDest') ? document.getElementById('selDest').value : '';
+            if (!currentLinkHistory || !currentLinkHistory.length) {
+                alert("Please select a circuit with available telemetry data first.");
+                return;
+            }
+            const filtered = filterHistoryByPeriod(currentLinkHistory);
+            if (!filtered || !filtered.length) {
+                alert("No telemetry samples available for the selected time range.");
+                return;
+            }
+            const headers = ["Timestamp", "Origin", "Destination", "Avg_ms", "Min_ms", "Max_ms", "Packet_Loss_pct", "Jitter_ms"];
+            const lines = [headers.map(h => `"${h}"`).join(';')];
+            filtered.forEach(h => {
+                lines.push([
+                    `"${h.t}"`,
+                    `"${origin}"`,
+                    `"${dest}"`,
+                    h.avg !== null && h.avg !== undefined ? h.avg : "",
+                    h.min !== null && h.min !== undefined ? h.min : "",
+                    h.max !== null && h.max !== undefined ? h.max : "",
+                    h.loss !== null && h.loss !== undefined ? h.loss : "",
+                    h.jitter !== null && h.jitter !== undefined ? h.jitter : ""
+                ].join(';'));
+            });
+            downloadCSV(`ndx_circuit_${origin}_${dest}_telemetry.csv`, lines.join('\r\n'));
+        }
+
+        async function detectStorageCapabilities() {
+            const badge = document.getElementById('storageModeBadge');
+            if (!badge) return;
+            try {
+                const res = await fetch('/api/v1/system/capabilities', { method: 'GET' });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.db_available) {
+                        badge.className = 'storage-mode-badge badge-db';
+                        badge.innerHTML = '🗄️ DB Mode';
+                        badge.title = 'Active Backend: SQLite Relational Database';
+                        return;
+                    }
+                }
+            } catch(e) {}
+            badge.className = 'storage-mode-badge badge-files';
+            badge.innerHTML = '📁 Files Mode';
+            badge.title = 'Active Backend: Static JSON & Flat Files';
+        }
+
         window.onload = async () => {
+            detectStorageCapabilities();
             checkDiffAvailability();
             try {
                 await loadScript("history/history_manifest.js");

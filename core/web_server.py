@@ -12,6 +12,7 @@ import csv
 import json
 import time
 import shutil
+import sqlite3
 import urllib.parse
 from http import HTTPStatus
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
@@ -26,7 +27,7 @@ class NDXRequestHandler(BaseHTTPRequestHandler):
     Multi-threaded HTTP request handler supporting static dashboard assets
     and authenticated REST API endpoints with RBAC enforcement.
     """
-    server_version = "NDX-Portal/1.92.0"
+    server_version = "NDX-Portal/1.97.0"
 
     def log_message(self, format: str, *args: Any) -> None:
         """Custom concise logging format."""
@@ -170,6 +171,11 @@ class NDXRequestHandler(BaseHTTPRequestHandler):
     def _handle_api_get(self, path: str, query: Dict[str, List[str]]) -> None:
         """Handles API GET endpoints."""
         # Unauthenticated endpoints
+        if path == "/api/v1/system/capabilities":
+            caps = self.server.get_system_capabilities()
+            self.send_json(HTTPStatus.OK, caps)
+            return
+
         if path == "/api/v1/auth/status":
             sess = self._get_authenticated_user()
             self.send_json(HTTPStatus.OK, {
@@ -240,6 +246,26 @@ class NDXRequestHandler(BaseHTTPRequestHandler):
             from_date = query.get("from", [None])[0]
             to_date = query.get("to", [None])[0]
             data = self.server.get_element_reliability_analytics(from_date=from_date, to_date=to_date)
+            self.send_json(HTTPStatus.OK, data)
+            return
+
+        # GET /api/v1/analytics/shadow-network
+        if path == "/api/v1/analytics/shadow-network":
+            if not auth_mgr.has_permission(user_role, "view_metrics"):
+                self.send_error_json(HTTPStatus.FORBIDDEN, "Permission denied")
+                return
+            run_id = query.get("run", [None])[0]
+            data = self.server.get_shadow_network(run_id=run_id)
+            self.send_json(HTTPStatus.OK, data)
+            return
+
+        # GET /api/v1/analytics/lldp-mismatches
+        if path == "/api/v1/analytics/lldp-mismatches":
+            if not auth_mgr.has_permission(user_role, "view_metrics"):
+                self.send_error_json(HTTPStatus.FORBIDDEN, "Permission denied")
+                return
+            run_id = query.get("run", [None])[0]
+            data = self.server.get_lldp_mismatches(run_id=run_id)
             self.send_json(HTTPStatus.OK, data)
             return
 
@@ -1426,5 +1452,293 @@ class NDXWebServer(ThreadingHTTPServer):
             return os.path.join(run_dir, "resume", "ping_matrix_list.json"), f"ping_matrix_{run_id}.json"
         elif rep_type == "lldp_mismatch":
             return os.path.join(run_dir, "resume", "lldp_mismatch_report.csv"), f"lldp_mismatch_{run_id}.csv"
+        elif rep_type == "shadow_network":
+            # Dynamically produce shadow network report CSV
+            resume_dir = os.path.join(run_dir, "resume")
+            os.makedirs(resume_dir, exist_ok=True)
+            tmp_csv = os.path.join(resume_dir, "shadow_network_report.csv")
+            try:
+                res = self.get_shadow_network(run_id=run_id)
+                items = res.get("shadow_elements", [])
+                with open(tmp_csv, "w", encoding="utf-8", newline="") as f:
+                    writer = csv.writer(f, delimiter=";")
+                    writer.writerow(["Shadow_Hostname", "Detected_IP", "Detected_By_Count", "Connected_Managed_Nodes", "Remote_Interfaces", "First_Seen", "Last_Seen"])
+                    for it in items:
+                        writer.writerow([
+                            it.get("shadow_hostname", ""),
+                            it.get("detected_ip", ""),
+                            it.get("detected_by_node_count", 0),
+                            ", ".join(it.get("connected_managed_nodes", [])),
+                            ", ".join(it.get("remote_interfaces", [])),
+                            it.get("first_seen", ""),
+                            it.get("last_seen", "")
+                        ])
+                return tmp_csv, f"shadow_network_{run_id}.csv"
+            except Exception:
+                pass
 
         return None, None
+
+    def _get_db_path(self) -> Optional[str]:
+        """Resolves active SQLite database path if provisioned."""
+        env_path = os.environ.get("NDX_DATABASE_PATH")
+        if env_path and os.path.isfile(env_path):
+            return env_path
+        candidates = [
+            os.path.join(self.outbase, "database", "storage.db"),
+            os.path.join(self.outbase, "database", "network_data.db"),
+            os.path.join(self.repo_dir, "database", "network_data.db")
+        ]
+        for c in candidates:
+            if os.path.isfile(c):
+                return c
+        return None
+
+    def get_system_capabilities(self) -> Dict[str, Any]:
+        """Probes system storage capabilities and feature support."""
+        db_path = self._get_db_path()
+        db_available = False
+        db_tables = []
+        if db_path:
+            try:
+                conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=2.0)
+                cur = conn.cursor()
+                cur.execute("SELECT name FROM sqlite_master WHERE type='table';")
+                db_tables = [r[0] for r in cur.fetchall()]
+                conn.close()
+                db_available = True
+            except Exception:
+                db_available = False
+
+        storage_mode = "hybrid" if db_available else "files_only"
+        active_mode = "db" if db_available else "files"
+
+        return {
+            "status": "ok",
+            "db_available": db_available,
+            "db_path": os.path.basename(db_path) if db_path else None,
+            "db_tables": db_tables,
+            "storage_mode": storage_mode,
+            "active_mode": active_mode,
+            "db_type": "sqlite" if db_available else None,
+            "features": {
+                "shadow_network": True,
+                "lldp_mismatches_analytics": True,
+                "historical_trends": True,
+                "circuit_telemetry": True
+            }
+        }
+
+    def get_shadow_network(self, run_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Extracts unmanaged / shadow network elements discovered via LLDP adjacencies
+        that do not belong to the managed inventory catalog.
+        """
+        db_path = self._get_db_path()
+        managed_hostnames = set()
+
+        # 1. Identify managed target nodes from elements catalog
+        catalogue = self._get_catalogue_elements()
+        for h in catalogue.keys():
+            managed_hostnames.add(h.upper())
+            base = h.split('.')[0] if '.' in h else h
+            managed_hostnames.add(base.upper())
+
+        # 2. Query SQLite if database is reachable
+        if db_path:
+            try:
+                conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=5.0)
+                conn.row_factory = sqlite3.Row
+                cur = conn.cursor()
+
+                # Also populate managed hostnames from elements table
+                try:
+                    cur.execute("SELECT hostname FROM elements;")
+                    for r in cur.fetchall():
+                        h = (r["hostname"] or "").strip().upper()
+                        if h:
+                            managed_hostnames.add(h)
+                            base = h.split('.')[0] if '.' in h else h
+                            managed_hostnames.add(base)
+                except Exception:
+                    pass
+
+                if run_id:
+                    query = """
+                        SELECT 
+                            l.remote_host AS shadow_hostname,
+                            COALESCE(l.remote_ip, '') AS detected_ip,
+                            COUNT(DISTINCT l.local_host) AS detected_by_node_count,
+                            GROUP_CONCAT(DISTINCT l.local_host) AS connected_managed_nodes,
+                            GROUP_CONCAT(DISTINCT l.remote_interface) AS remote_interfaces,
+                            MIN(r.started_at) AS first_seen,
+                            MAX(r.started_at) AS last_seen
+                        FROM lldp_neighbors l
+                        JOIN runs r ON l.run_id = r.run_id
+                        WHERE l.run_id = ?
+                          AND l.remote_host IS NOT NULL 
+                          AND TRIM(l.remote_host) != ''
+                        GROUP BY l.remote_host
+                        ORDER BY detected_by_node_count DESC, shadow_hostname ASC
+                    """
+                    cur.execute(query, (run_id,))
+                else:
+                    query = """
+                        SELECT 
+                            l.remote_host AS shadow_hostname,
+                            COALESCE(l.remote_ip, '') AS detected_ip,
+                            COUNT(DISTINCT l.local_host) AS detected_by_node_count,
+                            GROUP_CONCAT(DISTINCT l.local_host) AS connected_managed_nodes,
+                            GROUP_CONCAT(DISTINCT l.remote_interface) AS remote_interfaces,
+                            MIN(r.started_at) AS first_seen,
+                            MAX(r.started_at) AS last_seen
+                        FROM lldp_neighbors l
+                        JOIN runs r ON l.run_id = r.run_id
+                        WHERE l.remote_host IS NOT NULL 
+                          AND TRIM(l.remote_host) != ''
+                        GROUP BY l.remote_host
+                        ORDER BY detected_by_node_count DESC, shadow_hostname ASC
+                    """
+                    cur.execute(query)
+
+                rows = cur.fetchall()
+                conn.close()
+
+                shadow_elements = []
+                for row in rows:
+                    h = (row["shadow_hostname"] or "").strip()
+                    h_upper = h.upper()
+                    base_upper = (h.split('.')[0] if '.' in h else h).upper()
+                    if h_upper not in managed_hostnames and base_upper not in managed_hostnames:
+                        shadow_elements.append({
+                            "shadow_hostname": h,
+                            "detected_ip": row["detected_ip"] or "-",
+                            "detected_by_node_count": row["detected_by_node_count"],
+                            "connected_managed_nodes": [x.strip() for x in (row["connected_managed_nodes"] or "").split(",") if x.strip()],
+                            "remote_interfaces": [x.strip() for x in (row["remote_interfaces"] or "").split(",") if x.strip()],
+                            "first_seen": row["first_seen"] or "-",
+                            "last_seen": row["last_seen"] or "-"
+                        })
+
+                return {
+                    "status": "ok",
+                    "source": "db",
+                    "run_id": run_id or "all_runs",
+                    "total_shadow_elements": len(shadow_elements),
+                    "shadow_elements": shadow_elements
+                }
+            except Exception:
+                pass
+
+        # 3. Resilient Fallback: Scan filesystem runs
+        runs_dir = os.path.join(self.outbase, "runs")
+        target_runs = [run_id] if run_id else [r["id"] for r in self.list_runs()]
+        shadow_map = {}
+
+        for r_id in target_runs:
+            r_path = os.path.join(runs_dir, r_id)
+            if not os.path.isdir(r_path):
+                continue
+
+            # Update managed hostnames from status.elements.csv
+            status_f = os.path.join(r_path, "resume", "status.elements.csv")
+            if os.path.isfile(status_f):
+                try:
+                    with open(status_f, "r", encoding="utf-8", errors="ignore") as f:
+                        for row in csv.DictReader(f, delimiter=";"):
+                            el = (row.get("element") or "").strip().upper()
+                            if el:
+                                managed_hostnames.add(el)
+                                managed_hostnames.add(el.split('.')[0])
+                except Exception:
+                    pass
+
+            candidates_lldp = [
+                os.path.join(r_path, "resume", "show_lldp_neighbors_detail_all.csv"),
+                os.path.join(r_path, "csv", "show_lldp_neighbors_detail_all.csv"),
+                os.path.join(r_path, "collect", "show_lldp_neighbors_detail_all.csv")
+            ]
+            for lldp_f in candidates_lldp:
+                if os.path.isfile(lldp_f):
+                    try:
+                        with open(lldp_f, "r", encoding="utf-8", errors="ignore") as f:
+                            for row in csv.DictReader(f, delimiter=";"):
+                                local_node = (row.get("element") or "").strip()
+                                remote_node = (row.get("system_name") or row.get("remote_host") or row.get("neighbor") or "").strip()
+                                remote_ip = (row.get("mgmt_ip") or row.get("remote_ip") or "").strip()
+                                remote_intf = (row.get("remote_intf") or row.get("port_id") or "").strip()
+                                if not remote_node:
+                                    continue
+                                r_upper = remote_node.upper()
+                                base_upper = (remote_node.split('.')[0] if '.' in remote_node else remote_node).upper()
+                                if r_upper in managed_hostnames or base_upper in managed_hostnames:
+                                    continue
+
+                                if remote_node not in shadow_map:
+                                    shadow_map[remote_node] = {
+                                        "shadow_hostname": remote_node,
+                                        "detected_ip": remote_ip or "-",
+                                        "connected_managed_nodes": set(),
+                                        "remote_interfaces": set(),
+                                        "first_seen": r_id,
+                                        "last_seen": r_id
+                                    }
+                                rec = shadow_map[remote_node]
+                                if local_node:
+                                    rec["connected_managed_nodes"].add(local_node)
+                                if remote_intf:
+                                    rec["remote_interfaces"].add(remote_intf)
+                                if remote_ip and rec["detected_ip"] == "-":
+                                    rec["detected_ip"] = remote_ip
+                                rec["last_seen"] = r_id
+                    except Exception:
+                        pass
+                    break
+
+        shadow_elements = []
+        for s_host, rec in shadow_map.items():
+            shadow_elements.append({
+                "shadow_hostname": s_host,
+                "detected_ip": rec["detected_ip"],
+                "detected_by_node_count": len(rec["connected_managed_nodes"]),
+                "connected_managed_nodes": sorted(list(rec["connected_managed_nodes"])),
+                "remote_interfaces": sorted(list(rec["remote_interfaces"])),
+                "first_seen": rec["first_seen"],
+                "last_seen": rec["last_seen"]
+            })
+        shadow_elements.sort(key=lambda x: (x["detected_by_node_count"], x["shadow_hostname"]), reverse=True)
+
+        return {
+            "status": "ok",
+            "source": "files",
+            "run_id": run_id or "all_runs",
+            "total_shadow_elements": len(shadow_elements),
+            "shadow_elements": shadow_elements
+        }
+
+    def get_lldp_mismatches(self, run_id: Optional[str] = None) -> Dict[str, Any]:
+        """Returns physical cabling vs LLDP neighbor mismatch records."""
+        runs = self.list_runs()
+        if not run_id:
+            run_id = runs[0]["id"] if runs else ""
+        if not run_id:
+            return {"status": "ok", "run_id": "", "total_mismatches": 0, "mismatches": []}
+
+        run_dir = os.path.join(self.outbase, "runs", run_id)
+        mismatch_file = os.path.join(run_dir, "resume", "lldp_mismatch_report.csv")
+        mismatches = []
+        if os.path.isfile(mismatch_file):
+            try:
+                with open(mismatch_file, "r", encoding="utf-8", errors="ignore") as f:
+                    for row in csv.DictReader(f, delimiter=";"):
+                        mismatches.append(dict(row))
+            except Exception:
+                pass
+
+        return {
+            "status": "ok",
+            "run_id": run_id,
+            "source": "files",
+            "total_mismatches": len(mismatches),
+            "mismatches": mismatches
+        }

@@ -55,6 +55,11 @@ class TestWebServer(unittest.TestCase):
         with open(os.path.join(cls.outbase, "cron_execution.log"), "w", encoding="utf-8") as f:
             f.write(f"[INFO] [{cls.now_str}] Iniciando execucao da cron\n[INFO] [{cls.now_str}] Execucao concluida com sucesso.\n")
 
+        # Mock LLDP detail CSV with 1 managed and 1 shadow neighbor
+        lldp_csv = os.path.join(cls.outbase, "runs", cls.run_id, "resume", "show_lldp_neighbors_detail_all.csv")
+        with open(lldp_csv, "w", encoding="utf-8") as f:
+            f.write("element;local_intf;system_name;mgmt_ip;remote_intf\nRT-CORE-01;TenGigE0/0/0/1;RT-EDGE-02;192.0.2.2;TenGigE0/0/0/1\nRT-CORE-01;GigabitEthernet0/0/1;SW-SHADOW-UNMANAGED-01;198.51.100.99;GigabitEthernet0/1\n")
+
         cls.users_file = os.path.join(cls.test_dir, "users.json")
         cls.port = 18099
         cls.host = "127.0.0.1"
@@ -187,6 +192,36 @@ class TestWebServer(unittest.TestCase):
         st_bad, bad_res, _ = self._request("PUT", "/api/v1/configs/network.json", {"content": "{ broken json ..."}, headers=auth_headers)
         self.assertEqual(st_bad, 400)
         self.assertIn("Invalid JSON", bad_res["message"])
+
+    def test_07_system_capabilities_unauthenticated(self):
+        """Verifies capabilities endpoint is accessible unauthenticated."""
+        st, res, _ = self._request("GET", "/api/v1/system/capabilities")
+        self.assertEqual(st, 200)
+        self.assertEqual(res["status"], "ok")
+        self.assertIn("db_available", res)
+        self.assertIn("active_mode", res)
+        self.assertIn("features", res)
+        self.assertTrue(res["features"]["shadow_network"])
+
+    def test_08_shadow_network_and_lldp_analytics(self):
+        """Verifies passive discovery of unmanaged shadow network neighbors."""
+        _, login_res, headers = self._request("POST", "/api/v1/auth/login", {"username": "admin", "password": "admin"})
+        cookie = headers["Set-Cookie"].split(";")[0]
+        auth_headers = {"Cookie": cookie}
+
+        # Query shadow network
+        st_sh, sh_res, _ = self._request("GET", "/api/v1/analytics/shadow-network", headers=auth_headers)
+        self.assertEqual(st_sh, 200)
+        self.assertEqual(sh_res["status"], "ok")
+        self.assertIn("shadow_elements", sh_res)
+        shadow_hosts = [s["shadow_hostname"] for s in sh_res["shadow_elements"]]
+        self.assertIn("SW-SHADOW-UNMANAGED-01", shadow_hosts)
+        self.assertNotIn("RT-EDGE-02", shadow_hosts)  # Managed element must not be in shadow
+
+        # Query LLDP mismatches
+        st_lldp, lldp_res, _ = self._request("GET", "/api/v1/analytics/lldp-mismatches", headers=auth_headers)
+        self.assertEqual(st_lldp, 200)
+        self.assertEqual(lldp_res["status"], "ok")
 
 
 if __name__ == "__main__":

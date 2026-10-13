@@ -359,6 +359,33 @@
             box-shadow: 0 2px 6px rgba(0,0,0,0.1);
         }
 
+        /* Storage Mode Badge */
+        .storage-mode-badge {
+            padding: 4px 10px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border-radius: 20px;
+            background: var(--card-bg, #ffffff);
+            color: var(--text-dim, #64748b);
+            border: 1px solid var(--border, #cbd5e1);
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            user-select: none;
+            white-space: nowrap;
+            transition: all 0.2s ease;
+        }
+        .storage-mode-badge.badge-db {
+            border-color: rgba(16, 185, 129, 0.4);
+            color: var(--success, #16a34a);
+            background: rgba(16, 185, 129, 0.08);
+        }
+        .storage-mode-badge.badge-files {
+            border-color: rgba(2, 132, 199, 0.4);
+            color: var(--accent, #0284c7);
+            background: rgba(2, 132, 199, 0.08);
+        }
+
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Inter', sans-serif; background-color: var(--bg-dark); color: var(--text); display: flex; height: 100vh; overflow: hidden; width: 100vw; max-width: 100%; }
 
@@ -584,6 +611,7 @@
             </div>
             <div style="display: flex; align-items: center; gap: 15px;">
                 
+            <span class="storage-mode-badge badge-files" id="storageModeBadge" title="Data retrieval storage backend">📁 Files Mode</span>
             <button type="button" class="theme-toggle-btn" id="themeBtn" onclick="toggleAppTheme()" title="Cycle Visual Theme (Light ➔ Dark ➔ HighText)" aria-label="Cycle Visual Theme">☀️ Light</button>
 
                 <a class="back-portal" href="../index.html">← Network Portal</a>
@@ -1214,6 +1242,30 @@ O arquivo pode ter sido removido por política de retenção ou a coleta foi int
                 }
             } catch(err) {}
         });
+
+        // Storage capabilities detector
+        async function detectStorageCapabilities() {
+            var badge = document.getElementById('storageModeBadge');
+            if (!badge) return;
+            try {
+                var res = await fetch('/api/v1/system/capabilities', { method: 'GET' });
+                if (res.ok) {
+                    var data = await res.json();
+                    if (data && data.db_available) {
+                        badge.className = 'storage-mode-badge badge-db';
+                        badge.innerHTML = '🗄️ DB Mode';
+                        badge.title = 'Active Backend: SQLite Relational Database';
+                        return;
+                    }
+                }
+            } catch(e) {}
+            badge.className = 'storage-mode-badge badge-files';
+            badge.innerHTML = '📁 Files Mode';
+            badge.title = 'Active Backend: Static JSON & Flat Files';
+        }
+        if (typeof window !== 'undefined') {
+            window.addEventListener('DOMContentLoaded', detectStorageCapabilities);
+        }
 
     </script>
 </body>
