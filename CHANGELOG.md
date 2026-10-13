@@ -25,6 +25,15 @@ All notable changes to the **Network Data Extractor** project will be documented
   - Implemented `get_lldp_neighbors()` across `StorageDriver`, `FilesystemDriver`, `SQLiteDriver`, and `StorageManager`.
   - Added flexible CSV header normalization (`element`, `local_intf`, `system_name`, `port_id`, `mgmt_ipv4`) in `save_lldp_neighbors()`.
   - Enhanced `storage_manager.py init` to automatically discover and seed `elements.cfg` from parent paths (`config/elements.cfg` or workspace hierarchy).
+- **Admin Portal DOM Structure & Tab Navigation Fix (`web/admin/index.html`, `demo/admin/index.html`)**:
+  - Fixed unclosed `<section id="pane-cockpit">` tag that was causing downstream tab panes (`#pane-shadow`, `#pane-config`, `#pane-cron`, `#pane-users`, `#pane-reports`) to be nested as DOM children inside `pane-cockpit`. Switching tabs previously caused child panes to inherit `display: none`, making them appear completely blank.
+  - Added safe null-checking for tab button lookup in `switchTab()` (`(b.getAttribute('onclick') || '').includes(tabId)`).
+  - Added missing CSS design tokens for `.kpi-grid`, `.kpi-card`, and `.form-select` ensuring correct responsive layout and card styling in Shadow Network and diagnostics.
+- **Dynamic Theme Harmonization & Dark Leaks Remediation (`web/admin/`, `demo/admin/`, `core/diff_engine.py`, `demo/diff/`)**:
+  - Replaced hardcoded dark backgrounds (`rgba(15,23,42,*)`) in Cockpit Sub-View Switcher (`.cockpit-view-toggle`, `.view-toggle-btn.active`, `.btn-range.active`) with dynamic theme tokens (`var(--bg-card-hover)`, `var(--accent)`), harmonizing appearance in Light, Dark, and HighText themes.
+  - Added native `color-scheme: light/dark` overrides for `input[type="date"]` elements.
+  - Fixed hardcoded dark backgrounds in Diff Workspace (`core/diff_engine.py`, `demo/diff/index.html`), replacing dark slates in `#statsBox`, `.context-menu`, `.diff-table th/td`, and `.timeline-wrapper` with theme variables (`var(--card-bg)`, `var(--sidebar-bg)`, `var(--border)`).
+  - Synchronized `localStorage` theme keys (`ndx_theme` and `nde_theme`) to maintain persistent theme synchronization across all standalone portals and embedded iframes.
 - **Integration Tests & Zero Leakage Compliance (`tools/test_web_server.py`, `tools/test_storage_manager.py`)**:
   - Added test cases `test_07_system_capabilities_unauthenticated` and `test_08_shadow_network_and_lldp_analytics`.
   - Re-verified full test suite (28 tests passing) and zero production leakage audit passing cleanly.

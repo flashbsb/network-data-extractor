@@ -403,7 +403,7 @@ class DiffEngine:
         .context-menu a {
             padding: 10px 16px;
             text-decoration: none;
-            color: #cbd5e1;
+            color: var(--text);
             font-size: 0.85rem;
             font-weight: 500;
             display: flex;
@@ -413,7 +413,7 @@ class DiffEngine:
             text-align: left;
         }
         .context-menu a:hover {
-            background: rgba(6, 182, 212, 0.1);
+            background: var(--card-hover);
             color: var(--accent);
         }
         .context-menu .menu-header {
@@ -423,7 +423,7 @@ class DiffEngine:
             color: var(--text-dim);
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid var(--border);
             margin-bottom: 4px;
             text-align: left;
         }
@@ -433,8 +433,8 @@ class DiffEngine:
         .diff-card { background: var(--sidebar-bg); border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 20px 50px rgba(0,0,0,0.4); display: flex; flex-direction: column; flex: 1; overflow: hidden; }
         .table-responsive { overflow-x: auto; flex: 1; }
         .diff-table { width: 100%; border-collapse: collapse; min-width: 1000px; }
-        .diff-table th { background: rgba(51, 65, 85, 0.5); text-align: left; padding: 16px 20px; font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; font-weight: 800; position: sticky; top: 0; z-index: 10; backdrop-filter: blur(5px); }
-        .diff-table td { padding: 16px 20px; border-bottom: 1px solid rgba(51, 65, 85, 0.3); font-size: 0.9rem; vertical-align: top; white-space: nowrap; }
+        .diff-table th { background: var(--sidebar-bg); text-align: left; padding: 16px 20px; font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; font-weight: 800; position: sticky; top: 0; z-index: 10; border-bottom: 2px solid var(--border); }
+        .diff-table td { padding: 16px 20px; border-bottom: 1px solid var(--border); font-size: 0.9rem; vertical-align: top; white-space: nowrap; }
         .diff-table td.wrap-col { white-space: normal; min-width: 250px; }
         .diff-table tr:last-child td { border-bottom: none; }
         .diff-table tr:hover td { background: rgba(56, 189, 248, 0.03); }
@@ -594,7 +594,7 @@ class DiffEngine:
                     <button onclick="selectAllFilters()" style="background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.3); color: var(--accent); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.8rem; font-weight: 600; transition: all 0.2s; height: 34px;" onmouseover="this.style.background='rgba(56,189,248,0.2)'" onmouseout="this.style.background='rgba(56,189,248,0.1)'">✅ Select All</button>
                     <button onclick="exportDriftCSV()" style="background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); color: var(--success); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.8rem; font-weight: 600; transition: all 0.2s; height: 34px; display: flex; align-items: center; gap: 5px;" onmouseover="this.style.background='rgba(34,197,94,0.2)'" onmouseout="this.style.background='rgba(34,197,94,0.1)'">📥 Export CSV</button>
                 </div>
-                <div id="statsBox" style="margin-left: auto; display: flex; gap: 20px; font-size: 0.8rem; font-weight: 700; background: rgba(15,23,42,0.8); padding: 10px 20px; border-radius: 8px; border: 1px solid var(--border);">
+                <div id="statsBox" style="margin-left: auto; display: flex; gap: 20px; font-size: 0.8rem; font-weight: 700; background: var(--card-bg); padding: 10px 20px; border-radius: 8px; border: 1px solid var(--border);">
                     <div id="statMod" style="color: var(--warning)">0 MODIFIED</div>
                     <div id="statAdd" style="color: var(--success)">0 ADDED</div>
                     <div id="statRem" style="color: var(--danger)">0 REMOVED</div>
@@ -673,7 +673,7 @@ class DiffEngine:
                                 <label class="checkbox-label"><input type="checkbox" class="timeline-cb-field" value="bandwidth_kbit" checked onchange="applyTimelineFilter()"> Bw</label>
                             </div>
                             <input type="text" id="timelineFilterText" class="input-styled" placeholder="Filter timeline details..." oninput="applyTimelineFilter()" style="min-width: 200px; padding: 8px 12px;" aria-label="Filter timeline details">
-                            <button onclick="clearTimelineFilter()" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text-dim); padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 0.8rem; transition: all 0.2s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='var(--text-dim)'">🧹 Clear</button>
+                            <button onclick="clearTimelineFilter()" style="background: var(--card-bg); border: 1px solid var(--border); color: var(--text-dim); padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 0.8rem; transition: all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-dim)'">🧹 Clear</button>
                         </div>
                     </div>
                     
