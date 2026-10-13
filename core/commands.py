@@ -13,7 +13,7 @@ import argparse
 
 # Load Global Settings (supports both monolithic and modular configs)
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from core.utils_shared import load_settings
+from core.utils_shared import load_settings, is_auth_failure, is_network_unreachable
 
 json_config = load_settings()
 
@@ -28,6 +28,14 @@ PAGER_DISABLE_COMMANDS = ssh_cfg.get("pager_disable_commands", ["terminal length
 COMMAND_TIMEOUT = ssh_cfg.get("command_timeout", 20)
 PAGER_MARKERS = [str(m).lower() for m in ssh_cfg.get("pager_markers", ["--more--", "---- more", "press any key"])]
 PROMPT_REGEX_PATTERN = ssh_cfg.get("prompt_regex", r'[A-Za-z0-9_\-\.\:\/]+[#>]\s*$')
+
+# ANSI Colors
+C_GREEN  = '\033[92m'
+C_RED    = '\033[91m'
+C_CYAN   = '\033[96m'
+C_YELLOW = '\033[93m'
+C_BOLD   = '\033[1m'
+C_RESET  = '\033[0m'
 
 
 def read_elements(path):
@@ -156,6 +164,7 @@ def main():
     parser.add_argument("--outbase", default=None, help="Root directory for outputs")
     parser.add_argument("--storage-mode", "--storage_mode", dest="storage_mode", default=None, help="Storage persistence mode override")
     parser.add_argument("--database-path", "--database_path", dest="database_path", default=None, help="Explicit path to database")
+    parser.add_argument("--ignore-circuit-breaker", action="store_true", help="Bypass systemic failure circuit breaker (force all attempts)")
     args = parser.parse_args()
 
     log_file = os.path.join(args.logdir, 'commands.log')
@@ -227,25 +236,54 @@ def main():
         except Exception as e:
             logging.warning(f"Could not initialize StorageManager in commands.py: {e}")
 
+    # Circuit Breaker Failsafe Configuration
+    cb_cfg = json_config.get("circuit_breaker", {})
+    cb_enabled = bool(cb_cfg.get("enabled", True)) and not args.ignore_circuit_breaker
+    auth_threshold = int(cb_cfg.get("consecutive_auth_failures", 10))
+    net_threshold = int(cb_cfg.get("consecutive_network_failures", 20))
+
+    cb_lock = threading.Lock()
+    consecutive_auth = 0
+    consecutive_net = 0
+    first_success_achieved = False
+    circuit_breaker_tripped = False
+    tripped_reason = ""
+    tripped_diagnosis = ""
+    abort_event = threading.Event()
+
     save_fs = (storage_mgr is None) or storage_mgr.is_files_enabled() or (storage_mgr.get_mode() == "db_only")
     save_db = (storage_mgr is not None) and storage_mgr.is_db_enabled()
 
     def process_element(elem):
         nonlocal counter
         nonlocal files_written
+        nonlocal consecutive_auth
+        nonlocal consecutive_net
+        nonlocal first_success_achieved
+        nonlocal circuit_breaker_tripped
+        nonlocal tripped_reason
+        nonlocal tripped_diagnosis
+
+        if abort_event.is_set():
+            return
+
         host = elem['hostname']
         
         # Support multiple IPs and cmd_keys joined by '|'
         ip_list = elem['ip'].split('|')
         cmd_key_list = elem['cmd_key'].split('|')
         success = False
+        elem_has_auth_err = False
+        elem_has_net_err = False
         
         timestamp = datetime.datetime.now().strftime('%d%m%y%H%M%S')
         
         for current_ip in ip_list:
-            if success:
+            if success or abort_event.is_set():
                 break
             for current_key in cmd_key_list:
+                if abort_event.is_set():
+                    break
                 cmds = commands_map.get(current_key)
                 if not cmds:
                     # Robust case-insensitive fallback (e.g. Cisco_IOS_XR vs cisco_ios_xr)
@@ -319,8 +357,6 @@ def main():
                                 logging.warning(f"Error persisting raw collection to DB for {host} {cmd}: {e}")
                     
                     # Log the successful key for element_status.py to consume.
-                    # IMPORTANT: Must be written to outdir (collect_dir), because
-                    # element_status.py reads it from collect_dir (not resumedir).
                     if save_fs:
                         success_keys_file = os.path.join(args.outdir, "successful_keys.csv")
                         with files_written_lock:
@@ -343,6 +379,10 @@ def main():
                     break # Exit the key fallback loop
                     
                 except Exception as e:
+                    if is_auth_failure(e):
+                        elem_has_auth_err = True
+                    elif is_network_unreachable(e):
+                        elem_has_net_err = True
                     logging.warning(f"Connection/Execution failed for {host} at {current_ip} with key '{current_key}': {e}")
                     continue
                 finally:
@@ -356,15 +396,87 @@ def main():
             curr = counter
             
         if success:
+            with cb_lock:
+                first_success_achieved = True
+                consecutive_auth = 0
+                consecutive_net = 0
             print(f"  [{curr:>{pad}}/{total_elements}] [+] Collected: {host}")
         else:
             print(f"  [{curr:>{pad}}/{total_elements}] [-] Failed: {host} (Tried {len(ip_list)} IPs, {len(cmd_key_list)} keys)")
-
-        # logging.info(f"Session finished for {host}\n")
+            if cb_enabled and not first_success_achieved:
+                with cb_lock:
+                    if not first_success_achieved and not circuit_breaker_tripped:
+                        if elem_has_auth_err:
+                            consecutive_auth += 1
+                            consecutive_net = 0
+                            if consecutive_auth >= auth_threshold:
+                                circuit_breaker_tripped = True
+                                tripped_reason = "AUTHENTICATION_EXPIRED"
+                                tripped_diagnosis = (
+                                    f"{consecutive_auth} consecutive authentication failures detected with 0 successes. "
+                                    "Operator credentials may be expired, SSH key invalid, or TACACS+/RADIUS is down."
+                                )
+                                abort_event.set()
+                        elif elem_has_net_err:
+                            consecutive_net += 1
+                            consecutive_auth = 0
+                            if consecutive_net >= net_threshold:
+                                circuit_breaker_tripped = True
+                                tripped_reason = "NETWORK_UNREACHABLE"
+                                tripped_diagnosis = (
+                                    f"{consecutive_net} consecutive network reachability failures detected with 0 successes. "
+                                    "Local network interface is down, default gateway unreachable, or VPN disconnected."
+                                )
+                                abort_event.set()
 
     # Start the thread pool with the specified number of threads
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.threads) as executor:
         executor.map(process_element, elements)
+
+    # Circuit Breaker Trip Handling (Return Code 101)
+    if circuit_breaker_tripped:
+        failed_count = consecutive_auth if tripped_reason == 'AUTHENTICATION_EXPIRED' else consecutive_net
+        target_thresh = auth_threshold if tripped_reason == 'AUTHENTICATION_EXPIRED' else net_threshold
+        banner = (
+            f"\n{C_RED}================================================================================{C_RESET}\n"
+            f"{C_RED}[CRITICAL] SYSTEMIC FAILURE CIRCUIT BREAKER TRIGGERED{C_RESET}\n"
+            f"{C_RED}================================================================================{C_RESET}\n"
+            f"  • Reason     : {C_BOLD}{tripped_reason}{C_RESET}\n"
+            f"  • Diagnosis  : {tripped_diagnosis}\n"
+            f"  • Threshold  : {failed_count}/{target_thresh} consecutive failures\n"
+            f"  • Progress   : Processed {counter}/{total_elements} elements before fast abort\n"
+            f"  • Action     : Halting collection immediately to prevent TACACS/AD account lockout\n"
+            f"                 and suppress downstream false alerts.\n"
+            f"{C_RED}================================================================================{C_RESET}\n"
+        )
+        print(banner)
+        logging.critical(banner.strip())
+
+        failure_payload = {
+            "circuit_breaker_tripped": True,
+            "failure_type": tripped_reason,
+            "diagnosis": tripped_diagnosis,
+            "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "consecutive_failures": failed_count,
+            "threshold": target_thresh,
+            "total_elements": total_elements,
+            "attempted_elements": counter
+        }
+
+        # Write SYSTEMIC_FAILURE.json to outdir and resumedir
+        target_dirs = [args.outdir]
+        if args.resumedir and args.resumedir != args.outdir:
+            target_dirs.append(args.resumedir)
+
+        for t_dir in target_dirs:
+            try:
+                os.makedirs(t_dir, exist_ok=True)
+                with open(os.path.join(t_dir, "SYSTEMIC_FAILURE.json"), "w", encoding="utf-8") as f:
+                    json.dump(failure_payload, f, indent=4)
+            except Exception as e:
+                logging.error(f"Failed to write SYSTEMIC_FAILURE.json to {t_dir}: {e}")
+
+        sys.exit(101)
 
     if files_written == 0:
         logging.error("No data files were written. Collection failed or no elements responded.")

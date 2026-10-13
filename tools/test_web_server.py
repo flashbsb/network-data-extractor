@@ -29,18 +29,22 @@ from core.web_server import NDXWebServer
 class TestWebServer(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        from datetime import datetime
+        cls.now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        cls.run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+
         cls.test_dir = tempfile.mkdtemp(prefix="ndx_web_test_")
         cls.outbase = os.path.join(cls.test_dir, "outbase")
-        os.makedirs(os.path.join(cls.outbase, "runs", "20261008_120000", "resume"), exist_ok=True)
-        os.makedirs(os.path.join(cls.outbase, "runs", "20261008_120000", "connections"), exist_ok=True)
+        os.makedirs(os.path.join(cls.outbase, "runs", cls.run_id, "resume"), exist_ok=True)
+        os.makedirs(os.path.join(cls.outbase, "runs", cls.run_id, "connections"), exist_ok=True)
 
         # Mock status elements CSV
-        status_csv = os.path.join(cls.outbase, "runs", "20261008_120000", "resume", "status.elements.csv")
+        status_csv = os.path.join(cls.outbase, "runs", cls.run_id, "resume", "status.elements.csv")
         with open(status_csv, "w", encoding="utf-8") as f:
             f.write("element;status;error\nRT-CORE-01;ok;\nRT-EDGE-02;ok;\nSW-DIST-01;failed;Timeout\n")
 
         # Mock ping matrix JSON
-        ping_json = os.path.join(cls.outbase, "runs", "20261008_120000", "resume", "ping_matrix_list.json")
+        ping_json = os.path.join(cls.outbase, "runs", cls.run_id, "resume", "ping_matrix_list.json")
         with open(ping_json, "w", encoding="utf-8") as f:
             json.dump({
                 "metadata": {"total_pings": 10, "network_health": {"healthy": 8, "warning": 1, "critical": 0, "dead": 1}},
@@ -49,7 +53,7 @@ class TestWebServer(unittest.TestCase):
 
         # Mock cron log
         with open(os.path.join(cls.outbase, "cron_execution.log"), "w", encoding="utf-8") as f:
-            f.write("[INFO] [2026-10-08 12:00:00] Iniciando execucao da cron\n[INFO] [2026-10-08 12:05:00] Execucao concluida com sucesso.\n")
+            f.write(f"[INFO] [{cls.now_str}] Iniciando execucao da cron\n[INFO] [{cls.now_str}] Execucao concluida com sucesso.\n")
 
         cls.users_file = os.path.join(cls.test_dir, "users.json")
         cls.port = 18099
@@ -136,14 +140,22 @@ class TestWebServer(unittest.TestCase):
         st_runs, runs_res, _ = self._request("GET", "/api/v1/runs", headers=auth_headers)
         self.assertEqual(st_runs, 200)
         self.assertEqual(len(runs_res["runs"]), 1)
-        self.assertEqual(runs_res["runs"][0]["id"], "20261008_120000")
+        self.assertEqual(runs_res["runs"][0]["id"], self.run_id)
 
         # 5. Get Run Telemetry Summary
-        st_rsum, rsum_res, _ = self._request("GET", "/api/v1/runs/20261008_120000/summary", headers=auth_headers)
+        st_rsum, rsum_res, _ = self._request("GET", f"/api/v1/runs/{self.run_id}/summary", headers=auth_headers)
         self.assertEqual(st_rsum, 200)
         self.assertEqual(rsum_res["elements_health"]["counts"]["ok"], 2)
         self.assertEqual(rsum_res["elements_health"]["counts"]["failed"], 1)
         self.assertEqual(rsum_res["ping_health"]["healthy"], 8)
+        self.assertIn("dead_pairs", rsum_res["ping_health"])
+
+        # 6. Get Historical Element Reliability Analytics
+        st_rel, rel_res, _ = self._request("GET", "/api/v1/analytics/element-reliability", headers=auth_headers)
+        self.assertEqual(st_rel, 200)
+        self.assertIn("summary", rel_res)
+        self.assertIn("elements", rel_res)
+        self.assertEqual(rel_res["total_runs_analyzed"], 1)
 
     def test_04_csrf_enforcement_on_mutations(self):
         """Verifies mutating requests fail without valid CSRF header."""

@@ -296,5 +296,11 @@
         "elements_path": "../network-topology-generator/config/elements.csv",
         "locations_path": "../network-topology-generator/config/locations.csv",
         "theme": "cog"
+    },
+    "circuit_breaker": {
+        "_help_circuit_breaker": "Failsafe thresholds to abort execution on massive disruptions (e.g. expired credentials, network outage).",
+        "enabled": true,
+        "consecutive_auth_failures": 10,
+        "consecutive_network_failures": 20
     }
 }

@@ -23,7 +23,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Huawei: "5 packet(s) transmitted... 5 packet(s) received"
 # Huawei RTT: "round-trip min/avg/max = 1/2/3 ms"
 
-from core.utils_shared import load_settings
+from core.utils_shared import load_settings, is_auth_failure, is_network_unreachable
 from core.theme_system import THEME_HEAD_INIT, THEME_CSS, THEME_SWITCHER_HTML, THEME_SCRIPT_JS
 
 json_config = load_settings()
@@ -248,6 +248,7 @@ def main():
     parser.add_argument("--ping_format", default="csv")
     parser.add_argument("--offline_mode", action="store_true")
     parser.add_argument("--timestamp", default="")
+    parser.add_argument("--ignore-circuit-breaker", action="store_true", help="Bypass systemic failure circuit breaker checks")
     parser.add_argument("--run-id", "--run_id", dest="run_id", default=None, help="Extraction run identifier")
     parser.add_argument("--outbase", default=None, help="Root directory for outputs")
     parser.add_argument("--storage-mode", "--storage_mode", dest="storage_mode", default=None, help="Storage persistence mode override")
@@ -262,6 +263,20 @@ def main():
             
     ssh_cfg = json_config.get("ssh", {})
     SSH_TIMEOUT = ssh_cfg.get("timeout", 10)
+
+    cb_cfg = json_config.get("circuit_breaker", {})
+    cb_enabled = cb_cfg.get("enabled", True) and not getattr(args, "ignore_circuit_breaker", False)
+    auth_threshold = cb_cfg.get("consecutive_auth_failures", 10)
+    net_threshold = cb_cfg.get("consecutive_network_failures", 20)
+
+    cb_lock = threading.Lock()
+    consecutive_auth = 0
+    consecutive_net = 0
+    first_success_achieved = False
+    circuit_breaker_tripped = False
+    tripped_reason = ""
+    tripped_diagnosis = ""
+    abort_event = threading.Event()
     
     ping_cfg = json_config.get("ping_matrix", {})
     count = ping_cfg.get("count", 5)
@@ -318,7 +333,9 @@ def main():
         file_suffix = f"_{timestamp}"
 
     def execute_ping_matrix_for_origin(origin_elem):
-        nonlocal counter
+        nonlocal counter, consecutive_auth, consecutive_net, first_success_achieved, circuit_breaker_tripped, tripped_reason, tripped_diagnosis
+        if abort_event.is_set():
+            return
         origin_host = origin_elem['hostname']
         origin_ip = origin_elem['ip']
         cmd_key = origin_elem['cmd_key']
@@ -340,6 +357,10 @@ def main():
             else: connect_kwargs['look_for_keys'] = True; connect_kwargs['allow_agent'] = True
                 
             client.connect(origin_ip, **connect_kwargs)
+            with cb_lock:
+                first_success_achieved = True
+                consecutive_auth = 0
+                consecutive_net = 0
             shell = client.invoke_shell()
             time.sleep(1)
             shell.recv(65535) # Clear banner
@@ -447,6 +468,33 @@ def main():
                 counter += 1
                 curr = counter
             print(f"\n  [{curr:>{len(str(total_elements))}}/{total_elements}] [-] Ping Matrix from {origin_host} failed.")
+            if cb_enabled and not first_success_achieved:
+                elem_has_auth_err = is_auth_failure(e)
+                elem_has_net_err = is_network_unreachable(e)
+                with cb_lock:
+                    if not first_success_achieved and not circuit_breaker_tripped:
+                        if elem_has_auth_err:
+                            consecutive_auth += 1
+                            consecutive_net = 0
+                            if consecutive_auth >= auth_threshold:
+                                circuit_breaker_tripped = True
+                                tripped_reason = "AUTHENTICATION_EXPIRED"
+                                tripped_diagnosis = (
+                                    f"{consecutive_auth} consecutive authentication failures detected with 0 successes. "
+                                    "Operator credentials may be expired, SSH key invalid, or TACACS+/RADIUS is down."
+                                )
+                                abort_event.set()
+                        elif elem_has_net_err:
+                            consecutive_net += 1
+                            consecutive_auth = 0
+                            if consecutive_net >= net_threshold:
+                                circuit_breaker_tripped = True
+                                tripped_reason = "NETWORK_UNREACHABLE"
+                                tripped_diagnosis = (
+                                    f"{consecutive_net} consecutive network reachability failures detected with 0 successes. "
+                                    "Local network interface is down, default gateway unreachable, or VPN disconnected."
+                                )
+                                abort_event.set()
 
     import math
     total_origins = len(elements)
@@ -533,6 +581,50 @@ def main():
             executor.map(execute_ping_matrix_for_origin, elements)
             
         actual_duration_seconds = round(time.time() - matrix_start_time, 1)
+
+    # Circuit Breaker Trip Handling (Return Code 101)
+    if circuit_breaker_tripped:
+        failed_count = consecutive_auth if tripped_reason == 'AUTHENTICATION_EXPIRED' else consecutive_net
+        target_thresh = auth_threshold if tripped_reason == 'AUTHENTICATION_EXPIRED' else net_threshold
+        banner = (
+            f"\n\033[91m================================================================================\033[0m\n"
+            f"\033[91m[CRITICAL] SYSTEMIC FAILURE CIRCUIT BREAKER TRIGGERED (PING MATRIX)\033[0m\n"
+            f"\033[91m================================================================================\033[0m\n"
+            f"  • Reason     : \033[1m{tripped_reason}\033[0m\n"
+            f"  • Diagnosis  : {tripped_diagnosis}\n"
+            f"  • Threshold  : {failed_count}/{target_thresh} consecutive failures\n"
+            f"  • Progress   : Processed {counter}/{total_elements} origins before fast abort\n"
+            f"  • Action     : Halting Ping Matrix immediately to prevent TACACS/AD account lockout\n"
+            f"                 and suppress downstream false alerts.\n"
+            f"\033[91m================================================================================\033[0m\n"
+        )
+        print(banner)
+        logging.critical(banner.strip())
+
+        failure_payload = {
+            "circuit_breaker_tripped": True,
+            "failure_type": tripped_reason,
+            "diagnosis": tripped_diagnosis,
+            "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "consecutive_failures": failed_count,
+            "threshold": target_thresh,
+            "total_elements": total_elements,
+            "attempted_elements": counter
+        }
+
+        target_dirs = [args.collect_dir]
+        if args.resume_dir and args.resume_dir != args.collect_dir:
+            target_dirs.append(args.resume_dir)
+
+        for t_dir in target_dirs:
+            try:
+                os.makedirs(t_dir, exist_ok=True)
+                with open(os.path.join(t_dir, "SYSTEMIC_FAILURE.json"), "w", encoding="utf-8") as f:
+                    json.dump(failure_payload, f, indent=4)
+            except Exception as e:
+                logging.error(f"Failed to write SYSTEMIC_FAILURE.json to {t_dir}: {e}")
+
+        sys.exit(101)
 
     # Post processing: Asymmetry and Jitter Warning
     print("Generating statistical analysis and List CSV...")

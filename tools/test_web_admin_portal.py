@@ -55,9 +55,11 @@ class TestWebAdminPortal(unittest.TestCase):
             }, f)
 
         # Seed mock cron log
+        from datetime import datetime
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         cls.cron_log = os.path.join(cls.outbase, "cron_execution.log")
         with open(cls.cron_log, "w") as f:
-            f.write("[INFO] [STATUS: COMPLETED] [2026-10-08 12:00:00] Execucao concluida com sucesso em 2m 15s.\n")
+            f.write(f"[INFO] [STATUS: COMPLETED] [{now_str}] Execucao concluida com sucesso em 2m 15s.\n")
 
         # Pick random high port
         cls.port = 18888

@@ -464,6 +464,172 @@
             align-items: center;
             gap: 8px;
         }
+
+        /* Cockpit Sub-View Switcher */
+        .cockpit-view-toggle {
+            display: inline-flex;
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 3px;
+            gap: 4px;
+        }
+        .view-toggle-btn {
+            border: none;
+            background: transparent;
+            color: var(--text-dim);
+            padding: 7px 14px;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+        .view-toggle-btn:hover { color: var(--text); }
+        .view-toggle-btn.active {
+            background: var(--accent);
+            color: #090d16;
+            font-weight: 700;
+            box-shadow: 0 2px 8px var(--accent-glow);
+        }
+
+        /* Interactive Clickable Chips & Cards */
+        .clickable-chip {
+            cursor: pointer;
+            border-radius: 4px;
+            padding: 2px 6px;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+        .clickable-chip:hover {
+            background: rgba(56, 189, 248, 0.15);
+            color: var(--accent) !important;
+            transform: scale(1.04);
+        }
+        .clickable-card {
+            cursor: pointer;
+            transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .clickable-card:hover {
+            transform: translateY(-3px);
+            border-color: var(--accent);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+        }
+
+        .filter-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(56, 189, 248, 0.15);
+            color: var(--accent);
+            border: 1px solid var(--border);
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        /* Offcanvas Diagnostic Drawer */
+        .offcanvas-backdrop {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.65);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+        .offcanvas-backdrop.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .offcanvas-drawer {
+            position: fixed;
+            top: 0; right: 0; bottom: 0;
+            width: 480px;
+            max-width: 90vw;
+            background: var(--bg-card);
+            border-left: 1px solid var(--border);
+            z-index: 1001;
+            transform: translateX(100%);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            flex-direction: column;
+            box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+        }
+        .offcanvas-drawer.active {
+            transform: translateX(0);
+        }
+        .offcanvas-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(15, 23, 42, 0.6);
+        }
+        .offcanvas-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text);
+        }
+        .offcanvas-body {
+            padding: 20px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        /* Pareto Root Cause Multi-Bar */
+        .pareto-bar {
+            display: flex;
+            height: 12px;
+            width: 100%;
+            border-radius: 999px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.05);
+            margin: 12px 0;
+        }
+        .pareto-seg {
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+
+        /* Status Badges */
+        .badge-cat {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+        .badge-cat-never {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--danger);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+        .badge-cat-chronic {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--warning);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+        .badge-cat-flapping {
+            background: rgba(56, 189, 248, 0.15);
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+        }
+        .badge-cat-stable {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
     </style>
 </head>
 <body>
@@ -545,100 +711,276 @@
                 </div>
             </div>
 
-            <!-- Historical Snapshot Selector Bar -->
-            <div class="cockpit-bar">
-                <div class="cockpit-select-group">
-                    <span class="cockpit-label">Selected Snapshot:</span>
-                    <select class="custom-select" id="snapshotSelect" onchange="loadSnapshotTelemetry(this.value)">
-                        <option value="">Loading historical collections...</option>
-                    </select>
+            <!-- Cockpit Mode Sub-Selector -->
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
+                <div class="cockpit-view-toggle">
+                    <button class="view-toggle-btn active" id="btnViewSnapshot" onclick="switchCockpitView('snapshot')">
+                        <span>🎯</span> Point-in-Time Snapshot
+                    </button>
+                    <button class="view-toggle-btn" id="btnViewHistorical" onclick="switchCockpitView('historical')">
+                        <span>📈</span> Historical Reliability & Trends
+                    </button>
                 </div>
-                <div style="display:flex; gap:8px;" id="runDashboardsGroup">
-                    <button class="btn-action" onclick="openRunDashboard('inventory')">📦 Inventory</button>
-                    <button class="btn-action" onclick="openRunDashboard('diff')">⚖️ Drift Diff</button>
-                    <button class="btn-action" onclick="openRunDashboard('topology')">🕸️ Topology</button>
-                    <button class="btn-action" onclick="openRunDashboard('ping-matrix')">⚡ Ping Matrix</button>
-                </div>
-            </div>
-
-            <!-- Run Detailed Telemetry Tiles -->
-            <div class="metric-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
-                <!-- Tile 1: Element SSH Connectivity -->
-                <div class="metric-card">
-                    <div class="metric-title">SSH Collection Success <span>🔑</span></div>
-                    <div style="display:flex; align-items:baseline; gap:8px; margin-top:6px;">
-                        <span class="metric-value" id="runOkCount" style="color:var(--success);">0</span>
-                        <span style="color:var(--text-dim); font-size:0.9rem;">/ <span id="runTotalElements">0</span> elements OK</span>
-                    </div>
-                    <div class="metric-subtitle" style="display:flex; justify-content:space-between; margin-top:8px;">
-                        <span>Failed: <b id="runFailCount" style="color:var(--danger);">0</b></span>
-                        <span>Timeouts: <b id="runTimeoutCount" style="color:var(--warning);">0</b></span>
-                        <span>Auth Failures: <b id="runAuthFailCount" style="color:var(--danger);">0</b></span>
-                    </div>
-                </div>
-
-                <!-- Tile 2: Ping SLA Diagnostics -->
-                <div class="metric-card">
-                    <div class="metric-title">ICMP Matrix Health <span>⚡</span></div>
-                    <div style="display:flex; align-items:baseline; gap:8px; margin-top:6px;">
-                        <span class="metric-value" id="runPingHealthy" style="color:var(--success);">0</span>
-                        <span style="color:var(--text-dim); font-size:0.9rem;">/ <span id="runPingTotal">0</span> tests healthy</span>
-                    </div>
-                    <div class="metric-subtitle" style="display:flex; justify-content:space-between; margin-top:8px;">
-                        <span>Dead/Unreachable: <b id="runPingDead" style="color:var(--danger);">0</b></span>
-                        <span>Avg Latency: <b id="runAvgLatency" style="color:var(--accent);">- ms</b></span>
-                    </div>
-                </div>
-
-                <!-- Tile 3: Topology & Interface Census -->
-                <div class="metric-card">
-                    <div class="metric-title">Interfaces & Adjacencies <span>🔌</span></div>
-                    <div style="display:flex; align-items:baseline; gap:8px; margin-top:6px;">
-                        <span class="metric-value" id="runIntUp" style="color:var(--accent);">0</span>
-                        <span style="color:var(--text-dim); font-size:0.9rem;">Up (<span id="runIntTotal">0</span> total ports)</span>
-                    </div>
-                    <div class="metric-subtitle" style="display:flex; justify-content:space-between; margin-top:8px;">
-                        <span>Active Links: <b id="runTotalLinks" style="color:var(--text);">0</b></span>
-                        <span>LLDP Mismatches: <b id="runLldpMismatches" style="color:var(--warning);">0</b></span>
-                    </div>
+                <div id="activeCardFilterNotice" style="display:none; align-items:center; gap:8px;">
+                    <span class="filter-pill" id="activeCardFilterText">Filter active <span onclick="clearActiveCardFilter()" style="cursor:pointer; margin-left:6px; font-weight:800;" title="Clear filter">✕</span></span>
                 </div>
             </div>
 
-            <!-- Elements Status Drilldown Table -->
-            <div class="panel-card">
-                <div class="panel-header" style="flex-wrap:wrap; gap:12px;">
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <div class="panel-title"><span>📋</span> Target Element Collection Status</div>
-                        <span style="font-size:0.75rem; color:var(--text-dim);" id="tableSubtitle">Snapshot targets</span>
+            <!-- CONTAINER A: POINT-IN-TIME SNAPSHOT VIEW -->
+            <div id="snapshotViewContainer">
+                <!-- Historical Snapshot Selector Bar -->
+                <div class="cockpit-bar">
+                    <div class="cockpit-select-group">
+                        <span class="cockpit-label">Selected Snapshot:</span>
+                        <select class="custom-select" id="snapshotSelect" onchange="loadSnapshotTelemetry(this.value)">
+                            <option value="">Loading historical collections...</option>
+                        </select>
                     </div>
-                    <!-- Search Filter & CSV Export Toolbar -->
-                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                        <div style="position:relative; display:flex; align-items:center;">
-                            <input type="text" class="form-input" id="elementsSearchInput" 
-                                   placeholder="Filter (e.g. fail | timeout, !ok, status:fail)..." 
-                                   style="padding:6px 12px; font-size:0.8rem; width:280px; height:32px; background:var(--bg-card); border-color:var(--border);"
-                                   oninput="applyElementsFilter()"
-                                   title="Boolean query: & (AND), | (OR), ! (NOT), parentheses ( ), status:fail, status:ok">
-                            <span id="elementsFilterCount" style="position:absolute; right:10px; font-size:0.72rem; color:var(--text-dim); pointer-events:none;"></span>
+                    <div style="display:flex; gap:8px;" id="runDashboardsGroup">
+                        <button class="btn-action" onclick="openRunDashboard('inventory')">📦 Inventory</button>
+                        <button class="btn-action" onclick="openRunDashboard('diff')">⚖️ Drift Diff</button>
+                        <button class="btn-action" onclick="openRunDashboard('topology')">🕸️ Topology</button>
+                        <button class="btn-action" onclick="openRunDashboard('ping-matrix')">⚡ Ping Matrix</button>
+                    </div>
+                </div>
+
+                <!-- Systemic Failure Circuit Breaker Banner -->
+                <div id="circuitBreakerBanner" style="display:none; margin-bottom:16px; padding:14px 18px; border-radius:8px; background:rgba(239, 68, 68, 0.12); border:1px solid var(--danger); color:var(--text-main);">
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+                        <div style="flex:1;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span style="font-size:1.2rem;">⚠️</span>
+                                <strong style="color:var(--danger); font-size:1.05rem;">COLLECTION ABORTED: SYSTEMIC FAILURE DETECTED</strong>
+                            </div>
+                            <div id="circuitBreakerDiagnosis" style="margin-top:6px; font-size:0.92rem; color:var(--text-main);"></div>
+                            <div id="circuitBreakerMeta" style="margin-top:4px; font-size:0.82rem; color:var(--text-dim);"></div>
                         </div>
-                        <button class="btn-action" style="padding:6px 12px; font-size:0.8rem; height:32px; display:inline-flex; align-items:center; gap:6px;" onclick="exportElementsCSV()" title="Export current filtered list to CSV">
-                            <span>📥</span> Export CSV
-                        </button>
+                        <span class="badge" style="background:var(--danger); color:white; font-size:0.85rem; padding:6px 12px; border-radius:6px; white-space:nowrap; font-weight:600;">CIRCUIT BREAKER TRIP</span>
                     </div>
                 </div>
-                <div style="max-height: 280px; overflow-y: auto;">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Element Hostname</th>
-                                <th>Status</th>
-                                <th>Error / Error Diagnostics</th>
-                            </tr>
-                        </thead>
-                        <tbody id="elementsTableBody">
-                            <tr><td colspan="3" style="text-align:center; color:var(--text-dim);">Select a snapshot to inspect node connectivity details.</td></tr>
-                        </tbody>
-                    </table>
+
+                <!-- Run Detailed Telemetry Tiles -->
+                <div class="metric-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+                    <!-- Tile 1: Element SSH Connectivity -->
+                    <div class="metric-card">
+                        <div class="metric-title">SSH Collection Success <span>🔑</span></div>
+                        <div style="display:flex; align-items:baseline; gap:8px; margin-top:6px;">
+                            <span class="metric-value clickable-chip" id="runOkCount" style="color:var(--success);" onclick="filterByCard('ok')" title="Click to filter OK elements">0</span>
+                            <span style="color:var(--text-dim); font-size:0.9rem;">/ <span id="runTotalElements">0</span> elements OK</span>
+                        </div>
+                        <div class="metric-subtitle" style="display:flex; justify-content:space-between; margin-top:8px;">
+                            <span class="clickable-chip" onclick="filterByCard('failed')" title="Click to filter failed elements">Failed: <b id="runFailCount" style="color:var(--danger);">0</b></span>
+                            <span class="clickable-chip" onclick="filterByCard('timeout')" title="Click to filter timeout elements">Timeouts: <b id="runTimeoutCount" style="color:var(--warning);">0</b></span>
+                            <span class="clickable-chip" onclick="filterByCard('auth')" title="Click to filter authentication failures">Auth Failures: <b id="runAuthFailCount" style="color:var(--danger);">0</b></span>
+                        </div>
+                    </div>
+
+                    <!-- Tile 2: Ping SLA Diagnostics -->
+                    <div class="metric-card">
+                        <div class="metric-title">ICMP Matrix Health <span>⚡</span></div>
+                        <div style="display:flex; align-items:baseline; gap:8px; margin-top:6px;">
+                            <span class="metric-value" id="runPingHealthy" style="color:var(--success);">0</span>
+                            <span style="color:var(--text-dim); font-size:0.9rem;">/ <span id="runPingTotal">0</span> tests healthy</span>
+                        </div>
+                        <div class="metric-subtitle" style="display:flex; justify-content:space-between; margin-top:8px;">
+                            <span class="clickable-chip" onclick="openDiagnosticDrawer('icmp_dead')" title="Click to inspect unreachable ICMP targets in offcanvas drawer">Dead/Unreachable: <b id="runPingDead" style="color:var(--danger);">0</b></span>
+                            <span>Avg Latency: <b id="runAvgLatency" style="color:var(--accent);">- ms</b></span>
+                        </div>
+                    </div>
+
+                    <!-- Tile 3: Topology & Interface Census -->
+                    <div class="metric-card">
+                        <div class="metric-title">Interfaces & Adjacencies <span>🔌</span></div>
+                        <div style="display:flex; align-items:baseline; gap:8px; margin-top:6px;">
+                            <span class="metric-value" id="runIntUp" style="color:var(--accent);">0</span>
+                            <span style="color:var(--text-dim); font-size:0.9rem;">Up (<span id="runIntTotal">0</span> total ports)</span>
+                        </div>
+                        <div class="metric-subtitle" style="display:flex; justify-content:space-between; margin-top:8px;">
+                            <span>Active Links: <b id="runTotalLinks" style="color:var(--text);">0</b></span>
+                            <span class="clickable-chip" onclick="openDiagnosticDrawer('lldp')" title="Click to inspect LLDP mismatches in offcanvas drawer">LLDP Mismatches: <b id="runLldpMismatches" style="color:var(--warning);">0</b></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Elements Status Drilldown Table -->
+                <div class="panel-card" id="elementsTableCard">
+                    <div class="panel-header" style="flex-wrap:wrap; gap:12px;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <div class="panel-title"><span>📋</span> Target Element Collection Status</div>
+                            <span style="font-size:0.75rem; color:var(--text-dim);" id="tableSubtitle">Snapshot targets</span>
+                        </div>
+                        <!-- Search Filter & CSV Export Toolbar -->
+                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                            <div style="position:relative; display:flex; align-items:center;">
+                                <input type="text" class="form-input" id="elementsSearchInput" 
+                                       placeholder="Filter (e.g. fail | timeout, !ok, status:fail)..." 
+                                       style="padding:6px 12px; font-size:0.8rem; width:280px; height:32px; background:var(--bg-card); border-color:var(--border);"
+                                       oninput="applyElementsFilter()"
+                                       title="Boolean query: & (AND), | (OR), ! (NOT), parentheses ( ), status:fail, status:ok">
+                                <span id="elementsFilterCount" style="position:absolute; right:10px; font-size:0.72rem; color:var(--text-dim); pointer-events:none;"></span>
+                            </div>
+                            <button class="btn-action" style="padding:6px 12px; font-size:0.8rem; height:32px; display:inline-flex; align-items:center; gap:6px;" onclick="exportElementsCSV()" title="Export current filtered list to CSV">
+                                <span>📥</span> Export CSV
+                            </button>
+                        </div>
+                    </div>
+                    <div style="max-height: 280px; overflow-y: auto;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Element Hostname</th>
+                                    <th>Status</th>
+                                    <th>Error / Error Diagnostics</th>
+                                </tr>
+                            </thead>
+                            <tbody id="elementsTableBody">
+                                <tr><td colspan="3" style="text-align:center; color:var(--text-dim);">Select a snapshot to inspect node connectivity details.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CONTAINER B: HISTORICAL RELIABILITY & CROSS-RUN INTELLIGENCE -->
+            <div id="historicalViewContainer" style="display:none;">
+                <!-- Historical Date Range Toolbar -->
+                <div class="cockpit-bar" style="flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                        <span class="cockpit-label">Analysis Window:</span>
+                        <button class="btn-action btn-range active" onclick="setHistoricalRange('all')">All History</button>
+                        <button class="btn-action btn-range" onclick="setHistoricalRange('30d')">Last 30 Days</button>
+                        <button class="btn-action btn-range" onclick="setHistoricalRange('7d')">Last 7 Days</button>
+                        <button class="btn-action btn-range" onclick="setHistoricalRange('24h')">Last 24 Hours</button>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                        <span style="font-size:0.75rem; color:var(--text-dim);">From:</span>
+                        <input type="date" class="form-input" id="histDateFrom" style="padding:4px 8px; font-size:0.8rem; width:135px; height:32px;" onchange="applyCustomHistoricalRange()">
+                        <span style="font-size:0.75rem; color:var(--text-dim);">To:</span>
+                        <input type="date" class="form-input" id="histDateTo" style="padding:4px 8px; font-size:0.8rem; width:135px; height:32px;" onchange="applyCustomHistoricalRange()">
+                        <button class="btn-action" style="padding:4px 12px; height:32px;" onclick="loadHistoricalReliability()" title="Refresh Reliability Data">🔄 Refresh</button>
+                    </div>
+                </div>
+
+                <!-- 4 Severity Diagnostic Cards -->
+                <div class="metric-grid" style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));">
+                    <!-- Card 1: Never Collected -->
+                    <div class="metric-card clickable-card" onclick="filterHistoricalByCategory('never_collected')" title="Click to filter elements that never collected successfully">
+                        <div class="metric-title">Never Collected <span>🚫</span></div>
+                        <div class="metric-value" id="histNeverCount" style="color:var(--danger);">0</div>
+                        <div class="metric-subtitle">Configured elements with 0 successful collections</div>
+                    </div>
+                    <!-- Card 2: Chronic Failures -->
+                    <div class="metric-card clickable-card" onclick="filterHistoricalByCategory('chronic_failure')" title="Click to filter chronic failure elements">
+                        <div class="metric-title">Chronic Failures <span>⚠️</span></div>
+                        <div class="metric-value" id="histChronicCount" style="color:var(--warning);">0</div>
+                        <div class="metric-subtitle">Failed 100% of attempted runs in period</div>
+                    </div>
+                    <!-- Card 3: Flapping / Intermittent -->
+                    <div class="metric-card clickable-card" onclick="filterHistoricalByCategory('flapping')" title="Click to filter unstable flapping elements">
+                        <div class="metric-title">Flapping / Intermittent <span>⚡</span></div>
+                        <div class="metric-value" id="histFlappingCount" style="color:#38bdf8;">0</div>
+                        <div class="metric-subtitle">Partial success (oscillation between runs)</div>
+                    </div>
+                    <!-- Card 4: Fully Stable -->
+                    <div class="metric-card clickable-card" onclick="filterHistoricalByCategory('stable')" title="Click to filter stable elements">
+                        <div class="metric-title">Fully Stable <span>✅</span></div>
+                        <div class="metric-value" id="histStableCount" style="color:var(--success);">0</div>
+                        <div class="metric-subtitle">≥ 90% collection success rate in period</div>
+                    </div>
+                </div>
+
+                <!-- Analytical Deep-Dive Grid: Root Cause Pareto & Slow Responders -->
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap:16px; margin-bottom:20px;">
+                    <!-- Pareto Panel -->
+                    <div class="panel-card" style="margin-bottom:0;">
+                        <div class="panel-header">
+                            <div class="panel-title"><span>📊</span> Root Cause Breakdown (Pareto)</div>
+                            <span style="font-size:0.75rem; color:var(--text-dim);" id="histParetoTotalText">0 total failure events</span>
+                        </div>
+                        <div class="pareto-bar" id="histParetoBar">
+                            <div class="pareto-seg" id="segTimeout" style="background:var(--warning); width:0%;" title="Timeouts"></div>
+                            <div class="pareto-seg" id="segAuth" style="background:var(--danger); width:0%;" title="Auth Failures"></div>
+                            <div class="pareto-seg" id="segRefused" style="background:#f87171; width:0%;" title="Connection Refused"></div>
+                            <div class="pareto-seg" id="segOther" style="background:var(--text-dim); width:0%;" title="Other"></div>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; font-size:0.75rem; margin-top:8px;">
+                            <span style="color:var(--warning); display:flex; align-items:center; gap:4px;">
+                                <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--warning);"></span>
+                                Timeouts: <b id="paretoTimeoutVal">0</b> (<b id="paretoTimeoutPct">0%</b>)
+                            </span>
+                            <span style="color:var(--danger); display:flex; align-items:center; gap:4px;">
+                                <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--danger);"></span>
+                                Auth/Key: <b id="paretoAuthVal">0</b> (<b id="paretoAuthPct">0%</b>)
+                            </span>
+                            <span style="color:#f87171; display:flex; align-items:center; gap:4px;">
+                                <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#f87171;"></span>
+                                Refused/Down: <b id="paretoRefusedVal">0</b> (<b id="paretoRefusedPct">0%</b>)
+                            </span>
+                            <span style="color:var(--text-dim); display:flex; align-items:center; gap:4px;">
+                                <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--text-dim);"></span>
+                                Other: <b id="paretoOtherVal">0</b> (<b id="paretoOtherPct">0%</b>)
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Top Slow Responders Panel -->
+                    <div class="panel-card" style="margin-bottom:0;">
+                        <div class="panel-header">
+                            <div class="panel-title"><span>⏳</span> Collection Bottlenecks (Top Timeouts)</div>
+                            <span style="font-size:0.75rem; color:var(--text-dim);">Degrades collection cycle time</span>
+                        </div>
+                        <div id="histTopSlowContainer" style="font-size:0.8rem; display:flex; flex-direction:column; gap:8px; max-height:130px; overflow-y:auto;">
+                            <div style="color:var(--text-dim); text-align:center; padding:12px;">No timeout bottlenecks detected in selected window.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Comprehensive Historical Reliability Table -->
+                <div class="panel-card">
+                    <div class="panel-header" style="flex-wrap:wrap; gap:12px;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <div class="panel-title"><span>🔬</span> Cross-Snapshot Element Reliability Census</div>
+                            <span style="font-size:0.75rem; color:var(--text-dim);" id="histTableSubtitle">Loading census...</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                            <select class="custom-select" id="histCategoryFilter" onchange="applyHistoricalFilter()" style="padding:5px 10px; font-size:0.8rem; height:32px;">
+                                <option value="">All Categories</option>
+                                <option value="never_collected">Never Collected</option>
+                                <option value="chronic_failure">Chronic Failures</option>
+                                <option value="flapping">Flapping / Intermittent</option>
+                                <option value="stable">Fully Stable</option>
+                            </select>
+                            <div style="position:relative; display:flex; align-items:center;">
+                                <input type="text" class="form-input" id="histSearchInput" 
+                                       placeholder="Filter elements (e.g. RT-CORE, BSB, !stable)..." 
+                                       style="padding:6px 12px; font-size:0.8rem; width:260px; height:32px; background:var(--bg-card); border-color:var(--border);"
+                                       oninput="applyHistoricalFilter()">
+                                <span id="histFilterCount" style="position:absolute; right:10px; font-size:0.72rem; color:var(--text-dim); pointer-events:none;"></span>
+                            </div>
+                            <button class="btn-action" style="padding:6px 12px; font-size:0.8rem; height:32px; display:inline-flex; align-items:center; gap:6px;" onclick="exportReliabilityCSV()" title="Export reliability analysis to CSV (Excel UTF-8)">
+                                <span>📥</span> Export CSV
+                            </button>
+                        </div>
+                    </div>
+                    <div style="max-height: 380px; overflow-y: auto;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Element Hostname</th>
+                                    <th>Tier</th>
+                                    <th>Category</th>
+                                    <th>Attempts</th>
+                                    <th>Success Rate</th>
+                                    <th>Last Status</th>
+                                    <th>Last OK Run</th>
+                                    <th>Last Known Error</th>
+                                </tr>
+                            </thead>
+                            <tbody id="histTableBody">
+                                <tr><td colspan="8" style="text-align:center; color:var(--text-dim);">Loading cross-snapshot element reliability data...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </section>
@@ -815,6 +1157,8 @@
                 </div>
             </form>
         </div>
+    </div>
+
     <!-- Modal: Change Password -->
     <div class="modal-overlay" id="changePasswordModal">
         <div class="modal-card">
@@ -844,14 +1188,34 @@
         </div>
     </div>
 
+    <!-- Offcanvas Diagnostic Drawer -->
+    <div class="offcanvas-backdrop" id="drawerBackdrop" onclick="closeDiagnosticDrawer()"></div>
+    <div class="offcanvas-drawer" id="diagnosticDrawer">
+        <div class="offcanvas-header">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <span id="drawerIcon" style="font-size:1.2rem;">⚡</span>
+                <h3 class="offcanvas-title" id="drawerTitle">Diagnostics</h3>
+            </div>
+            <button class="btn-action" style="padding:4px 8px; border-radius:50%;" onclick="closeDiagnosticDrawer()" title="Close (Esc)">✕</button>
+        </div>
+        <div class="offcanvas-body" id="drawerBody">
+            <div style="text-align:center; color:var(--text-dim); padding:20px;">Select a diagnostic item to inspect.</div>
+        </div>
+    </div>
+
     <!-- Client Logic Adapter -->
     <script src="admin_adapter.js"></script>
     <script>
         const api = new AdminAPIAdapter();
         let currentSnapshot = '';
+        let currentSnapshotTelemetry = null;
         let activeConfigFile = '';
         let allSnapshotElements = [];
         let currentFilteredElements = [];
+        let currentCockpitView = 'snapshot';
+        let historicalAnalyticsData = null;
+        let currentHistoricalRange = 'all';
+        let currentFilteredHistElements = [];
 
         // --- Theme Switcher ---
         function toggleTheme() {
@@ -1038,7 +1402,10 @@
                 // Load Runs Dropdown
                 const runs = await api.listRuns();
                 const sel = document.getElementById('snapshotSelect');
-                sel.innerHTML = runs.map(r => `<option value="${r.id}">${r.formatted_date} (${r.node_count} nodes)</option>`).join('');
+                sel.innerHTML = runs.map(r => {
+                    const badge = r.is_aborted ? ' [⚠️ ABORTED: SYSTEMIC FAILURE]' : '';
+                    return `<option value="${r.id}">${r.formatted_date}${badge} (${r.node_count} nodes)</option>`;
+                }).join('');
 
                 if (runs.length > 0) {
                     currentSnapshot = runs[0].id;
@@ -1054,7 +1421,28 @@
             currentSnapshot = runId;
             try {
                 const tel = await api.getRunSummary(runId);
+                currentSnapshotTelemetry = tel;
                 
+                // Circuit Breaker Systemic Failure Banner
+                const cbBanner = document.getElementById('circuitBreakerBanner');
+                if (cbBanner) {
+                    if (tel.is_aborted) {
+                        cbBanner.style.display = 'block';
+                        const diagEl = document.getElementById('circuitBreakerDiagnosis');
+                        const metaEl = document.getElementById('circuitBreakerMeta');
+                        const info = tel.abort_info || {};
+                        if (diagEl) diagEl.innerText = info.diagnosis || 'Collection was halted by Systemic Circuit Breaker to prevent TACACS/AD account lockout.';
+                        if (metaEl) {
+                            const fType = info.failure_type || 'SYSTEMIC_FAILURE';
+                            const fCount = info.consecutive_failures != null ? `${info.consecutive_failures}/${info.threshold} consecutive failures` : '';
+                            const fTime = info.timestamp ? `at ${info.timestamp}` : '';
+                            metaEl.innerText = `Trigger: ${fType} (${fCount}) ${fTime}`.trim();
+                        }
+                    } else {
+                        cbBanner.style.display = 'none';
+                    }
+                }
+
                 // Elements health
                 const elH = tel.elements_health;
                 document.getElementById('runTotalElements').innerText = elH.total;
@@ -1084,6 +1472,388 @@
             } catch (err) {
                 console.error(err);
             }
+        }
+
+        // --- Interactive Card Drill-Down (Click-to-Explode) ---
+        function filterByCard(type) {
+            const input = document.getElementById('elementsSearchInput');
+            const notice = document.getElementById('activeCardFilterNotice');
+            const text = document.getElementById('activeCardFilterText');
+            if (!input) return;
+
+            let query = '';
+            let label = '';
+            if (type === 'failed') {
+                query = '!status:ok';
+                label = 'Failed Elements';
+            } else if (type === 'timeout') {
+                query = 'timeout';
+                label = 'Timeouts';
+            } else if (type === 'auth') {
+                query = 'auth';
+                label = 'Auth Failures';
+            } else if (type === 'ok') {
+                query = 'status:ok';
+                label = 'OK Elements';
+            }
+
+            input.value = query;
+            if (notice && text) {
+                text.innerHTML = `Filter: <b>${label}</b> <span onclick="clearActiveCardFilter()" style="cursor:pointer; margin-left:6px; font-weight:800;" title="Clear filter">✕</span>`;
+                notice.style.display = 'flex';
+            }
+            applyElementsFilter();
+
+            const tableCard = document.getElementById('elementsTableCard');
+            if (tableCard) {
+                tableCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+
+        function clearActiveCardFilter() {
+            const input = document.getElementById('elementsSearchInput');
+            const notice = document.getElementById('activeCardFilterNotice');
+            if (input) input.value = '';
+            if (notice) notice.style.display = 'none';
+            applyElementsFilter();
+        }
+
+        // --- Offcanvas Diagnostic Drawer ---
+        function openDiagnosticDrawer(type) {
+            const drawer = document.getElementById('diagnosticDrawer');
+            const backdrop = document.getElementById('drawerBackdrop');
+            const titleEl = document.getElementById('drawerTitle');
+            const iconEl = document.getElementById('drawerIcon');
+            const bodyEl = document.getElementById('drawerBody');
+            if (!drawer || !backdrop) return;
+
+            if (type === 'icmp_dead') {
+                iconEl.innerText = '⚡';
+                titleEl.innerText = 'ICMP Dead & Unreachable Targets';
+                const deadPairs = (currentSnapshotTelemetry && currentSnapshotTelemetry.ping_health && currentSnapshotTelemetry.ping_health.dead_pairs) || [];
+                if (deadPairs.length === 0) {
+                    bodyEl.innerHTML = `
+                        <div style="text-align:center; padding:30px; color:var(--success);">
+                            <div style="font-size:2rem; margin-bottom:8px;">✅</div>
+                            <strong>All ICMP Tests Healthy</strong>
+                            <p style="color:var(--text-dim); font-size:0.8rem; margin-top:4px;">No 100% packet loss or unreachable target pairs detected in snapshot ${escapeHtml(currentSnapshot)}.</p>
+                        </div>
+                    `;
+                } else {
+                    bodyEl.innerHTML = `
+                        <div style="margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-size:0.8rem; color:var(--text-dim);">${deadPairs.length} critical dead test(s) found</span>
+                            <button class="btn-action" style="font-size:0.75rem; padding:3px 8px;" onclick="openRunDashboard('ping-matrix')">🚀 Open in Ping Matrix</button>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:8px;">
+                            ${deadPairs.map(p => {
+                                const latText = (p.avg_ms !== null && p.avg_ms !== undefined && p.avg_ms >= 0) ? `${p.avg_ms} ms` : 'Unreachable';
+                                return `
+                                <div style="background:var(--bg-dark); border:1px solid rgba(239, 68, 68, 0.3); border-radius:6px; padding:10px 12px;">
+                                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                                        <span style="font-family:'JetBrains Mono',monospace; font-weight:700; color:var(--danger); font-size:0.82rem;">${escapeHtml(p.origin)} ➔ ${escapeHtml(p.dest)}</span>
+                                        <span class="badge-cat badge-cat-never">${p.loss_pct}% LOSS</span>
+                                    </div>
+                                    <div style="font-size:0.75rem; color:var(--text-dim);">Status: <b style="color:var(--danger);">Dead / 100% Packet Loss</b> | Latency: <b>${escapeHtml(latText)}</b></div>
+                                </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    `;
+                }
+            } else if (type === 'lldp') {
+                iconEl.innerText = '🔌';
+                titleEl.innerText = 'LLDP Topology Mismatches';
+                const mismatches = (currentSnapshotTelemetry && currentSnapshotTelemetry.topology_health && currentSnapshotTelemetry.topology_health.lldp_mismatches_list) || [];
+                if (mismatches.length === 0) {
+                    bodyEl.innerHTML = `
+                        <div style="text-align:center; padding:30px; color:var(--success);">
+                            <div style="font-size:2rem; margin-bottom:8px;">✅</div>
+                            <strong>Zero LLDP Mismatches</strong>
+                            <p style="color:var(--text-dim); font-size:0.8rem; margin-top:4px;">All physical cabling aligns cleanly with neighbor discovery declarations.</p>
+                        </div>
+                    `;
+                } else {
+                    bodyEl.innerHTML = `
+                        <div style="margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-size:0.8rem; color:var(--text-dim);">${mismatches.length} mismatch event(s) logged</span>
+                            <button class="btn-action" style="font-size:0.75rem; padding:3px 8px;" onclick="openRunDashboard('topology')">🕸️ Open in Topology</button>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:8px;">
+                            ${mismatches.map(m => {
+                                const localNode = m.Element || m.local_element || m.local_node || 'Unknown';
+                                const localIntf = m.Interface || m.local_interface || m.local_intf || '-';
+                                const remoteNeighbor = m.Actual_LLDP_Neighbor || m.remote_element || m.remote_node || 'Unknown';
+                                const remoteIntf = m.remote_interface || m.remote_intf || '';
+                                const reason = m.Mismatch_Reason || m.reason || m.diagnostic || 'Adjacency discrepancy';
+                                const cfgDesc = m.Configured_Description || m.description || '';
+                                return `
+                                <div style="background:var(--bg-dark); border:1px solid rgba(245, 158, 11, 0.3); border-radius:6px; padding:10px 12px;">
+                                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                                        <span style="font-family:'JetBrains Mono',monospace; font-weight:700; color:var(--text); font-size:0.82rem;">
+                                            ${escapeHtml(localNode)} <span style="color:var(--text-dim); font-size:0.75rem;">(${escapeHtml(localIntf)})</span>
+                                        </span>
+                                        <span class="badge-cat badge-cat-flapping" style="font-size:0.65rem;">${escapeHtml(reason)}</span>
+                                    </div>
+                                    <div style="font-size:0.75rem; color:var(--text-dim); margin-top:2px;">
+                                        Actual Neighbor: <b style="color:var(--warning);">${escapeHtml(remoteNeighbor)}${remoteIntf ? ' : ' + escapeHtml(remoteIntf) : ''}</b>
+                                    </div>
+                                    ${cfgDesc ? `<div style="font-size:0.7rem; color:var(--text-dim); margin-top:4px; word-break:break-all;">Declared: <span style="color:var(--text-dim); font-family:monospace;">${escapeHtml(cfgDesc)}</span></div>` : ''}
+                                </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    `;
+                }
+            }
+
+            backdrop.classList.add('active');
+            drawer.classList.add('active');
+        }
+
+        function closeDiagnosticDrawer() {
+            const drawer = document.getElementById('diagnosticDrawer');
+            const backdrop = document.getElementById('drawerBackdrop');
+            if (drawer) drawer.classList.remove('active');
+            if (backdrop) backdrop.classList.remove('active');
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeDiagnosticDrawer();
+        });
+
+        // --- Cockpit Sub-View Switching ---
+        function switchCockpitView(view) {
+            currentCockpitView = view;
+            const btnSnap = document.getElementById('btnViewSnapshot');
+            const btnHist = document.getElementById('btnViewHistorical');
+            const snapCont = document.getElementById('snapshotViewContainer');
+            const histCont = document.getElementById('historicalViewContainer');
+
+            if (view === 'snapshot') {
+                if (btnSnap) btnSnap.classList.add('active');
+                if (btnHist) btnHist.classList.remove('active');
+                if (snapCont) snapCont.style.display = 'block';
+                if (histCont) histCont.style.display = 'none';
+            } else {
+                if (btnHist) btnHist.classList.add('active');
+                if (btnSnap) btnSnap.classList.remove('active');
+                if (snapCont) snapCont.style.display = 'none';
+                if (histCont) histCont.style.display = 'block';
+                if (!historicalAnalyticsData) {
+                    loadHistoricalReliability();
+                }
+            }
+        }
+
+        // --- Historical Reliability & Trends ---
+        function setHistoricalRange(preset) {
+            currentHistoricalRange = preset;
+            document.querySelectorAll('.btn-range').forEach(b => b.classList.remove('active'));
+            if (window.event && window.event.target) window.event.target.classList.add('active');
+
+            const fromInput = document.getElementById('histDateFrom');
+            const toInput = document.getElementById('histDateTo');
+            const today = new Date();
+            const pad = (n) => String(n).padStart(2, '0');
+            const formatD = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+            if (preset === 'all') {
+                if (fromInput) fromInput.value = '';
+                if (toInput) toInput.value = '';
+            } else if (preset === '24h') {
+                const d = new Date(today);
+                d.setDate(d.getDate() - 1);
+                if (fromInput) fromInput.value = formatD(d);
+                if (toInput) toInput.value = formatD(today);
+            } else if (preset === '7d') {
+                const d = new Date(today);
+                d.setDate(d.getDate() - 7);
+                if (fromInput) fromInput.value = formatD(d);
+                if (toInput) toInput.value = formatD(today);
+            } else if (preset === '30d') {
+                const d = new Date(today);
+                d.setDate(d.getDate() - 30);
+                if (fromInput) fromInput.value = formatD(d);
+                if (toInput) toInput.value = formatD(today);
+            }
+
+            loadHistoricalReliability();
+        }
+
+        function applyCustomHistoricalRange() {
+            document.querySelectorAll('.btn-range').forEach(b => b.classList.remove('active'));
+            loadHistoricalReliability();
+        }
+
+        async function loadHistoricalReliability() {
+            const fromVal = document.getElementById('histDateFrom')?.value || '';
+            const toVal = document.getElementById('histDateTo')?.value || '';
+            const tbody = document.getElementById('histTableBody');
+            if (tbody) {
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--text-dim); padding:20px;">Analyzing historical telemetry...</td></tr>`;
+            }
+
+            try {
+                const data = await api.getElementReliabilityAnalytics(fromVal, toVal);
+                historicalAnalyticsData = data;
+                renderHistoricalReliabilityView(data);
+            } catch (err) {
+                console.error('Failed to load historical analytics:', err);
+                if (tbody) {
+                    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--danger); padding:20px;">Error loading historical telemetry: ${escapeHtml(err.message)}</td></tr>`;
+                }
+            }
+        }
+
+        function renderHistoricalReliabilityView(data) {
+            // Update 4 HUD cards
+            const s = data.summary || {};
+            document.getElementById('histNeverCount').innerText = s.never_collected || 0;
+            document.getElementById('histChronicCount').innerText = s.chronic_failure || 0;
+            document.getElementById('histFlappingCount').innerText = s.flapping || 0;
+            document.getElementById('histStableCount').innerText = s.stable || 0;
+
+            const sub = document.getElementById('histTableSubtitle');
+            if (sub) {
+                sub.innerText = `${data.total_runs_analyzed} run(s) analyzed · ${data.catalogue_total} configured elements`;
+            }
+
+            // Pareto Root Cause Calculation
+            const rc = data.root_causes || {};
+            const totalErrors = (rc.timeout || 0) + (rc.auth_fail || 0) + (rc.conn_refused || 0) + (rc.other || 0);
+            const paretoTotal = document.getElementById('histParetoTotalText');
+            if (paretoTotal) paretoTotal.innerText = `${totalErrors} total failure event(s)`;
+
+            const pct = (n) => totalErrors > 0 ? Math.round((n / totalErrors) * 100) : 0;
+            const tPct = pct(rc.timeout || 0);
+            const aPct = pct(rc.auth_fail || 0);
+            const rPct = pct(rc.conn_refused || 0);
+            const oPct = totalErrors > 0 ? Math.max(0, 100 - (tPct + aPct + rPct)) : 0;
+
+            document.getElementById('segTimeout').style.width = `${tPct}%`;
+            document.getElementById('segAuth').style.width = `${aPct}%`;
+            document.getElementById('segRefused').style.width = `${rPct}%`;
+            document.getElementById('segOther').style.width = `${oPct}%`;
+
+            document.getElementById('paretoTimeoutVal').innerText = rc.timeout || 0;
+            document.getElementById('paretoTimeoutPct').innerText = `${tPct}%`;
+            document.getElementById('paretoAuthVal').innerText = rc.auth_fail || 0;
+            document.getElementById('paretoAuthPct').innerText = `${aPct}%`;
+            document.getElementById('paretoRefusedVal').innerText = rc.conn_refused || 0;
+            document.getElementById('paretoRefusedPct').innerText = `${rPct}%`;
+            document.getElementById('paretoOtherVal').innerText = rc.other || 0;
+            document.getElementById('paretoOtherPct').innerText = `${oPct}%`;
+
+            // Top Slow Responders / Timeouts
+            const slowContainer = document.getElementById('histTopSlowContainer');
+            const slowList = data.top_slow_culprits || [];
+            if (slowList.length === 0) {
+                slowContainer.innerHTML = `<div style="color:var(--text-dim); text-align:center; padding:12px;">Zero timeout bottlenecks in selected window.</div>`;
+            } else {
+                slowContainer.innerHTML = slowList.slice(0, 4).map(c => `
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-dark); border:1px solid var(--border); border-radius:6px; padding:6px 10px;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-family:'JetBrains Mono',monospace; font-weight:700;">${escapeHtml(c.element)}</span>
+                            <span class="role-tag" style="font-size:0.65rem;">${escapeHtml((c.tier || 'other').toUpperCase())}</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="color:var(--warning); font-weight:700;">⏱️ ${c.timeouts} timeouts</span>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            applyHistoricalFilter();
+        }
+
+        function filterHistoricalByCategory(cat) {
+            const select = document.getElementById('histCategoryFilter');
+            if (select) select.value = cat;
+            applyHistoricalFilter();
+        }
+
+        function applyHistoricalFilter() {
+            if (!historicalAnalyticsData) return;
+            const elements = historicalAnalyticsData.elements || [];
+            const catSelect = document.getElementById('histCategoryFilter')?.value || '';
+            const searchVal = (document.getElementById('histSearchInput')?.value || '').trim();
+
+            currentFilteredHistElements = elements.filter(el => {
+                if (catSelect && el.status_category !== catSelect) return false;
+                if (!searchVal) return true;
+                return evaluateBooleanFilter(el, searchVal);
+            });
+
+            const countEl = document.getElementById('histFilterCount');
+            if (countEl) {
+                countEl.innerText = `${currentFilteredHistElements.length} / ${elements.length}`;
+            }
+
+            const tbody = document.getElementById('histTableBody');
+            if (!tbody) return;
+
+            if (currentFilteredHistElements.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--text-dim); padding:20px;">No elements match current historical filter.</td></tr>`;
+                return;
+            }
+
+            const catBadge = (cat) => {
+                if (cat === 'never_collected') return `<span class="badge-cat badge-cat-never">🚫 Never Collected</span>`;
+                if (cat === 'chronic_failure') return `<span class="badge-cat badge-cat-chronic">⚠️ Chronic Failure</span>`;
+                if (cat === 'flapping') return `<span class="badge-cat badge-cat-flapping">⚡ Flapping</span>`;
+                return `<span class="badge-cat badge-cat-stable">✅ Stable</span>`;
+            };
+
+            tbody.innerHTML = currentFilteredHistElements.map(el => {
+                const rateColor = el.success_rate_pct >= 90 ? 'var(--success)' : (el.success_rate_pct > 0 ? 'var(--warning)' : 'var(--danger)');
+                return `
+                    <tr>
+                        <td style="font-family:'JetBrains Mono',monospace; font-weight:600;">${escapeHtml(el.element)}</td>
+                        <td><span class="role-tag" style="font-size:0.65rem;">${escapeHtml((el.tier || 'other').toUpperCase())}</span></td>
+                        <td>${catBadge(el.status_category)}</td>
+                        <td>${el.success_count} / ${el.total_attempts}</td>
+                        <td style="font-weight:700; color:${rateColor};">${el.success_rate_pct}%</td>
+                        <td>${escapeHtml((el.last_status || '-').toUpperCase())}</td>
+                        <td style="font-size:0.75rem; color:var(--text-dim);">${escapeHtml(el.last_ok_date || 'Never')}</td>
+                        <td style="font-size:0.75rem; color:${el.last_error ? 'var(--danger)' : 'var(--text-dim)'};">${escapeHtml(el.last_error || '-')}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function exportReliabilityCSV() {
+            if (!currentFilteredHistElements || currentFilteredHistElements.length === 0) {
+                alert('No elements to export in current historical view.');
+                return;
+            }
+
+            const headers = ['element', 'tier', 'category', 'total_attempts', 'success_count', 'failure_count', 'success_rate_pct', 'last_status', 'last_ok_date', 'last_error'];
+            const rows = currentFilteredHistElements.map(e => [
+                e.element || '',
+                e.tier || '',
+                e.status_category || '',
+                e.total_attempts || 0,
+                e.success_count || 0,
+                e.failure_count || 0,
+                `${e.success_rate_pct || 0}%`,
+                e.last_status || '',
+                e.last_ok_date || '',
+                (e.last_error || '').replace(/;/g, ' ')
+            ]);
+
+            const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\r\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const fromStr = document.getElementById('histDateFrom')?.value || 'all';
+            const toStr = document.getElementById('histDateTo')?.value || 'all';
+            a.download = `element_reliability_${fromStr}_to_${toStr}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
 
         function escapeHtml(str) {
@@ -1149,6 +1919,23 @@
                     return res;
                 };
 
+                const checkErrorMatch = (errText, queryVal) => {
+                    if (!errText) return false;
+                    const err = errText.toLowerCase();
+                    const q = queryVal.toLowerCase();
+                    if (err.includes(q)) return true;
+                    if (q === 'timeout' || q === 'timeouts') {
+                        return err.includes('timed out') || err.includes('time out') || err.includes('time-out');
+                    }
+                    if (q === 'timed out' || q === 'time out') {
+                        return err.includes('timeout');
+                    }
+                    if (q === 'auth' || q === 'auth_fail') {
+                        return err.includes('authentication') || err.includes('permission denied');
+                    }
+                    return false;
+                };
+
                 const matchTerm = (targetNode, term) => {
                     if (!term) return true;
                     const colonIdx = term.indexOf(':');
@@ -1157,12 +1944,12 @@
                         const val = term.substring(colonIdx + 1).toLowerCase();
                         if (field === 'status') return (targetNode.status || '').toLowerCase().includes(val);
                         if (field === 'element' || field === 'host' || field === 'name') return (targetNode.element || '').toLowerCase().includes(val);
-                        if (field === 'error' || field === 'diag' || field === 'msg') return (targetNode.error || '').toLowerCase().includes(val);
+                        if (field === 'error' || field === 'diag' || field === 'msg') return checkErrorMatch(targetNode.error, val);
                     }
                     const lowerTerm = term.toLowerCase();
                     const elMatch = (targetNode.element || '').toLowerCase().includes(lowerTerm);
                     const stMatch = (targetNode.status || '').toLowerCase().includes(lowerTerm);
-                    const errMatch = (targetNode.error || '').toLowerCase().includes(lowerTerm);
+                    const errMatch = checkErrorMatch(targetNode.error, lowerTerm);
                     return elMatch || stMatch || errMatch;
                 };
 
@@ -1219,9 +2006,12 @@
                 return parseOr();
             } catch (e) {
                 const q = query.toLowerCase().trim();
+                const nodeErr = (node.error || '').toLowerCase();
+                const timeoutSynonym = (q === 'timeout' && (nodeErr.includes('timed out') || nodeErr.includes('time out')));
                 return (node.element || '').toLowerCase().includes(q) ||
                        (node.status || '').toLowerCase().includes(q) ||
-                       (node.error || '').toLowerCase().includes(q);
+                       nodeErr.includes(q) ||
+                       timeoutSynonym;
             }
         }
 

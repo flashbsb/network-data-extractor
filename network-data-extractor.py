@@ -436,6 +436,7 @@ group_global.add_argument("--check-deps", action="store_true", help="Verify all 
 group_global.add_argument("--retention-days", type=int, help="Override global retention window in days (prunes runs older than N days)")
 group_global.add_argument("--storage-mode", "--storage_mode", choices=["files_only", "db_only", "hybrid"], help="Persistence storage mode override (files_only, db_only, hybrid)")
 group_global.add_argument("--database-path", "--database_path", type=str, default=None, help="Explicit path to SQLite database")
+group_global.add_argument("--ignore-circuit-breaker", action="store_true", help="Bypass systemic failure circuit breaker checks")
 
 group_auth = parser.add_argument_group("Authentication (ignored in --offline/--diff)")
 group_auth.add_argument("--user", type=str, help="SSH Username (required for automated auth)")
@@ -1214,6 +1215,8 @@ while True:
                 cmd.append("--randomize")
             else:
                 cmd.append("--no-randomize")
+            if getattr(args, "ignore_circuit_breaker", False):
+                cmd.append("--ignore-circuit-breaker")
             if storage_mgr:
                 cmd.extend(["--run_id", DIR_SUFFIX, "--outbase", args.outbase])
                 if args.storage_mode:
@@ -1239,6 +1242,39 @@ while True:
                 log_orchestrator(f"{script_name} Finished. Return Code: {rc.returncode}")
                 print(f"{step_prefix} {status_text} ({script_duration:5.1f}s)")
                 
+                if rc.returncode == 101:
+                    print(f"\n{C_RED}{C_BOLD}======================================================================{C_RESET}")
+                    print(f"{C_RED}{C_BOLD} [CIRCUIT BREAKER] ORCHESTRATOR DETECTED SYSTEMIC COLLECTION FAILURE  {C_RESET}")
+                    print(f"{C_RED}{C_BOLD}======================================================================{C_RESET}")
+                    print(f"[*] Downstream tasks (parsers, ping matrix, diff) have been SUPPRESSED.")
+                    print(f"[*] Run directory preserved for auditing: {TIMESTAMP_DIR}")
+
+                    sf_src = os.path.join(COLLECT_DIR, "SYSTEMIC_FAILURE.json")
+                    sf_dst = os.path.join(TIMESTAMP_DIR, "SYSTEMIC_FAILURE.json")
+                    if os.path.isfile(sf_src) and not os.path.isfile(sf_dst):
+                        try:
+                            import shutil
+                            shutil.copy2(sf_src, sf_dst)
+                        except Exception as e:
+                            log_orchestrator(f"Could not copy SYSTEMIC_FAILURE.json: {e}")
+
+                    if storage_mgr:
+                        try:
+                            storage_mgr.finish_run(
+                                DIR_SUFFIX,
+                                finished_at=datetime.now(),
+                                status="FAILED",
+                                total_elements=0,
+                                successful_elements=0,
+                                failed_elements=0,
+                                metadata={"abort_reason": "SYSTEMIC_FAILURE_CIRCUIT_BREAKER", "circuit_breaker_tripped": True}
+                            )
+                        except Exception as e:
+                            log_orchestrator(f"Could not update DB status for circuit breaker abort: {e}")
+
+                    log_orchestrator("Collection aborted due to Systemic Failure Circuit Breaker (code 101).")
+                    sys.exit(101)
+
                 if rc.returncode == 100 and not args.force:
                     if args.discovery and current_hop > 0:
                         print(f"\n{C_YELLOW}WARNING: No data collected in Hop {current_hop}. Stopping recursion but proceeding to consolidation.{C_RESET}")
@@ -1319,6 +1355,8 @@ while True:
                 "--ping_format", p_formats,
                 "--timestamp",   "NONE",   # Sentinel value to indicate no suffix should be used
             ])
+            if getattr(args, "ignore_circuit_breaker", False):
+                cmd.append("--ignore-circuit-breaker")
             if args.offline:
                 cmd.append("--offline_mode")
             if storage_mgr:
@@ -1342,6 +1380,40 @@ while True:
             status_text = f"{C_GREEN}[SUCCESS]{C_RESET}" if rc_ping.returncode == 0 else f"{C_RED}[FAILED ]{C_RESET}"
             log_orchestrator(f"{script_name} Finished. Return Code: {rc_ping.returncode}")
             print(f"{step_prefix} {status_text} ({script_duration:5.1f}s)")
+
+            if rc_ping.returncode == 101:
+                print(f"\n{C_RED}{C_BOLD}======================================================================{C_RESET}")
+                print(f"{C_RED}{C_BOLD} [CIRCUIT BREAKER] ORCHESTRATOR DETECTED SYSTEMIC PING MATRIX FAILURE {C_RESET}")
+                print(f"{C_RED}{C_BOLD}======================================================================{C_RESET}")
+                print(f"[*] Downstream tasks have been SUPPRESSED.")
+                print(f"[*] Run directory preserved for auditing: {TIMESTAMP_DIR}")
+
+                sf_src = os.path.join(PING_COLLECT, "SYSTEMIC_FAILURE.json")
+                sf_dst = os.path.join(TIMESTAMP_DIR, "SYSTEMIC_FAILURE.json")
+                if os.path.isfile(sf_src) and not os.path.isfile(sf_dst):
+                    try:
+                        import shutil
+                        shutil.copy2(sf_src, sf_dst)
+                    except Exception as e:
+                        log_orchestrator(f"Could not copy SYSTEMIC_FAILURE.json: {e}")
+
+                if storage_mgr:
+                    try:
+                        storage_mgr.finish_run(
+                            DIR_SUFFIX,
+                            finished_at=datetime.now(),
+                            status="FAILED",
+                            total_elements=0,
+                            successful_elements=0,
+                            failed_elements=0,
+                            metadata={"abort_reason": "SYSTEMIC_FAILURE_CIRCUIT_BREAKER_PING", "circuit_breaker_tripped": True}
+                        )
+                    except Exception as e:
+                        log_orchestrator(f"Could not update DB status for circuit breaker abort: {e}")
+
+                log_orchestrator("Ping Matrix aborted due to Systemic Failure Circuit Breaker (code 101).")
+                sys.exit(101)
+
             print(f"    └─> Workspace: {C_CYAN}{PING_RUN_DIR}{C_RESET}")
 
             # Compress collect/ and log/ if compression is enabled (matches legacy: collect.zip + log.zip)

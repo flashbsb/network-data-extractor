@@ -232,6 +232,17 @@ class NDXRequestHandler(BaseHTTPRequestHandler):
             self.send_json(HTTPStatus.OK, details)
             return
 
+        # GET /api/v1/analytics/element-reliability
+        if path == "/api/v1/analytics/element-reliability":
+            if not auth_mgr.has_permission(user_role, "view_metrics"):
+                self.send_error_json(HTTPStatus.FORBIDDEN, "Permission denied")
+                return
+            from_date = query.get("from", [None])[0]
+            to_date = query.get("to", [None])[0]
+            data = self.server.get_element_reliability_analytics(from_date=from_date, to_date=to_date)
+            self.send_json(HTTPStatus.OK, data)
+            return
+
         # GET /api/v1/cron/status
         if path == "/api/v1/cron/status":
             if not auth_mgr.has_permission(user_role, "view_metrics"):
@@ -553,6 +564,7 @@ class NDXWebServer(ThreadingHTTPServer):
         self.outbase = os.path.abspath(outbase)
         self.repo_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
         self.auth_mgr = AuthManager(users_file=users_file)
+        self._analytics_cache: Dict[Any, Any] = {}
         
         super().__init__((host, port), NDXRequestHandler)
 
@@ -637,12 +649,31 @@ class NDXWebServer(ThreadingHTTPServer):
                 os.path.isfile(os.path.join(r_path, "ping-matrix", "resume", "ping_matrix_list.json"))
                 or os.path.isfile(os.path.join(r_path, "resume", "ping_matrix_list.json"))
             )
+
+            sf_file = os.path.join(r_path, "SYSTEMIC_FAILURE.json")
+            if not os.path.isfile(sf_file):
+                sf_file = os.path.join(r_path, "resume", "SYSTEMIC_FAILURE.json")
+            if not os.path.isfile(sf_file):
+                sf_file = os.path.join(r_path, "collect", "SYSTEMIC_FAILURE.json")
+
+            is_aborted = False
+            abort_info = None
+            if os.path.isfile(sf_file):
+                try:
+                    with open(sf_file, "r", encoding="utf-8") as f:
+                        abort_info = json.load(f)
+                        is_aborted = True
+                except Exception:
+                    is_aborted = True
+
             entries.append({
                 "id": name,
                 "formatted_date": formatted_date,
                 "node_count": node_cnt,
                 "has_ping": has_ping,
-                "has_topology": os.path.isfile(os.path.join(r_path, "connections", "topology.connections.SUM.csv"))
+                "has_topology": os.path.isfile(os.path.join(r_path, "connections", "topology.connections.SUM.csv")),
+                "is_aborted": is_aborted,
+                "abort_info": abort_info
             })
 
         return entries
@@ -664,6 +695,23 @@ class NDXWebServer(ThreadingHTTPServer):
         interfaces_file = os.path.join(resume_dir, "interfaces_all.csv")
         conn_file = os.path.join(run_dir, "connections", "topology.connections.SUM.csv")
         lldp_file = os.path.join(resume_dir, "lldp_mismatch_report.csv")
+
+        # Discover SYSTEMIC_FAILURE.json if collection was tripped by Circuit Breaker
+        sf_file = os.path.join(run_dir, "SYSTEMIC_FAILURE.json")
+        if not os.path.isfile(sf_file):
+            sf_file = os.path.join(resume_dir, "SYSTEMIC_FAILURE.json")
+        if not os.path.isfile(sf_file):
+            sf_file = os.path.join(run_dir, "collect", "SYSTEMIC_FAILURE.json")
+
+        is_aborted = False
+        abort_info = None
+        if os.path.isfile(sf_file):
+            try:
+                with open(sf_file, "r", encoding="utf-8") as f:
+                    abort_info = json.load(f)
+                    is_aborted = True
+            except Exception:
+                is_aborted = True
 
         # 1. Element SSH Connection Health
         elements_list = []
@@ -741,7 +789,7 @@ class NDXWebServer(ThreadingHTTPServer):
                     pass
 
         # 2. Ping Telemetry Health
-        ping_summary = {"total": 0, "healthy": 0, "warning": 0, "critical": 0, "dead": 0, "avg_latency_ms": 0.0}
+        ping_summary = {"total": 0, "healthy": 0, "warning": 0, "critical": 0, "dead": 0, "avg_latency_ms": 0.0, "dead_pairs": []}
         if os.path.isfile(ping_file):
             try:
                 with open(ping_file, "r", encoding="utf-8", errors="ignore") as f:
@@ -753,6 +801,24 @@ class NDXWebServer(ThreadingHTTPServer):
                     ping_summary["warning"] = health.get("warning", 0)
                     ping_summary["critical"] = health.get("critical", 0)
                     ping_summary["dead"] = health.get("dead", 0)
+
+                    # Extract dead / unreachable pairs for offcanvas inspection
+                    dead_list = []
+                    data_items = p_data.get("data", p_data.get("matrix", p_data.get("tests", [])))
+                    if isinstance(data_items, list):
+                        for item in data_items:
+                            if item.get("is_unreachable") or item.get("loss_pct", 0) >= 100.0 or item.get("status") in ("dead", "critical"):
+                                orig = item.get("origin") or item.get("source") or item.get("from", "-")
+                                dst = item.get("dest") or item.get("target") or item.get("to", "-")
+                                dead_list.append({
+                                    "origin": orig,
+                                    "dest": dst,
+                                    "loss_pct": item.get("loss_pct", 100.0),
+                                    "avg_ms": item.get("avg") or item.get("rtt_avg_ms") or 0.0
+                                })
+                                if len(dead_list) >= 100:
+                                    break
+                    ping_summary["dead_pairs"] = dead_list
 
                     # Compute global latency from metadata.node_stats or root node_stats
                     node_stats = meta.get("node_stats") or p_data.get("node_stats", {})
@@ -788,10 +854,14 @@ class NDXWebServer(ThreadingHTTPServer):
                 pass
 
         lldp_mismatches = 0
+        lldp_mismatches_list = []
         if os.path.isfile(lldp_file):
             try:
                 with open(lldp_file, "r", encoding="utf-8", errors="ignore") as f:
-                    lldp_mismatches = sum(1 for _ in csv.DictReader(f, delimiter=";"))
+                    for r in csv.DictReader(f, delimiter=";"):
+                        lldp_mismatches += 1
+                        if len(lldp_mismatches_list) < 100:
+                            lldp_mismatches_list.append(dict(r))
             except Exception:
                 pass
 
@@ -808,15 +878,336 @@ class NDXWebServer(ThreadingHTTPServer):
                 "interfaces_up": int_up,
                 "interfaces_down": interface_count - int_up,
                 "total_links": links_count,
-                "lldp_mismatches": lldp_mismatches
+                "lldp_mismatches": lldp_mismatches,
+                "lldp_mismatches_list": lldp_mismatches_list
             },
             "has_dashboards": {
                 "inventory": os.path.isfile(os.path.join(self.outbase, "inventory", "index.html")),
                 "diff": os.path.isfile(os.path.join(self.outbase, "diff", "index.html")),
                 "topology": os.path.isfile(os.path.join(self.outbase, "topology", "index.html")),
                 "ping_matrix": os.path.isfile(os.path.join(self.outbase, "ping-matrix", "index.html"))
-            }
+            },
+            "is_aborted": is_aborted,
+            "abort_info": abort_info
         }
+
+    # --------------------------------------------------------------------------
+    # ELEMENT RELIABILITY & HISTORICAL ANALYTICS HELPERS
+    # --------------------------------------------------------------------------
+
+    def _get_routing_hierarchy(self) -> Dict[str, List[str]]:
+        """Reads routing_hierarchy from network.json."""
+        for base in [
+            os.path.join(os.path.dirname(self.outbase), "config"),
+            os.path.join(os.path.dirname(os.path.dirname(self.outbase)), "config"),
+            os.path.join(self.repo_dir, "config"),
+        ]:
+            p = os.path.join(base, "network.json")
+            if os.path.isfile(p):
+                try:
+                    with open(p, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                        return data.get("routing_hierarchy", {})
+                except Exception:
+                    pass
+        return {}
+
+    def _determine_tier(self, hostname: str, hierarchy: Dict[str, List[str]]) -> str:
+        """Determines network tier using prefix matching."""
+        name_clean = hostname.strip().upper()
+        tokens = [t for t in re.split(r"[-_.]+", name_clean) if t]
+        for tier_name, patterns in hierarchy.items():
+            for pat in patterns:
+                pat_upper = pat.upper()
+                if tokens and tokens[0] == pat_upper:
+                    return tier_name
+                if any(t == pat_upper for t in tokens):
+                    return tier_name
+                if pat_upper in name_clean:
+                    return tier_name
+        return "other"
+
+    def _get_catalogue_elements(self) -> Dict[str, Dict[str, str]]:
+        """
+        Discovers configured elements from elements_*.csv or elements.csv.
+        Returns a dict mapping hostname -> metadata (tier, function).
+        """
+        candidate_dirs = [
+            os.path.join(os.path.dirname(self.outbase), "config"),
+            os.path.join(os.path.dirname(os.path.dirname(self.outbase)), "config"),
+            os.path.join(self.outbase, "config"),
+            os.path.join(self.repo_dir, "config")
+        ]
+        best_csv = None
+        best_mtime = -1
+        for cdir in candidate_dirs:
+            if not os.path.isdir(cdir):
+                continue
+            try:
+                for fname in os.listdir(cdir):
+                    if re.match(r"^elements.*\.csv$", fname, re.IGNORECASE):
+                        fp = os.path.join(cdir, fname)
+                        mt = os.path.getmtime(fp)
+                        if mt > best_mtime:
+                            best_mtime = mt
+                            best_csv = fp
+            except Exception:
+                pass
+
+        catalogue: Dict[str, Dict[str, str]] = {}
+        hierarchy = self._get_routing_hierarchy()
+        if best_csv and os.path.isfile(best_csv):
+            try:
+                with open(best_csv, "r", encoding="utf-8", errors="ignore") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line or line.startswith("#"):
+                            continue
+                        parts = [p.strip() for p in line.split(";")]
+                        if not parts:
+                            continue
+                        name = parts[0]
+                        if not name or name.lower() in ("element", "hostname", "name", "device"):
+                            continue
+                        func = parts[1] if len(parts) > 1 else ""
+                        tier = self._determine_tier(name, hierarchy)
+                        catalogue[name] = {"tier": tier, "function": func}
+            except Exception:
+                pass
+        return catalogue
+
+    def get_element_reliability_analytics(
+        self,
+        from_date: Optional[str] = None,
+        to_date: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Calculates cross-snapshot collection reliability, chronic failures,
+        flapping elements, timeout bottlenecks, and never-collected nodes.
+        """
+        from_cmp = (from_date or "").strip().replace("-", "")
+        to_cmp = (to_date or "").strip().replace("-", "")
+        runs_dir = os.path.join(self.outbase, "runs")
+
+        runs_list = []
+        if os.path.isdir(runs_dir):
+            for name in sorted(os.listdir(runs_dir), reverse=True):
+                if not re.match(r"^\d{8}_\d{6}$", name):
+                    continue
+                d_part = name[:8]
+                if from_cmp and d_part < from_cmp:
+                    continue
+                if to_cmp and d_part > to_cmp:
+                    continue
+                runs_list.append(name)
+
+        cache_key = (from_cmp, to_cmp, len(runs_list), runs_list[0] if runs_list else "")
+        now = time.time()
+        if hasattr(self, "_analytics_cache") and cache_key in self._analytics_cache:
+            entry_time, cached_payload = self._analytics_cache[cache_key]
+            if now - entry_time < 60.0:
+                return cached_payload
+
+        catalogue = self._get_catalogue_elements()
+        hierarchy = self._get_routing_hierarchy()
+
+        element_stats: Dict[str, Dict[str, Any]] = {}
+        for name, meta in catalogue.items():
+            element_stats[name] = {
+                "element": name,
+                "tier": meta.get("tier", "other"),
+                "function": meta.get("function", ""),
+                "in_catalogue": True,
+                "total_attempts": 0,
+                "success_count": 0,
+                "failure_count": 0,
+                "timeout_count": 0,
+                "auth_count": 0,
+                "last_status": "unattempted",
+                "last_run_id": None,
+                "last_run_date": None,
+                "last_ok_run_id": None,
+                "last_ok_date": None,
+                "last_error": "",
+                "history": []
+            }
+
+        root_causes = {"timeout": 0, "auth_fail": 0, "conn_refused": 0, "other": 0}
+
+        for run_id in runs_list:
+            run_path = os.path.join(runs_dir, run_id)
+            # Exclude aborted runs from chronic device failure analysis to avoid polluting health stats
+            sf_file = os.path.join(run_path, "SYSTEMIC_FAILURE.json")
+            if not os.path.isfile(sf_file):
+                sf_file = os.path.join(run_path, "resume", "SYSTEMIC_FAILURE.json")
+            if not os.path.isfile(sf_file):
+                sf_file = os.path.join(run_path, "collect", "SYSTEMIC_FAILURE.json")
+            if os.path.isfile(sf_file):
+                continue
+
+            status_csv = os.path.join(run_path, "resume", "status.elements.csv")
+            try:
+                date_part, time_part = run_id.split("_")
+                formatted_date = f"{date_part[:4]}-{date_part[4:6]}-{date_part[6:]} {time_part[:2]}:{time_part[2:4]}:{time_part[4:]}"
+            except Exception:
+                formatted_date = run_id
+
+            run_items = []
+            if os.path.isfile(status_csv):
+                try:
+                    with open(status_csv, "r", encoding="utf-8", errors="ignore") as f:
+                        for row in csv.DictReader(f, delimiter=";"):
+                            el = (row.get("element") or row.get("element_name") or "").strip()
+                            if el:
+                                st = row.get("status", "ok").strip().lower()
+                                raw_err = (row.get("error") or row.get("details") or "").strip()
+                                err = raw_err if st != "ok" and raw_err != "-" else ""
+                                run_items.append((el, st, err))
+                except Exception:
+                    pass
+            else:
+                # Fallback to resume/platform_all.csv
+                plat_csv = os.path.join(run_path, "resume", "platform_all.csv")
+                if os.path.isfile(plat_csv):
+                    try:
+                        with open(plat_csv, "r", encoding="utf-8", errors="ignore") as f:
+                            for row in csv.DictReader(f, delimiter=";"):
+                                el = (row.get("element") or "").strip()
+                                if el:
+                                    run_items.append((el, "ok", ""))
+                    except Exception:
+                        pass
+                elif os.path.isfile(os.path.join(run_path, "filtered_elements.cfg")):
+                    try:
+                        with open(os.path.join(run_path, "filtered_elements.cfg"), "r", encoding="utf-8", errors="ignore") as f:
+                            for line in f:
+                                line = line.strip()
+                                if line and not line.startswith("#"):
+                                    el = line.split(";")[0].strip()
+                                    if el:
+                                        run_items.append((el, "ok", ""))
+                    except Exception:
+                        pass
+
+            if not run_items:
+                continue
+
+            for el, st, err in run_items:
+                if el not in element_stats:
+                    element_stats[el] = {
+                        "element": el,
+                        "tier": self._determine_tier(el, hierarchy),
+                        "function": "",
+                        "in_catalogue": False,
+                        "total_attempts": 0,
+                        "success_count": 0,
+                        "failure_count": 0,
+                        "timeout_count": 0,
+                        "auth_count": 0,
+                        "last_status": st,
+                        "last_run_id": run_id,
+                        "last_run_date": formatted_date,
+                        "last_ok_run_id": run_id if st == "ok" else None,
+                        "last_ok_date": formatted_date if st == "ok" else None,
+                        "last_error": err,
+                        "history": []
+                    }
+
+                rec = element_stats[el]
+                rec["total_attempts"] += 1
+
+                if st == "ok":
+                    rec["success_count"] += 1
+                    if not rec["last_ok_run_id"]:
+                        rec["last_ok_run_id"] = run_id
+                        rec["last_ok_date"] = formatted_date
+                else:
+                    rec["failure_count"] += 1
+                    err_lower = err.lower()
+                    if "time" in err_lower:
+                        rec["timeout_count"] += 1
+                        root_causes["timeout"] += 1
+                    elif "auth" in err_lower or "denied" in err_lower or "key" in err_lower:
+                        rec["auth_count"] += 1
+                        root_causes["auth_fail"] += 1
+                    elif "refus" in err_lower or "unreach" in err_lower:
+                        rec["conn_refused"] += 1
+                    else:
+                        root_causes["other"] += 1
+
+                    if not rec["last_error"]:
+                        rec["last_error"] = f"{err} ({run_id})"
+
+                if not rec["last_run_id"]:
+                    rec["last_status"] = st
+                    rec["last_run_id"] = run_id
+                    rec["last_run_date"] = formatted_date
+
+                if len(rec["history"]) < 10:
+                    rec["history"].append(st)
+
+        summary = {
+            "never_collected": 0,
+            "chronic_failure": 0,
+            "flapping": 0,
+            "stable": 0,
+            "total_monitored": len(element_stats)
+        }
+
+        element_rows = []
+        for el, rec in element_stats.items():
+            tot = rec["total_attempts"]
+            suc = rec["success_count"]
+            rate = round((suc / tot * 100.0), 1) if tot > 0 else 0.0
+            rec["success_rate_pct"] = rate
+
+            if tot == 0:
+                cat = "never_collected"
+                summary["never_collected"] += 1
+            elif suc == 0:
+                if tot == 1:
+                    cat = "never_collected"
+                    summary["never_collected"] += 1
+                else:
+                    cat = "chronic_failure"
+                    summary["chronic_failure"] += 1
+            elif rate < 90.0:
+                cat = "flapping"
+                summary["flapping"] += 1
+            else:
+                cat = "stable"
+                summary["stable"] += 1
+
+            rec["status_category"] = cat
+            element_rows.append(rec)
+
+        cat_order = {"never_collected": 0, "chronic_failure": 1, "flapping": 2, "stable": 3}
+        element_rows.sort(key=lambda x: (cat_order.get(x["status_category"], 9), x["success_rate_pct"], x["element"]))
+
+        timeout_culprits = sorted(
+            [e for e in element_rows if e["timeout_count"] > 0],
+            key=lambda x: x["timeout_count"],
+            reverse=True
+        )[:10]
+
+        payload = {
+            "from_date": from_date or "",
+            "to_date": to_date or "",
+            "total_runs_analyzed": len(runs_list),
+            "runs_analyzed": runs_list,
+            "catalogue_total": len(catalogue),
+            "summary": summary,
+            "root_causes": root_causes,
+            "top_slow_culprits": [
+                {"element": e["element"], "tier": e["tier"], "timeouts": e["timeout_count"], "last_error": e["last_error"]}
+                for e in timeout_culprits
+            ],
+            "elements": element_rows
+        }
+
+        if hasattr(self, "_analytics_cache"):
+            self._analytics_cache[cache_key] = (now, payload)
+        return payload
 
     def get_cron_status(self) -> Dict[str, Any]:
         """Inspects cron execution log and evaluates scheduling health."""

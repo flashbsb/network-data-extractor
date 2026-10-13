@@ -190,14 +190,21 @@ class AdminAPIAdapter {
                     warning: 0,
                     critical: 0,
                     dead: 2,
-                    avg_latency_ms: 18.7
+                    avg_latency_ms: 18.7,
+                    dead_pairs: [
+                        { origin: "RT-CORE-BSB-01", dest: "RT-EDGE-CBA-01", loss_pct: 100.0, avg_ms: null },
+                        { origin: "RT-CORE-FOR-01", dest: "SW-METRO-NAT-02", loss_pct: 100.0, avg_ms: null }
+                    ]
                 },
                 topology_health: {
                     total_interfaces: 68,
                     interfaces_up: 64,
                     interfaces_down: 4,
                     total_links: 37,
-                    lldp_mismatches: 0
+                    lldp_mismatches: 1,
+                    lldp_mismatches_list: [
+                        { Element: "RT-CORE-SPO-01", Interface: "TenGigE0/1/0/2", Actual_LLDP_Neighbor: "SW-METRO-SPO-01", remote_intf: "Port48", Mismatch_Reason: "Port speed / duplex mismatch detected", Configured_Description: "CONEXAO_METRO_SP_01" }
+                    ]
                 },
                 has_dashboards: {
                     inventory: true,
@@ -210,6 +217,211 @@ class AdminAPIAdapter {
 
         const res = await fetch(`/api/v1/runs/${runId}/summary`);
         if (!res.ok) throw new Error(`Failed to load summary for run ${runId}`);
+        return await res.json();
+    }
+
+    async getElementReliabilityAnalytics(fromDate, toDate) {
+        if (this.isDemoMode) {
+            // Simulated 32 nodes demo scenario with 10 historical snapshots
+            return {
+                from_date: fromDate || "2026-09-08",
+                to_date: toDate || "2026-10-08",
+                total_runs_analyzed: 10,
+                runs_analyzed: [
+                    "20261008_153513", "20261005_124213", "20261002_134913",
+                    "20260928_145613", "20260925_130313", "20260922_141013",
+                    "20260918_151713", "20260915_132413", "20260912_143113", "20260908_153813"
+                ],
+                catalogue_total: 32,
+                summary: {
+                    never_collected: 1,
+                    chronic_failure: 1,
+                    flapping: 2,
+                    stable: 28,
+                    total_monitored: 32
+                },
+                root_causes: {
+                    timeout: 7,
+                    auth_fail: 3,
+                    conn_refused: 2,
+                    other: 1
+                },
+                top_slow_culprits: [
+                    { element: "RT-EDGE-RJO-02", tier: "edge", timeouts: 3, last_error: "Connection timed out after 90s (20261008_153513)" },
+                    { element: "SW-METRO-CAMP-02", tier: "metro", timeouts: 2, last_error: "Read timeout waiting for prompt (20261005_124213)" },
+                    { element: "DRTD-DCN-BSB-01", tier: "dcn", timeouts: 1, last_error: "Socket connect timeout (20260928_145613)" }
+                ],
+                elements: [
+                    {
+                        element: "RT-CE-REMOTE-99",
+                        tier: "customer_cpe",
+                        function: "Branch Office CPE",
+                        in_catalogue: true,
+                        total_attempts: 0,
+                        success_count: 0,
+                        failure_count: 0,
+                        timeout_count: 0,
+                        auth_count: 0,
+                        status_category: "never_collected",
+                        success_rate_pct: 0.0,
+                        last_status: "unattempted",
+                        last_run_id: null,
+                        last_run_date: null,
+                        last_ok_run_id: null,
+                        last_ok_date: null,
+                        last_error: "Never responded in any snapshot (Provisioned but unreachable)",
+                        history: []
+                    },
+                    {
+                        element: "RT-EDGE-RJO-02",
+                        tier: "edge",
+                        function: "Edge Distribution Router",
+                        in_catalogue: true,
+                        total_attempts: 10,
+                        success_count: 0,
+                        failure_count: 10,
+                        timeout_count: 8,
+                        auth_count: 2,
+                        status_category: "chronic_failure",
+                        success_rate_pct: 0.0,
+                        last_status: "failed",
+                        last_run_id: "20261008_153513",
+                        last_run_date: "2026-10-08 15:35:13",
+                        last_ok_run_id: null,
+                        last_ok_date: null,
+                        last_error: "SSH Connection timed out after 90s (20261008_153513)",
+                        history: ["failed", "failed", "failed", "failed", "failed", "failed", "failed", "failed", "failed", "failed"]
+                    },
+                    {
+                        element: "SW-METRO-CAMP-02",
+                        tier: "metro",
+                        function: "Metro Aggregation Switch",
+                        in_catalogue: true,
+                        total_attempts: 10,
+                        success_count: 6,
+                        failure_count: 4,
+                        timeout_count: 3,
+                        auth_count: 1,
+                        status_category: "flapping",
+                        success_rate_pct: 60.0,
+                        last_status: "ok",
+                        last_run_id: "20261008_153513",
+                        last_run_date: "2026-10-08 15:35:13",
+                        last_ok_run_id: "20261008_153513",
+                        last_ok_date: "2026-10-08 15:35:13",
+                        last_error: "Read timeout waiting for prompt (20261005_124213)",
+                        history: ["ok", "failed", "ok", "ok", "failed", "ok", "failed", "ok", "ok", "failed"]
+                    },
+                    {
+                        element: "DRTD-DCN-BSB-01",
+                        tier: "dcn",
+                        function: "DCN OAM Management Gateway",
+                        in_catalogue: true,
+                        total_attempts: 10,
+                        success_count: 8,
+                        failure_count: 2,
+                        timeout_count: 1,
+                        auth_count: 1,
+                        status_category: "flapping",
+                        success_rate_pct: 80.0,
+                        last_status: "ok",
+                        last_run_id: "20261008_153513",
+                        last_run_date: "2026-10-08 15:35:13",
+                        last_ok_run_id: "20261008_153513",
+                        last_ok_date: "2026-10-08 15:35:13",
+                        last_error: "Authentication rejected (20260928_145613)",
+                        history: ["ok", "ok", "failed", "ok", "ok", "ok", "failed", "ok", "ok", "ok"]
+                    },
+                    {
+                        element: "RT-CORE-BSB-01",
+                        tier: "core",
+                        function: "National Core Backbone",
+                        in_catalogue: true,
+                        total_attempts: 10,
+                        success_count: 10,
+                        failure_count: 0,
+                        timeout_count: 0,
+                        auth_count: 0,
+                        status_category: "stable",
+                        success_rate_pct: 100.0,
+                        last_status: "ok",
+                        last_run_id: "20261008_153513",
+                        last_run_date: "2026-10-08 15:35:13",
+                        last_ok_run_id: "20261008_153513",
+                        last_ok_date: "2026-10-08 15:35:13",
+                        last_error: "",
+                        history: ["ok", "ok", "ok", "ok", "ok", "ok", "ok", "ok", "ok", "ok"]
+                    },
+                    {
+                        element: "RT-CORE-SPO-01",
+                        tier: "core",
+                        function: "National Core Backbone",
+                        in_catalogue: true,
+                        total_attempts: 10,
+                        success_count: 10,
+                        failure_count: 0,
+                        timeout_count: 0,
+                        auth_count: 0,
+                        status_category: "stable",
+                        success_rate_pct: 100.0,
+                        last_status: "ok",
+                        last_run_id: "20261008_153513",
+                        last_run_date: "2026-10-08 15:35:13",
+                        last_ok_run_id: "20261008_153513",
+                        last_ok_date: "2026-10-08 15:35:13",
+                        last_error: "",
+                        history: ["ok", "ok", "ok", "ok", "ok", "ok", "ok", "ok", "ok", "ok"]
+                    },
+                    {
+                        element: "RT-CORE-RJO-01",
+                        tier: "core",
+                        function: "National Core Backbone",
+                        in_catalogue: true,
+                        total_attempts: 10,
+                        success_count: 10,
+                        failure_count: 0,
+                        timeout_count: 0,
+                        auth_count: 0,
+                        status_category: "stable",
+                        success_rate_pct: 100.0,
+                        last_status: "ok",
+                        last_run_id: "20261008_153513",
+                        last_run_date: "2026-10-08 15:35:13",
+                        last_ok_run_id: "20261008_153513",
+                        last_ok_date: "2026-10-08 15:35:13",
+                        last_error: "",
+                        history: ["ok", "ok", "ok", "ok", "ok", "ok", "ok", "ok", "ok", "ok"]
+                    },
+                    {
+                        element: "RT-CORE-FOR-01",
+                        tier: "core",
+                        function: "National Core Backbone",
+                        in_catalogue: true,
+                        total_attempts: 10,
+                        success_count: 10,
+                        failure_count: 0,
+                        timeout_count: 0,
+                        auth_count: 0,
+                        status_category: "stable",
+                        success_rate_pct: 100.0,
+                        last_status: "ok",
+                        last_run_id: "20261008_153513",
+                        last_run_date: "2026-10-08 15:35:13",
+                        last_ok_run_id: "20261008_153513",
+                        last_ok_date: "2026-10-08 15:35:13",
+                        last_error: "",
+                        history: ["ok", "ok", "ok", "ok", "ok", "ok", "ok", "ok", "ok", "ok"]
+                    }
+                ]
+            };
+        }
+
+        const params = new URLSearchParams();
+        if (fromDate) params.append("from", fromDate);
+        if (toDate) params.append("to", toDate);
+        const qs = params.toString() ? `?${params.toString()}` : "";
+        const res = await fetch(`/api/v1/analytics/element-reliability${qs}`);
+        if (!res.ok) throw new Error("Failed to load element reliability analytics");
         return await res.json();
     }
 

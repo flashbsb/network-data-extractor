@@ -2,6 +2,45 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.95.0] - 2026-10-13
+### Added
+- **Systemic Failure Circuit Breaker / Fail-Fast Engine (`core/commands.py`, `core/ping_matrix.py`, `network-data-extractor.py`)**:
+  - Autonomous failure classification for authentication failures (`paramiko.AuthenticationException`, expired credentials, invalid SSH keys, TACACS+/RADIUS outages) and network unreachability errors (`ENETUNREACH`, `EHOSTUNREACH`, routing down, VPN disconnected).
+  - Configurable consecutive trip thresholds in `config/extractor.json` (and `settings.json`): 10 consecutive auth failures or 20 consecutive network reachability failures.
+  - Fast-aborts with standardized exit code `101`, preventing downstream TACACS/Active Directory account lockouts and suppressing useless downstream processing steps (ping matrix, parsers, drift diff, topology).
+  - Thread-safe tracking with automatic counter reset upon first successful connection.
+  - Automatically writes `SYSTEMIC_FAILURE.json` diagnostic payload to the run root, `collect/`, and `resume/` directories.
+  - Added CLI flag `--ignore-circuit-breaker` across `network-data-extractor.py`, `commands.py`, and `ping_matrix.py` for operational bypass.
+- **Web Admin Portal Systemic Failure Integration (`web/admin/index.html`, `demo/admin/index.html`, `core/web_server.py`)**:
+  - Historical Snapshot Selector displays `[⚠️ ABORTED: SYSTEMIC FAILURE]` badge next to aborted runs.
+  - Detailed Systemic Failure alert banner in Snapshot View displaying root cause diagnosis, threshold criteria, and failure timestamp.
+  - Historical Cross-Snapshot Reliability Engine (`get_element_reliability_analytics`) automatically excludes aborted runs from chronic node failure metrics to prevent environmental outages from skewing device reliability statistics.
+
+## [1.94.0] - 2026-10-09
+### Added
+- **Admin Dashboard Interactive Drill-Down ("Click-to-Explode") (`web/admin/index.html`, `demo/admin/index.html`)**:
+  - Direct click filtering on metric cards in the Executive Cockpit: clicking `Failed`, `Timeouts`, `Auth Failures`, or `OK` in the SSH Collection card instantly populates the search query, updates active filter pills, and highlights problematic elements.
+  - Active filter notification badge with one-click clear button (`✕`).
+- **Offcanvas Diagnostic Drawers (`web/admin/index.html`, `demo/admin/index.html`)**:
+  - Slide-out lateral offcanvas drawer from the right side for deep, zero-clutter root cause inspection.
+  - Dedicated diagnostic drawers for ICMP dead/unreachable target pairs (with source router, destination, packet loss, and shortcut to ping matrix).
+  - Dedicated diagnostic drawer for LLDP topology mismatch pairs (with local/remote port details and quick link to topology map).
+  - Smooth backdrop overlay, keyboard `Esc` listener, and theme harmonization with zero visual clutter.
+- **Dual-View Executive Cockpit (`web/admin/index.html`, `demo/admin/index.html`)**:
+  - Seamless pill sub-selector: `[ 🎯 Point-in-Time Snapshot ]` vs. `[ 📈 Historical Reliability & Trends ]`.
+  - Preserves an ultra-clean, decluttered interface for operators inspecting individual runs or global cross-run performance.
+- **Historical Reliability & Cross-Run Analytics (`core/web_server.py`, `/api/v1/analytics/element-reliability`, `admin_adapter.js`)**:
+  - Time-bounded analysis window: quick presets (`Last 24 Hours`, `Last 7 Days`, `Last 30 Days`, `All History`) and custom `From` / `To` date pickers.
+  - 4 Severity HUD cards:
+    - 🔴 **Never Collected**: Configured elements present in `elements_*.csv` with 0 successful collections in history.
+    - 🟠 **Chronic Failures**: Elements that failed 100% of attempted collections in the selected window.
+    - 🟡 **Flapping / Intermittent**: Elements with partial success rate (1% to 89%) oscillating between runs.
+    - 🟢 **Fully Stable**: Elements with ≥ 90% collection success rate.
+  - Root Cause Pareto Breakdown: visual multi-segment progress bar and metrics for Timeouts, Authentication failures, Connection Refused, and Other errors.
+  - Collection Bottlenecks: top slow responders accumulating timeouts and dragging down collection cycle time.
+  - Comprehensive Cross-Snapshot Reliability Table with real-time boolean filtering, category dropdown, and Excel-compatible UTF-8 BOM CSV export.
+  - Zero-latency in-memory cache with 60-second TTL on `/api/v1/analytics/element-reliability`.
+
 ## [1.93.0] - 2026-10-09
 ### Added
 - **Target Element Drilldown & Boolean Query Filter (`web/admin/index.html`)**:

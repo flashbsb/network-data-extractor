@@ -65,6 +65,8 @@ def load_settings(custom_path=None):
                 print(f"Warning: Failed to merge modular config {file_path}: {e}")
 
     return config
+
+
 def normalize_hostname(name, fmt='simple'):
     """
     Returns the normalized hostname: 'simple' (pre-dot) or 'fqdn' (full).
@@ -74,3 +76,22 @@ def normalize_hostname(name, fmt='simple'):
     if fmt == 'fqdn':
         return name.strip().upper()
     return name.split('.')[0].strip().upper()
+
+
+def is_auth_failure(exc: Exception) -> bool:
+    """Detects credential and authentication failures (expired passwords, bad keys, TACACS/RADIUS rejections)."""
+    exc_name = type(exc).__name__
+    if "AuthenticationException" in exc_name or "BadAuthenticationType" in exc_name:
+        return True
+    err_str = str(exc).lower()
+    return any(p in err_str for p in ("authentication failed", "bad authentication", "permission denied", "auth fail"))
+
+
+def is_network_unreachable(exc: Exception) -> bool:
+    """Detects total network routing or local interface reachability failures."""
+    err_str = str(exc).lower()
+    if any(p in err_str for p in ("network is unreachable", "no route to host", "host is unreachable", "network unreachable")):
+        return True
+    if getattr(exc, "errno", None) in (101, 113, 112):  # ENETUNREACH, EHOSTUNREACH, EHOSTDOWN
+        return True
+    return False
