@@ -1175,8 +1175,8 @@ def get_topology_graph_js() -> str:
             const h = this.height;
             const cam = this.camera;
 
-            const themeName = window.TopologyTheme ? window.TopologyTheme.getCurrentThemeName() : 'dark';
-            const theme = window.TopologyTheme ? window.TopologyTheme.getTheme(themeName) : { canvasBg: '#020617', text: '#fff', gridLine: 'rgba(255,255,255,0.05)' };
+            const themeName = window.TopologyTheme ? window.TopologyTheme.getCurrentThemeName() : 'light';
+            const theme = window.TopologyTheme ? window.TopologyTheme.getTheme(themeName) : { canvasBg: '#f8fafc', text: '#0f172a', gridLine: 'rgba(0,0,0,0.06)' };
 
             // 1. Clear background
             ctx.fillStyle = theme.canvasBg;

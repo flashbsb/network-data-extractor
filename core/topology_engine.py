@@ -267,7 +267,7 @@ class TopologyEngine:
         }
 
         /* Hybrid Mode Switcher in Header */
-        .mode-tabs { display: flex; gap: 6px; background: rgba(15, 23, 42, 0.6); padding: 3px; border-radius: 8px; border: 1px solid var(--border); }
+        .mode-tabs { display: flex; gap: 6px; background: var(--input-bg); padding: 3px; border-radius: 8px; border: 1px solid var(--border); }
         .mode-tab-btn { background: transparent; border: none; color: var(--text-dim); padding: 6px 14px; border-radius: 6px; font-weight: 600; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; }
         .mode-tab-btn:hover:not(.active) { color: var(--text); }
         .mode-tab-btn.active { background: var(--accent); color: var(--bg-dark); font-weight: 700; box-shadow: 0 0 10px rgba(56, 189, 248, 0.3); }
@@ -321,7 +321,7 @@ class TopologyEngine:
             font-weight: 600;
             cursor: pointer;
             border: 1px solid var(--border);
-            background: rgba(15, 23, 42, 0.4);
+            background: var(--card-bg);
             color: var(--text);
             transition: all 0.2s;
             user-select: none;
@@ -341,7 +341,7 @@ class TopologyEngine:
             display: inline-flex;
             align-items: center;
             gap: 4px;
-            background: rgba(15, 23, 42, 0.85);
+            background: var(--card-bg);
             border: 1px solid rgba(56, 189, 248, 0.35);
             border-radius: 4px;
             padding: 2px 6px;
@@ -394,7 +394,7 @@ class TopologyEngine:
             display: none;
             align-items: center;
             justify-content: space-between;
-            background: rgba(15, 23, 42, 0.7);
+            background: var(--card-bg);
             border: 1px solid var(--border);
             border-radius: 8px;
             padding: 8px 16px;
@@ -417,7 +417,7 @@ class TopologyEngine:
             display: flex;
             align-items: center;
             justify-content: space-between;
-            background: rgba(15, 23, 42, 0.75);
+            background: var(--card-bg);
             border: 1px solid var(--border);
             border-radius: 8px;
             padding: 8px 16px;
@@ -447,9 +447,9 @@ class TopologyEngine:
             top: 14px;
             right: 14px;
             z-index: 150;
-            background: rgba(15, 23, 42, 0.90);
-            border: 1px solid rgba(56, 189, 248, 0.35);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
             border-radius: 8px;
             padding: 12px 16px;
             min-width: 280px;
@@ -479,7 +479,7 @@ class TopologyEngine:
             font-family: monospace;
         }
         .path-stat-box {
-            background: rgba(30, 41, 59, 0.5);
+            background: var(--input-bg);
             border: 1px solid var(--border);
             border-radius: 6px;
             padding: 6px 8px;
@@ -494,9 +494,9 @@ class TopologyEngine:
             bottom: 20px;
             right: 20px;
             z-index: 140;
-            background: rgba(15, 23, 42, 0.94);
-            border: 1px solid rgba(56, 189, 248, 0.35);
-            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.65), 0 0 24px rgba(56, 189, 248, 0.12);
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
             border-radius: 10px;
             padding: 14px 18px;
             width: 320px;
@@ -605,21 +605,21 @@ class TopologyEngine:
         body.theater-mode .native-controls-bar { position: absolute; top: 12px; left: 12px; z-index: 1000; max-width: calc(100% - 24px); box-shadow: 0 4px 25px rgba(0,0,0,0.7); }
 
         /* Loader & Tooltip */
-        .loader-overlay { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(2, 6, 23, 0.85); z-index: 50; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(3px); }
+        .loader-overlay { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--modal-backdrop); z-index: 50; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(3px); }
         .spinner { width: 44px; height: 44px; border: 4px solid rgba(56, 189, 248, 0.15); border-top: 4px solid var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 12px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
         .topo-tooltip {
             position: fixed;
             z-index: 10000;
-            background: rgba(15, 23, 42, 0.95);
+            background: var(--card-bg);
             border: 1px solid var(--border);
             border-radius: 6px;
             padding: 8px 12px;
             pointer-events: none;
             font-size: 0.8rem;
             backdrop-filter: blur(8px);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+            box-shadow: var(--shadow);
             display: none;
         }
         .tooltip-title { font-weight: 700; color: var(--text); margin-bottom: 4px; font-family: monospace; }
@@ -2109,8 +2109,8 @@ class TopologyEngine:
         #page-tabs-bar {
             width: 100%;
             height: 40px;
-            background-color: #0f172a; /* Dark slate matching NOC dashboard */
-            border-top: 1px solid #334155;
+            background-color: var(--sidebar-bg);
+            border-top: 1px solid var(--border);
             display: flex;
             align-items: center;
             padding: 0 12px;
@@ -2120,9 +2120,9 @@ class TopologyEngine:
             white-space: nowrap;
             scrollbar-width: none; /* Firefox */
         }
-        :root[data-theme="light"] #page-tabs-bar {
-            background-color: #f1f5f9;
-            border-top: 1px solid #cbd5e1;
+        :root[data-theme="dark"] #page-tabs-bar {
+            background-color: #0f172a;
+            border-top: 1px solid #334155;
         }
         :root[data-theme="hightext"] #page-tabs-bar {
             background-color: #000000;
@@ -2132,9 +2132,9 @@ class TopologyEngine:
             display: none; /* Chrome/Safari */
         }
         .page-tab {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #94a3b8;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            color: var(--text-dim);
             padding: 6px 12px;
             border-radius: 4px;
             font-family: system-ui, -apple-system, sans-serif;
@@ -2144,30 +2144,31 @@ class TopologyEngine:
             transition: all 0.2s ease;
         }
         .page-tab:hover {
+            background: var(--border-light);
+            color: var(--text);
+            border-color: var(--accent);
+        }
+        .page-tab.active {
+            background: var(--accent);
+            color: #ffffff;
+            border-color: var(--accent);
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+        :root[data-theme="dark"] .page-tab {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #94a3b8;
+        }
+        :root[data-theme="dark"] .page-tab:hover {
             background: rgba(255, 255, 255, 0.1);
             color: #f1f5f9;
             border-color: rgba(255, 255, 255, 0.2);
         }
-        .page-tab.active {
+        :root[data-theme="dark"] .page-tab.active {
             background: #2563eb;
             color: #ffffff;
             border-color: #3b82f6;
             box-shadow: 0 0 10px rgba(37, 99, 255, 0.3);
-        }
-        :root[data-theme="light"] .page-tab {
-            background: #e2e8f0;
-            border-color: #cbd5e1;
-            color: #475569;
-        }
-        :root[data-theme="light"] .page-tab:hover {
-            background: #cbd5e1;
-            color: #0f172a;
-        }
-        :root[data-theme="light"] .page-tab.active {
-            background: #0284c7;
-            color: #ffffff;
-            border-color: #0284c7;
-            box-shadow: 0 0 8px rgba(2, 132, 199, 0.3);
         }
         :root[data-theme="hightext"] .page-tab {
             background: #000000;

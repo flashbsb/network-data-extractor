@@ -10,7 +10,7 @@
     <script>
         // Synchronous theme pre-init
         (function() {
-            var saved = localStorage.getItem('ndx_theme') || 'dark';
+            var saved = localStorage.getItem('ndx_theme') || 'light';
             document.documentElement.setAttribute('data-theme', saved);
         })();
     </script>
@@ -647,7 +647,7 @@
                 <span id="navUsername">admin</span>
                 <span class="role-tag" id="navRole">SuperAdmin</span>
             </div>
-            <button class="btn-action" onclick="toggleTheme()" id="themeBtn" title="Cycle Theme">🌙 Dark</button>
+            <button class="btn-action" onclick="toggleTheme()" id="themeBtn" title="Cycle Theme">☀️ Light</button>
             <a href="/" class="btn-action" title="Open Public NOC Portal">🌐 Root Portal</a>
             <button class="btn-action btn-danger" id="logoutBtn" style="display:none;" onclick="handleLogout()">🚪 Logout</button>
         </div>
@@ -1218,13 +1218,20 @@
         let currentFilteredHistElements = [];
 
         // --- Theme Switcher ---
+        function updateThemeBtnText() {
+            const current = document.documentElement.getAttribute('data-theme') || 'light';
+            const btn = document.getElementById('themeBtn');
+            if (btn) {
+                btn.innerText = current === 'light' ? '☀️ Light' : (current === 'dark' ? '🌙 Dark' : '⚡ HighText');
+            }
+        }
+
         function toggleTheme() {
-            const current = document.documentElement.getAttribute('data-theme') || 'dark';
-            const next = current === 'dark' ? 'light' : (current === 'light' ? 'hightext' : 'dark');
+            const current = document.documentElement.getAttribute('data-theme') || 'light';
+            const next = current === 'light' ? 'dark' : (current === 'dark' ? 'hightext' : 'light');
             document.documentElement.setAttribute('data-theme', next);
             localStorage.setItem('ndx_theme', next);
-            const btn = document.getElementById('themeBtn');
-            btn.innerText = next === 'dark' ? '🌙 Dark' : (next === 'light' ? '☀️ Light' : '⚡ HighText');
+            updateThemeBtnText();
         }
 
         // --- Tab Switching ---
@@ -2210,7 +2217,10 @@
         }
 
         // Run bootstrap on DOM ready
-        document.addEventListener('DOMContentLoaded', checkAuth);
+        document.addEventListener('DOMContentLoaded', () => {
+            updateThemeBtnText();
+            checkAuth();
+        });
     </script>
 </body>
 </html>

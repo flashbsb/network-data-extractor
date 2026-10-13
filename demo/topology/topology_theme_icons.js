@@ -533,12 +533,12 @@
     };
 
     TopologyTheme.getCurrentThemeName = function() {
-        return document.documentElement.getAttribute('data-theme') || 'dark';
+        return document.documentElement.getAttribute('data-theme') || 'light';
     };
 
     TopologyTheme.getTheme = function(themeName) {
         const name = themeName || TopologyTheme.getCurrentThemeName();
-        return THEMES[name] || THEMES.dark;
+        return THEMES[name] || THEMES.light;
     };
 
     TopologyTheme.getTierStyle = function(tier, themeName) {

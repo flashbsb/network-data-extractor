@@ -81,8 +81,13 @@ def generate_master_dashboard(outbase):
                 try:
                     from core.ping_matrix import render_ping_matrix_html
                     updated_html = render_ping_matrix_html(data)
-                    with open(html_file, 'w', encoding='utf-8') as hf:
-                        hf.write(updated_html)
+                    for hf_path in [
+                        os.path.join(run_dir, "ping-matrix", "resume", "ping_matrix_dashboard.html"),
+                        os.path.join(run_dir, "resume", "ping_matrix_dashboard.html")
+                    ]:
+                        if os.path.isdir(os.path.dirname(hf_path)):
+                            with open(hf_path, 'w', encoding='utf-8') as hf:
+                                hf.write(updated_html)
                 except Exception:
                     pass
                 
@@ -149,16 +154,16 @@ def generate_master_dashboard(outbase):
         .sidebar.collapsed { width: 0; min-width: 0; border-right: none; overflow: hidden; }
         
         .toggle-sidebar {
-            background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(8px);
-            border: 1px solid rgba(56,189,248,0.3); color: #38bdf8;
+            background: var(--card-bg); backdrop-filter: blur(8px);
+            border: 1px solid var(--border); color: var(--accent);
             padding: 8px 12px; border-radius: 8px; cursor: pointer;
             font-size: 14px; font-weight: 600; transition: all 0.2s;
             display: flex; align-items: center; gap: 8px;
         }
-        .toggle-sidebar:hover { background: rgba(15, 23, 42, 1); border-color: #38bdf8; }
+        .toggle-sidebar:hover { background: var(--border-light); border-color: var(--accent); }
         .sidebar-header {
             padding: 25px 20px;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
+            border-bottom: 1px solid var(--border);
         }
         .sidebar-header .sidebar-title {
             font-family: 'Outfit', sans-serif;
@@ -166,33 +171,33 @@ def generate_master_dashboard(outbase):
             background: linear-gradient(90deg, #38bdf8, #818cf8);
             -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
         }
-        .sidebar-header p { font-size: 11px; color: #64748b; margin: 5px 0 0 0; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+        .sidebar-header p { font-size: 11px; color: var(--text-dim); margin: 5px 0 0 0; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
         
         .run-list { flex-grow: 1; overflow-y: auto; padding: 15px 12px; }
         .run-list::-webkit-scrollbar { width: 4px; }
-        .run-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        .run-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
         
         .run-item {
             padding: 16px; margin-bottom: 12px;
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            background: var(--card-bg);
+            border: 1px solid var(--border);
             border-radius: 12px; cursor: pointer;
             transition: all 0.2s ease;
         }
         .run-item:hover {
-            background: rgba(56, 189, 248, 0.05);
-            border-color: rgba(56, 189, 248, 0.3);
+            background: var(--border-light);
+            border-color: var(--accent);
             transform: translateY(-2px);
         }
         .run-item.active {
-            background: rgba(56, 189, 248, 0.1);
-            border-color: #38bdf8;
+            background: var(--accent-glow);
+            border-color: var(--accent);
         }
-        .run-item .date { font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+        .run-item .date { font-weight: 600; font-size: 14px; margin-bottom: 6px; color: var(--text); }
         .run-item .stats { display: flex; gap: 8px; font-size: 11px; }
-        .stat-group { display: flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 4px; }
+        .stat-group { display: flex; align-items: center; gap: 4px; background: var(--input-bg); border: 1px solid var(--border); padding: 2px 6px; border-radius: 4px; }
         .stat-dot { width: 6px; height: 6px; border-radius: 50%; }
-        .nodes-badge { float: right; font-size: 10px; background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; color: #94a3b8; }
+        .nodes-badge { float: right; font-size: 10px; background: var(--input-bg); border: 1px solid var(--border); padding: 2px 6px; border-radius: 4px; color: var(--text-dim); }
         
         /* Main View */
         .main-content { flex-grow: 1; display: flex; flex-direction: column; height: 100vh; position: relative; background: var(--bg-dark); }

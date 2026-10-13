@@ -2,6 +2,24 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.96.0] - 2026-10-13
+### Changed
+- **Universal Light Theme Default (`core/theme_system.py`, `web/admin/index.html`, `templates/ping-matrix/`)**:
+  - Configured default theme to **Light (`☀️ Light`)** across all dashboards on initial access and empty `localStorage` cache.
+  - Defined `:root, :root[data-theme="light"]` as the base design token foundation, eliminating dark flashes on page load.
+  - Aligned theme initialization scripts (`THEME_HEAD_INIT`, `admin/index.html`, `ping-matrix/history.html`, `ping-matrix/path.html`) to fallback to `'light'`.
+- **Unified Single-Button Theme Switcher (`#themeBtn`)**:
+  - Replaced legacy multi-button theme selector groups with a single, compact toggle button (`.theme-toggle-btn`) matching the `/admin/index.html` UX pattern.
+  - Unified cyclic theme progression across all portals: `☀️ Light` ➔ `🌙 Dark` ➔ `⚡ HighText` ➔ `☀️ Light`, preserving full WCAG AAA high-contrast accessibility.
+  - Real-time cross-tab and cross-iframe synchronized theme broadcasting via `postMessage` and `storage` event listeners.
+- **Eliminated Dark Color Inconsistencies & Dark Slate Leaks**:
+  - `core/diff_engine.py`: Replaced hardcoded `#0f172a` and dark translucent slates in `.sidebar`, `.hud-header`, `.compare-btn`, `.run-item`, `.tab-btn`, `.timeline-btn`, and controls with dynamic CSS variables.
+  - `core/topology_engine.py`: Converted hardcoded dark backgrounds in `.mode-tabs`, `.tier-pill`, `.match-hud-pill`, `.drift-toolbar`, `.trace-toolbar`, `#page-tabs-bar`, `.page-tab`, `.path-summary-card`, and `.topo-tooltip` to CSS variables (`var(--card-bg)`, `var(--input-bg)`, `var(--border)`).
+  - `core/topology_icons.py` & `core/topology_graph.py`: Changed default fallback themes from `dark` to `light`, and updated canvas default background to `#f8fafc`.
+  - `core/inventory_engine.py`: Fixed dark hardcodes in `.context-menu` and `.conn-node`.
+  - `core/ping_master_dashboard.py` & `core/ping_matrix.py`: Replaced dark backgrounds in `.toggle-sidebar`, `.run-item`, `.stat-group`, `.nodes-badge`, `.controls`, and table headers with theme tokens.
+  - Regenerated all static demo views in `demo/` via `tools/generate_demo_dataset.py --refresh-views`.
+
 ## [1.95.0] - 2026-10-13
 ### Added
 - **Systemic Failure Circuit Breaker / Fail-Fast Engine (`core/commands.py`, `core/ping_matrix.py`, `network-data-extractor.py`)**:

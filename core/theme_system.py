@@ -15,7 +15,7 @@ THEME_HEAD_INIT = """    <script>
                 document.documentElement.classList.add('in-iframe');
             }
             try {
-                var theme = localStorage.getItem('ndx_theme') || localStorage.getItem('nde_theme') || 'dark';
+                var theme = localStorage.getItem('ndx_theme') || localStorage.getItem('nde_theme') || 'light';
                 document.documentElement.setAttribute('data-theme', theme);
             } catch(e) {}
         })();
@@ -25,13 +25,44 @@ THEME_CSS = """
         /* Hide redundant switcher and portal link when embedded inside iframe */
         html.in-iframe .theme-switcher,
         body.in-iframe .theme-switcher,
+        html.in-iframe .theme-toggle-btn,
+        body.in-iframe .theme-toggle-btn,
         html.in-iframe .back-portal,
         body.in-iframe .back-portal {
             display: none !important;
         }
 
-        /* === THEME SYSTEM DESIGN TOKENS === */
-        :root, :root[data-theme="dark"] {
+        /* === THEME SYSTEM DESIGN TOKENS (LIGHT BY DEFAULT) === */
+        :root, :root[data-theme="light"] {
+            --bg-dark: #f8fafc;
+            --sidebar-bg: #ffffff;
+            --card-bg: #ffffff;
+            --card-hover: #f1f5f9;
+            --accent: #0284c7;
+            --accent-hover: #0369a1;
+            --text: #0f172a;
+            --text-dim: #475569;
+            --success: #16a34a;
+            --warning: #d97706;
+            --danger: #dc2626;
+            --border: #cbd5e1;
+            --border-light: #e2e8f0;
+            --glass: rgba(255, 255, 255, 0.92);
+            --table-hover: rgba(2, 132, 199, 0.06);
+            --table-stripe: #f8fafc;
+            --hud-header-bg: rgba(255, 255, 255, 0.9);
+            --stat-card-bg: #ffffff;
+            --tag-up-bg: rgba(22, 163, 74, 0.12);
+            --tag-up-text: #15803d;
+            --tag-down-bg: rgba(220, 38, 38, 0.12);
+            --tag-down-text: #b91c1c;
+            --switcher-bg: #e2e8f0;
+            --switcher-btn-bg: transparent;
+            --switcher-btn-active: #0284c7;
+            --switcher-btn-active-text: #ffffff;
+        }
+
+        :root[data-theme="dark"] {
             --bg-dark: #020617;
             --sidebar-bg: #0f172a;
             --card-bg: rgba(30, 41, 59, 0.4);
@@ -58,35 +89,6 @@ THEME_CSS = """
             --switcher-btn-bg: transparent;
             --switcher-btn-active: #38bdf8;
             --switcher-btn-active-text: #020617;
-        }
-
-        :root[data-theme="light"] {
-            --bg-dark: #f8fafc;
-            --sidebar-bg: #ffffff;
-            --card-bg: #ffffff;
-            --card-hover: #f1f5f9;
-            --accent: #0284c7;
-            --accent-hover: #0369a1;
-            --text: #0f172a;
-            --text-dim: #475569;
-            --success: #16a34a;
-            --warning: #d97706;
-            --danger: #dc2626;
-            --border: #cbd5e1;
-            --border-light: #e2e8f0;
-            --glass: rgba(255, 255, 255, 0.9);
-            --table-hover: rgba(2, 132, 199, 0.06);
-            --table-stripe: #f8fafc;
-            --hud-header-bg: rgba(255, 255, 255, 0.9);
-            --stat-card-bg: #ffffff;
-            --tag-up-bg: rgba(22, 163, 74, 0.12);
-            --tag-up-text: #15803d;
-            --tag-down-bg: rgba(220, 38, 38, 0.12);
-            --tag-down-text: #b91c1c;
-            --switcher-bg: #e2e8f0;
-            --switcher-btn-bg: transparent;
-            --switcher-btn-active: #0284c7;
-            --switcher-btn-active-text: #ffffff;
         }
 
         :root[data-theme="hightext"] {
@@ -334,50 +336,35 @@ THEME_CSS = """
             color: #ffffff !important;
         }
 
-        /* Theme Switcher Pill Component */
-        .theme-switcher {
+        /* === UNIFIED SINGLE BUTTON THEME TOGGLE === */
+        .theme-toggle-btn {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
             display: inline-flex;
             align-items: center;
-            background: var(--switcher-bg);
-            border: 1px solid var(--border);
-            border-radius: 9999px;
-            padding: 3px;
-            gap: 2px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-            z-index: 100;
-        }
-        .theme-btn {
-            background: var(--switcher-btn-bg);
-            border: none;
-            color: var(--text-dim);
-            padding: 5px 10px;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 700;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 4px;
+            gap: 6px;
             transition: all 0.2s ease;
-            white-space: nowrap;
+            user-select: none;
             font-family: inherit;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            white-space: nowrap;
         }
-        .theme-btn:hover {
-            color: var(--text);
-        }
-        .theme-btn.active {
-            background: var(--switcher-btn-active);
-            color: var(--switcher-btn-active-text);
-            box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+        .theme-toggle-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
         }
 """
 
 THEME_SWITCHER_HTML = """
-            <div class="theme-switcher" id="themeSwitcher" role="group" aria-label="Theme Selector" title="Escolha o tema visual">
-                <button type="button" class="theme-btn" data-theme-val="dark" onclick="setAppTheme('dark')" aria-label="Dark Mode">🌙 Dark</button>
-                <button type="button" class="theme-btn" data-theme-val="light" onclick="setAppTheme('light')" aria-label="Light Mode">☀️ Light</button>
-                <button type="button" class="theme-btn" data-theme-val="hightext" onclick="setAppTheme('hightext')" aria-label="High Contrast">⚡ HighText</button>
-            </div>
+            <button type="button" class="theme-toggle-btn" id="themeBtn" onclick="toggleAppTheme()" title="Cycle Visual Theme (Light ➔ Dark ➔ HighText)" aria-label="Cycle Visual Theme">☀️ Light</button>
 """
 
 THEME_SCRIPT_JS = """
@@ -386,46 +373,50 @@ THEME_SCRIPT_JS = """
             if (document.body) document.body.classList.add('in-iframe');
         }
 
+        function toggleAppTheme() {
+            var cur = document.documentElement.getAttribute('data-theme') || 'light';
+            var next = cur === 'light' ? 'dark' : (cur === 'dark' ? 'hightext' : 'light');
+            setAppTheme(next);
+        }
+
         function setAppTheme(theme) {
             document.documentElement.setAttribute('data-theme', theme);
             try {
                 localStorage.setItem('ndx_theme', theme);
                 localStorage.setItem('nde_theme', theme);
             } catch(e) {}
-            updateThemeButtons(theme);
+            updateThemeButtonText(theme);
             
             // Broadcast to any child iframes (e.g. Draw.io or Ping Matrix viewer)
-            document.querySelectorAll('iframe').forEach(frame => {
+            document.querySelectorAll('iframe').forEach(function(frame) {
                 try {
                     frame.contentWindow.postMessage(JSON.stringify({ event: 'theme_change', theme: theme }), '*');
                 } catch(err) {}
             });
         }
 
-        function updateThemeButtons(theme) {
-            document.querySelectorAll('.theme-btn').forEach(btn => {
-                if (btn.getAttribute('data-theme-val') === theme) {
-                    btn.classList.add('active');
-                } else {
-                    btn.classList.remove('active');
-                }
+        function updateThemeButtonText(theme) {
+            var btns = document.querySelectorAll('#themeBtn, .theme-toggle-btn');
+            var label = theme === 'dark' ? '🌙 Dark' : (theme === 'hightext' ? '⚡ HighText' : '☀️ Light');
+            btns.forEach(function(btn) {
+                btn.innerHTML = label;
             });
         }
 
-        // Initialize active state on load
+        // Initialize active state on load (Default: Light)
         (function() {
-            var saved = 'dark';
+            var saved = 'light';
             try {
-                saved = localStorage.getItem('ndx_theme') || localStorage.getItem('nde_theme') || 'dark';
+                saved = localStorage.getItem('ndx_theme') || localStorage.getItem('nde_theme') || 'light';
             } catch(e) {}
-            updateThemeButtons(saved);
+            setAppTheme(saved);
         })();
 
         // Listen for storage events across tabs
         window.addEventListener('storage', function(e) {
             if ((e.key === 'ndx_theme' || e.key === 'nde_theme') && e.newValue) {
                 document.documentElement.setAttribute('data-theme', e.newValue);
-                updateThemeButtons(e.newValue);
+                updateThemeButtonText(e.newValue);
             }
         });
 
@@ -435,7 +426,7 @@ THEME_SCRIPT_JS = """
                 var data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
                 if (data && data.event === 'theme_change' && data.theme) {
                     document.documentElement.setAttribute('data-theme', data.theme);
-                    updateThemeButtons(data.theme);
+                    updateThemeButtonText(data.theme);
                 }
             } catch(err) {}
         });

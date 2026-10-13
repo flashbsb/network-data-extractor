@@ -439,16 +439,16 @@ class InventoryEngine:
 
         .conn-row td { font-size: 0.95rem; }
         .conn-endpoints { display: flex; align-items: center; gap: 15px; }
-        .conn-node { font-weight: 700; color: var(--text); background: rgba(255,255,255,0.05); padding: 5px 12px; border-radius: 6px; }
+        .conn-node { font-weight: 700; color: var(--text); background: var(--input-bg); border: 1px solid var(--border); padding: 5px 12px; border-radius: 6px; }
         .conn-arrow { color: var(--text-dim); font-size: 1.2rem; }
         .conn-dashed { text-decoration: line-through; opacity: 0.5; color: var(--danger); }
 
         /* Context Menu Styles */
         .context-menu {
             position: absolute;
-            background: #0f172a;
+            background: var(--card-bg);
             border: 1px solid var(--border);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            box-shadow: var(--shadow);
             border-radius: 8px;
             z-index: 10000;
             display: none;
@@ -460,7 +460,7 @@ class InventoryEngine:
         .context-menu a {
             padding: 10px 16px;
             text-decoration: none;
-            color: #cbd5e1;
+            color: var(--text);
             font-size: 0.85rem;
             font-weight: 500;
             display: flex;
@@ -475,7 +475,7 @@ class InventoryEngine:
             pointer-events: none;
         }
         .context-menu a:hover:not(.disabled) {
-            background: rgba(56, 189, 248, 0.1);
+            background: var(--accent-glow);
             color: var(--accent);
         }
         .context-menu .menu-header {
@@ -485,7 +485,7 @@ class InventoryEngine:
             color: var(--text-dim);
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid var(--border);
             margin-bottom: 4px;
             text-align: left;
         }
