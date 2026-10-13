@@ -684,7 +684,7 @@
     <!-- Main Tabs -->
     <nav class="tabs-header" id="tabsHeader" style="display:none;">
         <button class="tab-btn active" onclick="switchTab('cockpit')">📊 Executive Cockpit</button>
-        <button class="tab-btn" id="tabShadowBtn" onclick="switchTab('shadow')">📡 Shadow Network</button>
+        <button class="tab-btn" id="tabShadowBtn" style="display:none;" onclick="switchTab('shadow')">📡 Shadow Network</button>
         <button class="tab-btn" onclick="switchTab('config')">⚙️ Configuration Manager</button>
         <button class="tab-btn" onclick="switchTab('cron')">🕒 Cron Telemetry</button>
         <button class="tab-btn" id="tabUsersBtn" onclick="switchTab('users')">👥 Access Control</button>
@@ -2325,19 +2325,31 @@
         // --- Storage Capabilities Detection ---
         async function detectStorageCapabilities() {
             const badge = document.getElementById('storageModeBadge');
-            if (!badge) return;
+            const tabShadow = document.getElementById('tabShadowBtn');
+            const paneShadow = document.getElementById('pane-shadow');
             try {
                 const caps = await api.getCapabilities();
                 if (caps && caps.db_available) {
-                    badge.className = 'storage-mode-badge badge-db';
-                    badge.innerHTML = '🗄️ DB Mode';
-                    badge.title = 'Active Backend: SQLite High-Performance Relational Database';
+                    if (badge) {
+                        badge.className = 'storage-mode-badge badge-db';
+                        badge.innerHTML = '🗄️ DB Mode';
+                        badge.title = 'Active Backend: SQLite High-Performance Relational Database';
+                    }
+                    if (tabShadow) tabShadow.style.display = 'inline-flex';
                     return;
                 }
             } catch (e) {}
-            badge.className = 'storage-mode-badge badge-files';
-            badge.innerHTML = '📁 Files Mode';
-            badge.title = 'Active Backend: Static JSON & Flat Files';
+
+            // Fallback for Files / Offline Static Share Mode
+            if (badge) {
+                badge.className = 'storage-mode-badge badge-files';
+                badge.innerHTML = '📁 Files Mode';
+                badge.title = 'Active Backend: Static JSON & Flat Files';
+            }
+            if (tabShadow) tabShadow.style.display = 'none';
+            if (paneShadow && paneShadow.classList.contains('active')) {
+                switchTab('cockpit');
+            }
         }
 
         // --- Shadow Network & Passive Discovery Logic ---
