@@ -283,6 +283,13 @@ class StorageManager:
                 return data
         return self.fs_driver.get_topology_connections(run_id)
 
+    def get_lldp_neighbors(self, run_id: str) -> List[Dict[str, Any]]:
+        if self.is_db_enabled():
+            data = self.db_driver.get_lldp_neighbors(run_id)
+            if data:
+                return data
+        return self.fs_driver.get_lldp_neighbors(run_id)
+
     def get_ping_tests(self, run_id: str) -> List[Dict[str, Any]]:
         if self.is_db_enabled():
             data = self.db_driver.get_ping_tests(run_id)

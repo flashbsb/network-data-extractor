@@ -140,6 +140,11 @@ class StorageDriver(ABC):
         pass
 
     @abstractmethod
+    def get_lldp_neighbors(self, run_id: str) -> List[Dict[str, Any]]:
+        """Retrieves LLDP neighbor discovery records for a given run."""
+        pass
+
+    @abstractmethod
     def get_ping_tests(self, run_id: str) -> List[Dict[str, Any]]:
         """Retrieves ping matrix tests for a given run."""
         pass

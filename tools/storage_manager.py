@@ -77,22 +77,38 @@ def handle_init(args):
     print(f"  • Active Tables        : {health['tables_count']} tables provisioned {C_GREEN}[OK]{C_RESET}")
 
     # Seed Elements if requested
-    elements_file = args.elements or "config/elements.cfg"
+    elements_file = args.elements
+    if not elements_file:
+        for cand in [
+            os.path.join(outbase, "config", "elements.cfg"),
+            os.path.join(os.path.dirname(outbase), "config", "elements.cfg"),
+            os.path.join(os.path.dirname(os.path.dirname(outbase)), "config", "elements.cfg"),
+            "config/elements.cfg",
+        ]:
+            if os.path.isfile(cand):
+                elements_file = cand
+                break
+        if not elements_file:
+            elements_file = "config/elements.cfg"
+
     seeded_count = 0
     if os.path.isfile(elements_file):
         print(f"[*] Seeding elements from: {elements_file}...")
         elements = []
-        with open(elements_file, "r", encoding="utf-8") as f:
+        with open(elements_file, "r", encoding="utf-8", errors="ignore") as f:
             for line in f:
                 line = line.strip()
                 if not line or line.startswith("#"):
                     continue
-                parts = line.split(";")
+                if line.lower().startswith("hostname;") or line.lower().startswith("element;"):
+                    continue
+                parts = line.split(";") if ";" in line else line.split(",")
                 if len(parts) >= 2:
                     hostname = parts[0].strip()
                     ip = parts[1].strip()
                     cmd_key = parts[2].strip() if len(parts) >= 3 else ""
-                    elements.append((hostname, ip, cmd_key))
+                    if hostname and ip:
+                        elements.append((hostname, ip, cmd_key))
 
         if elements and not args.dry_run:
             conn = driver._get_connection()
@@ -247,8 +263,43 @@ def handle_import(args):
         # Check if run already exists in DB
         existing_run = driver.get_run(rid)
         if existing_run and not args.force:
-            print(f"{C_YELLOW}[SKIP - Already in DB]{C_RESET}")
-            skipped_runs += 1
+            backfilled = False
+            try:
+                conn_chk = driver._get_connection()
+                cur_chk = conn_chk.cursor()
+                cur_chk.execute("SELECT COUNT(*) AS c FROM lldp_neighbors WHERE run_id = ?", (rid,))
+                row_c = cur_chk.fetchone()
+                lldp_in_db = row_c["c"] if row_c else 0
+            except Exception:
+                lldp_in_db = 0
+
+            if lldp_in_db == 0:
+                lldp_candidates = [
+                    os.path.join(rpath, "resume", "show_lldp_neighbors_detail_all.csv"),
+                    os.path.join(rpath, "csv", "show_lldp_neighbors_detail_all.csv"),
+                    os.path.join(rpath, "collect", "show_lldp_neighbors_detail_all.csv"),
+                ]
+                lldp_neighbors = []
+                for lldp_f in lldp_candidates:
+                    if os.path.isfile(lldp_f):
+                        try:
+                            with open(lldp_f, "r", encoding="utf-8", errors="ignore") as f:
+                                lldp_neighbors = list(csv.DictReader(f, delimiter=";"))
+                                if lldp_neighbors:
+                                    break
+                        except Exception:
+                            pass
+                if lldp_neighbors:
+                    if not args.dry_run:
+                        driver.save_lldp_neighbors(rid, lldp_neighbors)
+                        print(f"{C_GREEN}[BACKFILLED {len(lldp_neighbors)} LLDP]{C_RESET}")
+                    else:
+                        print(f"{C_GREEN}[DRY-RUN BACKFILL {len(lldp_neighbors)} LLDP]{C_RESET}")
+                    backfilled = True
+
+            if not backfilled:
+                print(f"{C_YELLOW}[SKIP - Already in DB]{C_RESET}")
+                skipped_runs += 1
             continue
 
         try:
@@ -324,6 +375,23 @@ def handle_import(args):
             except Exception:
                 pass
 
+        # Load LLDP Neighbors
+        lldp_neighbors = []
+        lldp_candidates = [
+            os.path.join(resume_dir, "show_lldp_neighbors_detail_all.csv"),
+            os.path.join(rpath, "csv", "show_lldp_neighbors_detail_all.csv"),
+            os.path.join(collect_dir, "show_lldp_neighbors_detail_all.csv"),
+        ]
+        for lldp_f in lldp_candidates:
+            if os.path.isfile(lldp_f):
+                try:
+                    with open(lldp_f, "r", encoding="utf-8", errors="ignore") as f:
+                        lldp_neighbors = list(csv.DictReader(f, delimiter=";"))
+                        if lldp_neighbors:
+                            break
+                except Exception:
+                    pass
+
         # Load Ping Tests
         ping_tests = []
         pjson = os.path.join(ping_dir, "ping_matrix_list.json")
@@ -350,7 +418,7 @@ def handle_import(args):
         run_status = "PARTIAL" if is_partial else "SUCCESS"
 
         if args.dry_run:
-            print(f"{C_GREEN}[DRY-RUN OK]{C_RESET} ({len(raw_items)} raw, {len(interfaces)} ifaces, {len(connections)} conns, {len(ping_tests)} pings)")
+            print(f"{C_GREEN}[DRY-RUN OK]{C_RESET} ({len(raw_items)} raw, {len(interfaces)} ifaces, {len(connections)} conns, {len(lldp_neighbors)} lldp, {len(ping_tests)} pings)")
             imported_runs += 1
             continue
 
@@ -367,6 +435,9 @@ def handle_import(args):
 
             if connections:
                 driver.save_topology_connections(rid, connections)
+
+            if lldp_neighbors:
+                driver.save_lldp_neighbors(rid, lldp_neighbors)
 
             if ping_tests:
                 driver.save_ping_tests(rid, ping_tests)
@@ -440,6 +511,12 @@ def handle_export(args):
     if connections:
         fs_driver.save_topology_connections(args.run, connections)
         print(f"  • Exported {C_GREEN}{len(connections)}{C_RESET} connections to connections/topology.connections.csv")
+
+    # 2.5 Export LLDP Neighbors
+    lldp_neighbors = driver.get_lldp_neighbors(args.run)
+    if lldp_neighbors:
+        fs_driver.save_lldp_neighbors(args.run, lldp_neighbors)
+        print(f"  • Exported {C_GREEN}{len(lldp_neighbors)}{C_RESET} LLDP neighbors to resume/show_lldp_neighbors_detail_all.csv")
 
     # 3. Export Ping Tests
     pings = driver.get_ping_tests(args.run)

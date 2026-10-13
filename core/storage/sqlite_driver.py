@@ -532,14 +532,23 @@ class SQLiteDriver(StorageDriver):
 
         rows = []
         for n in neighbors:
+            l_host = str(n.get("local_host") or n.get("element") or "").strip()
+            l_intf = str(n.get("local_interface") or n.get("local_intf") or "").strip()
+            r_host = str(n.get("remote_host") or n.get("system_name") or n.get("neighbor") or "").strip()
+            r_intf = str(n.get("remote_interface") or n.get("port_id") or n.get("remote_intf") or "").strip()
+            r_ip = n.get("remote_ip") or n.get("mgmt_ipv4") or n.get("mgmt_ip")
+
+            if not r_host and not l_host:
+                continue
+
             rows.append(
                 (
                     run_id,
-                    str(n.get("local_host", "")).strip(),
-                    str(n.get("local_interface", "")).strip(),
-                    str(n.get("remote_host", "")).strip(),
-                    str(n.get("remote_interface", "")).strip(),
-                    n.get("remote_ip"),
+                    l_host,
+                    l_intf,
+                    r_host,
+                    r_intf,
+                    r_ip,
                 )
             )
 
@@ -702,6 +711,20 @@ class SQLiteDriver(StorageDriver):
                 """
                 SELECT endpoint_a, interface_a, endpoint_b, interface_b, connection_type, speed_kbit
                 FROM topology_connections WHERE run_id = ?;
+                """,
+                (run_id,),
+            )
+            return [dict(r) for r in cursor.fetchall()]
+
+        return self._execute_with_retry(_op)
+
+    def get_lldp_neighbors(self, run_id: str) -> List[Dict[str, Any]]:
+        def _op(conn):
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT local_host, local_interface, remote_host, remote_interface, remote_ip
+                FROM lldp_neighbors WHERE run_id = ? ORDER BY local_host, local_interface;
                 """,
                 (run_id,),
             )

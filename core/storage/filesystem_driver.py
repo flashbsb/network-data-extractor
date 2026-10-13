@@ -281,6 +281,22 @@ class FilesystemDriver(StorageDriver):
                 return list(reader)
         return []
 
+    def get_lldp_neighbors(self, run_id: str) -> List[Dict[str, Any]]:
+        dirs = self._get_run_dirs(run_id)
+        candidates = [
+            os.path.join(dirs["resume"], "show_lldp_neighbors_detail_all.csv"),
+            os.path.join(self.outbase, "runs", run_id, "csv", "show_lldp_neighbors_detail_all.csv"),
+            os.path.join(dirs["collect"], "show_lldp_neighbors_detail_all.csv"),
+        ]
+        for csv_path in candidates:
+            if os.path.isfile(csv_path):
+                try:
+                    with open(csv_path, "r", encoding="utf-8", errors="ignore") as f:
+                        return list(csv.DictReader(f, delimiter=";"))
+                except Exception:
+                    pass
+        return []
+
     def get_ping_tests(self, run_id: str) -> List[Dict[str, Any]]:
         dirs = self._get_run_dirs(run_id)
         json_path = os.path.join(dirs["ping_resume"], "ping_matrix_list.json")
