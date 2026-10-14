@@ -2,6 +2,35 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.97.1] - 2026-10-14
+### Added & Optimized
+- **DB-Primary Web Architecture & Transparent Fallback (`core/web_server.py`, `core/storage/sqlite_driver.py`)**:
+  - Implemented DB-First query strategy across all web APIs (`/api/v1/summary`, `/api/v1/runs`, `/api/v1/runs/{id}/summary`, `/api/v1/reports/download/{id}/{type}`), resolving metrics, ping tests, interfaces, and topology connections directly from SQLite in milliseconds.
+  - Transparent fallback: seamlessly queries filesystem artifacts (`status.elements.csv`, `interfaces_all.csv`, `filtered_elements.cfg`) when older snapshots lack SQLite rows.
+  - Enabled SQLite Write-Ahead Logging (`PRAGMA journal_mode = WAL;`) and `PRAGMA synchronous = NORMAL;`, eliminating lock contention between background collection runs and web dashboard queries.
+  - Configured 64 MB memory cache (`PRAGMA cache_size = -64000;`) and `PRAGMA temp_store = MEMORY;` on driver initialization, keeping hot index trees in RAM for instant web responses.
+  - Dynamic on-the-fly CSV report generation (`resolve_report_file`) from database tables if flat files were purged or archived.
+
+### Fixed
+- **Ping Matrix Master Historical Navigation (`core/ping_master_dashboard.py`)**:
+  - Added automatic reconciliation against SQLite `ping_tests`: all 18 historical snapshots now generate interactive dashboards and appear in `/ping-matrix/index.html` (previously only 5 appeared due to flat disk file scanning).
+- **Element Reliability Census & Diagnostic Cards (`web/admin/index.html`, `demo/admin/index.html`, `core/web_server.py`)**:
+  - Redesigned "Historical Reliability & Trends" HUD from 4 cards into 6 distinct diagnostic cards:
+    - 📋 Configured Elements (`elements.cfg`): 266
+    - ✅ Fully Stable (≥90% success): 200
+    - ⚡ Flapping / Intermittent: 55
+    - ⚠️ Chronic Failures (100% fail): 0
+    - 🚫 Never Collected (configured with 0 successes): 11 (eradicating previous false 5,626 count)
+    - 🌐 Discovered / External: 50
+  - Added category filtering and table badges for `Configured Elements Only` vs `Discovered / External Only`.
+  - Restricted catalog discovery strictly to SQLite `elements` table and `config/elements.cfg`, ignoring external asset dumps (`elements_*.csv`).
+  - Eradicated `_HELP` string from appearing as a device tier across cards and tables.
+  - Fixed node count for runs `<= 05/10/2026` in Selected Snapshot picker by querying SQLite `runs.total_elements`.
+- **Organic Topology Connection Visibility (`core/topology_graph.py`, `demo/topology/topology_graph.js`)**:
+  - Replaced un-damped repulsive physics with a stabilized **Hub-and-Spoke** seeded layout (Core and high-degree hubs centrally anchored, connected peers clustered around hubs).
+  - Implemented bounded synchronous relaxation with cooling decay followed by automatic `fitToScreen()`.
+  - Increased connection line visibility: elevated default alpha from `0.55` to `0.85` and minimum line stroke from `1.2px` to `1.8px` (`2.4px` for 100G).
+
 ## [1.97.0] - 2026-10-13
 ### Added
 - **Capabilities-Aware Storage Handshake & Indicator Badge (`core/theme_system.py`, `core/web_server.py`, `web/admin/index.html`, `templates/ping-matrix/history.html`)**:

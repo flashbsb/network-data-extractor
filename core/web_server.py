@@ -27,7 +27,7 @@ class NDXRequestHandler(BaseHTTPRequestHandler):
     Multi-threaded HTTP request handler supporting static dashboard assets
     and authenticated REST API endpoints with RBAC enforcement.
     """
-    server_version = "NDX-Portal/1.97.0"
+    server_version = "NDX-Portal/1.97.1"
 
     def log_message(self, format: str, *args: Any) -> None:
         """Custom concise logging format."""
@@ -595,11 +595,53 @@ class NDXWebServer(ThreadingHTTPServer):
         super().__init__((host, port), NDXRequestHandler)
 
     # --------------------------------------------------------------------------
+    # DATABASE CONNECTION & OPTIMIZATION HELPERS (DB-FIRST)
+    # --------------------------------------------------------------------------
+
+    def _get_db_path(self) -> Optional[str]:
+        """Resolves active SQLite database path with prioritization."""
+        env_path = os.environ.get("NDX_DATABASE_PATH")
+        if env_path and os.path.isfile(env_path):
+            return env_path
+        candidates = [
+            os.path.join(self.outbase, "database", "network_data.db"),
+            os.path.join(self.outbase, "database", "storage.db"),
+            os.path.join(self.outbase, "network_data.db"),
+            os.path.join(self.repo_dir, "database", "network_data.db")
+        ]
+        for c in candidates:
+            if os.path.isfile(c):
+                return c
+        return None
+
+    def get_db_connection(self, read_only: bool = True) -> Optional[sqlite3.Connection]:
+        """Returns SQLite connection configured with WAL, busy timeout, and memory cache."""
+        db_path = self._get_db_path()
+        if not db_path:
+            return None
+        try:
+            if read_only:
+                conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=10.0, check_same_thread=False)
+            else:
+                conn = sqlite3.connect(db_path, timeout=10.0, check_same_thread=False)
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+            cur.execute("PRAGMA journal_mode = WAL;")
+            cur.execute("PRAGMA synchronous = NORMAL;")
+            cur.execute("PRAGMA cache_size = -64000;")
+            cur.execute("PRAGMA temp_store = MEMORY;")
+            cur.execute("PRAGMA busy_timeout = 5000;")
+            cur.close()
+            return conn
+        except Exception:
+            return None
+
+    # --------------------------------------------------------------------------
     # TELEMETRY & RUN SUMMARY HELPERS
     # --------------------------------------------------------------------------
 
     def get_system_summary(self) -> Dict[str, Any]:
-        """Compiles global executive health and storage metrics."""
+        """Compiles global executive health and storage metrics (DB-Primary with Fallback)."""
         runs = self.list_runs()
         runs_dir = os.path.join(self.outbase, "runs")
         
@@ -613,25 +655,39 @@ class NDXWebServer(ThreadingHTTPServer):
                     except Exception:
                         pass
 
-        # Check SQLite db
-        db_path = os.path.join(self.outbase, "database", "storage.db")
-        db_bytes = os.path.getsize(db_path) if os.path.isfile(db_path) else 0
+        # Check SQLite db size
+        db_path = self._get_db_path()
+        db_bytes = os.path.getsize(db_path) if db_path and os.path.isfile(db_path) else 0
 
-        # Unique nodes across recent runs
-        unique_nodes = set()
+        # Unique nodes across recent runs (DB-Primary)
+        active_elements_count = 0
+        conn = self.get_db_connection()
+        if conn:
+            try:
+                cur = conn.cursor()
+                cur.execute("SELECT count(*) FROM elements WHERE status != 'ignored' AND status != 'deleted'")
+                row = cur.fetchone()
+                if row and row[0]:
+                    active_elements_count = row[0]
+                conn.close()
+            except Exception:
+                pass
+
         latest_run = runs[0] if runs else None
         oldest_run = runs[-1] if runs else None
 
-        if latest_run:
+        if active_elements_count == 0 and latest_run:
             details = self.get_run_summary(latest_run["id"])
-            if details and "elements" in details:
-                unique_nodes.update([e["element"] for e in details["elements"]])
+            if details and "elements_health" in details:
+                active_elements_count = len(details["elements_health"].get("elements", []))
+            elif details and "elements" in details:
+                active_elements_count = len(details["elements"])
 
         return {
             "total_runs": len(runs),
             "latest_run": latest_run,
             "oldest_run": oldest_run,
-            "active_elements_count": len(unique_nodes),
+            "active_elements_count": active_elements_count,
             "storage": {
                 "disk_bytes": disk_bytes,
                 "disk_mb": round(disk_bytes / (1024 * 1024), 2),
@@ -768,191 +824,281 @@ class NDXWebServer(ThreadingHTTPServer):
         return entries
 
     def get_run_summary(self, run_id: str) -> Optional[Dict[str, Any]]:
-        """Deep telemetry extractor for a specific collection snapshot."""
+        """Deep telemetry extractor for a specific collection snapshot (DB-Primary with Fallback)."""
         run_dir = os.path.join(self.outbase, "runs", run_id)
-        if not os.path.isdir(run_dir):
+        has_dir = os.path.isdir(run_dir)
+        conn = self.get_db_connection()
+
+        # Check if run exists in DB or disk
+        db_run = None
+        if conn:
+            try:
+                cur = conn.cursor()
+                cur.execute("SELECT run_id, total_elements, successful_elements, failed_elements, started_at, completed_at FROM runs WHERE run_id = ?", (run_id,))
+                row = cur.fetchone()
+                if row:
+                    db_run = dict(row)
+            except Exception:
+                pass
+
+        if not db_run and not has_dir:
+            if conn:
+                conn.close()
             return None
 
-        resume_dir = os.path.join(run_dir, "resume")
-        status_file = os.path.join(resume_dir, "status.elements.csv")
-
-        # Discover ping_matrix_list.json in ping-matrix subfolder or resume
-        ping_file = os.path.join(run_dir, "ping-matrix", "resume", "ping_matrix_list.json")
-        if not os.path.isfile(ping_file):
-            ping_file = os.path.join(resume_dir, "ping_matrix_list.json")
-
-        interfaces_file = os.path.join(resume_dir, "interfaces_all.csv")
-        conn_file = os.path.join(run_dir, "connections", "topology.connections.SUM.csv")
-        lldp_file = os.path.join(resume_dir, "lldp_mismatch_report.csv")
-
-        # Discover SYSTEMIC_FAILURE.json if collection was tripped by Circuit Breaker
-        sf_file = os.path.join(run_dir, "SYSTEMIC_FAILURE.json")
-        if not os.path.isfile(sf_file):
-            sf_file = os.path.join(resume_dir, "SYSTEMIC_FAILURE.json")
-        if not os.path.isfile(sf_file):
-            sf_file = os.path.join(run_dir, "collect", "SYSTEMIC_FAILURE.json")
-
-        is_aborted = False
-        abort_info = None
-        if os.path.isfile(sf_file):
-            try:
-                with open(sf_file, "r", encoding="utf-8") as f:
-                    abort_info = json.load(f)
-                    is_aborted = True
-            except Exception:
-                is_aborted = True
-
-        # 1. Element SSH Connection Health
+        # 1. Element SSH Connection Health (DB-Primary)
         elements_list = []
         status_counts = {"ok": 0, "failed": 0, "timeout": 0, "auth_fail": 0}
-        if os.path.isfile(status_file):
+        db_has_elements = False
+        if conn:
             try:
-                with open(status_file, "r", encoding="utf-8", errors="ignore") as f:
-                    for row in csv.DictReader(f, delimiter=";"):
-                        el = (row.get("element") or row.get("element_name") or "").strip()
-                        st = row.get("status", "ok").strip().lower()
-                        # OK elements must NOT show working_key or platform profile as error
-                        raw_err = (row.get("error") or row.get("details") or "").strip()
-                        err = raw_err if st != "ok" and raw_err != "-" else ""
+                cur = conn.cursor()
+                cur.execute("SELECT element, status, details FROM elements_status WHERE run_id = ?", (run_id,))
+                rows = cur.fetchall()
+                if rows:
+                    db_has_elements = True
+                    for r in rows:
+                        el = str(r["element"]).strip()
+                        st = str(r["status"] or "ok").strip().lower()
+                        err = str(r["details"] or "").strip()
                         if el:
-                            elements_list.append({"element": el, "status": st, "error": err})
+                            elements_list.append({"element": el, "status": st, "error": err if st != "ok" else ""})
                             if st == "ok":
                                 status_counts["ok"] += 1
                             else:
                                 status_counts["failed"] += 1
-                                if "auth" in str(err).lower():
+                                err_lower = err.lower()
+                                if "auth" in err_lower:
                                     status_counts["auth_fail"] += 1
-                                elif "time" in str(err).lower():
+                                elif "time" in err_lower:
                                     status_counts["timeout"] += 1
             except Exception:
                 pass
 
-        # Enrich failed elements with exact diagnostics from commands.log if error is missing
-        failed_with_no_diag = [e for e in elements_list if e["status"] != "ok" and not e["error"]]
-        if failed_with_no_diag:
-            commands_log_text = ""
-            direct_log = os.path.join(run_dir, "log", "commands.log")
-            if os.path.isfile(direct_log):
+        # Fallback 1: status.elements.csv on disk if not in DB
+        if not db_has_elements and has_dir:
+            status_file = os.path.join(run_dir, "resume", "status.elements.csv")
+            if os.path.isfile(status_file):
                 try:
-                    with open(direct_log, "r", encoding="utf-8", errors="ignore") as f:
-                        commands_log_text = f.read()
-                except Exception:
-                    pass
-            elif os.path.isfile(os.path.join(run_dir, "log.zip")):
-                try:
-                    import zipfile
-                    with zipfile.ZipFile(os.path.join(run_dir, "log.zip")) as z:
-                        if "commands.log" in z.namelist():
-                            with z.open("commands.log") as f:
-                                commands_log_text = f.read().decode("utf-8", errors="ignore")
-                except Exception:
-                    pass
-
-            if commands_log_text:
-                failed_lookup = {e["element"]: e for e in failed_with_no_diag}
-                for match in re.finditer(r"Connection/Execution failed for ([^\s]+) at [^\s]+ with key '[^']+': (.*)", commands_log_text):
-                    h = match.group(1).strip()
-                    err_msg = match.group(2).strip()
-                    if h in failed_lookup and not failed_lookup[h]["error"]:
-                        failed_lookup[h]["error"] = err_msg
-                        if "time" in err_msg.lower():
-                            status_counts["timeout"] += 1
-                        elif "auth" in err_msg.lower():
-                            status_counts["auth_fail"] += 1
-
-        # Resilient fallback: If status.elements.csv has empty element column, recover from filtered_elements.cfg
-        if not elements_list:
-            filtered_cfg = os.path.join(run_dir, "filtered_elements.cfg")
-            if not os.path.isfile(filtered_cfg):
-                filtered_cfg = os.path.join(run_dir, "ping-matrix", "filtered_elements.cfg")
-            if os.path.isfile(filtered_cfg):
-                try:
-                    with open(filtered_cfg, "r", encoding="utf-8", errors="ignore") as f:
-                        for line in f:
-                            line = line.strip()
-                            if line and not line.startswith("#"):
-                                el = line.split(";")[0].strip()
-                                elements_list.append({"element": el, "status": "ok", "error": ""})
-                                status_counts["ok"] += 1
+                    with open(status_file, "r", encoding="utf-8", errors="ignore") as f:
+                        for row in csv.DictReader(f, delimiter=";"):
+                            el = (row.get("element") or row.get("element_name") or "").strip()
+                            st = row.get("status", "ok").strip().lower()
+                            raw_err = (row.get("error") or row.get("details") or "").strip()
+                            err = raw_err if st != "ok" and raw_err != "-" else ""
+                            if el:
+                                elements_list.append({"element": el, "status": st, "error": err})
+                                if st == "ok":
+                                    status_counts["ok"] += 1
+                                else:
+                                    status_counts["failed"] += 1
+                                    if "auth" in str(err).lower():
+                                        status_counts["auth_fail"] += 1
+                                    elif "time" in str(err).lower():
+                                        status_counts["timeout"] += 1
                 except Exception:
                     pass
 
-        # 2. Ping Telemetry Health
+        # Fallback 2: filtered_elements.cfg if status file had no elements
+        if not elements_list and has_dir:
+            for cfg_cand in [
+                os.path.join(run_dir, "filtered_elements.cfg"),
+                os.path.join(run_dir, "ping-matrix", "filtered_elements.cfg"),
+                os.path.join(run_dir, "resume", "filtered_elements.cfg")
+            ]:
+                if os.path.isfile(cfg_cand):
+                    try:
+                        with open(cfg_cand, "r", encoding="utf-8", errors="ignore") as f:
+                            for line in f:
+                                line = line.strip()
+                                if line and not line.startswith("#"):
+                                    el = line.split(";")[0].strip()
+                                    elements_list.append({"element": el, "status": "ok", "error": ""})
+                                    status_counts["ok"] += 1
+                        if elements_list:
+                            break
+                    except Exception:
+                        pass
+
+        # 2. Ping Telemetry Health (DB-Primary)
         ping_summary = {"total": 0, "healthy": 0, "warning": 0, "critical": 0, "dead": 0, "avg_latency_ms": 0.0, "dead_pairs": []}
-        if os.path.isfile(ping_file):
+        db_has_ping = False
+        if conn:
             try:
-                with open(ping_file, "r", encoding="utf-8", errors="ignore") as f:
-                    p_data = json.load(f)
-                    meta = p_data.get("metadata", {})
-                    health = meta.get("network_health", {})
-                    ping_summary["total"] = health.get("total_links", meta.get("total_pings", meta.get("total_tests", 0)))
-                    ping_summary["healthy"] = health.get("healthy", 0)
-                    ping_summary["warning"] = health.get("warning", 0)
-                    ping_summary["critical"] = health.get("critical", 0)
-                    ping_summary["dead"] = health.get("dead", 0)
+                cur = conn.cursor()
+                cur.execute("""
+                    SELECT 
+                        COUNT(*) as total_cnt,
+                        SUM(CASE WHEN loss_pct = 0 AND is_dead = 0 THEN 1 ELSE 0 END) as healthy_cnt,
+                        SUM(CASE WHEN (loss_pct > 0 AND loss_pct <= 50) OR jitter > 20 OR is_asymmetric = 1 THEN 1 ELSE 0 END) as warn_cnt,
+                        SUM(CASE WHEN loss_pct > 50 AND loss_pct < 100 THEN 1 ELSE 0 END) as crit_cnt,
+                        SUM(CASE WHEN is_dead = 1 OR loss_pct >= 100 THEN 1 ELSE 0 END) as dead_cnt,
+                        AVG(CASE WHEN avg_rtt > 0 THEN avg_rtt ELSE NULL END) as avg_latency
+                    FROM ping_tests
+                    WHERE run_id = ?
+                """, (run_id,))
+                p_row = cur.fetchone()
+                if p_row and p_row["total_cnt"] and p_row["total_cnt"] > 0:
+                    db_has_ping = True
+                    ping_summary["total"] = p_row["total_cnt"]
+                    ping_summary["healthy"] = p_row["healthy_cnt"] or 0
+                    ping_summary["warning"] = p_row["warn_cnt"] or 0
+                    ping_summary["critical"] = p_row["crit_cnt"] or 0
+                    ping_summary["dead"] = p_row["dead_cnt"] or 0
+                    ping_summary["avg_latency_ms"] = round(p_row["avg_latency"] or 0.0, 2)
 
-                    # Extract dead / unreachable pairs for offcanvas inspection
-                    dead_list = []
-                    data_items = p_data.get("data", p_data.get("matrix", p_data.get("tests", [])))
-                    if isinstance(data_items, list):
-                        for item in data_items:
-                            if item.get("is_unreachable") or item.get("loss_pct", 0) >= 100.0 or item.get("status") in ("dead", "critical"):
-                                orig = item.get("origin") or item.get("source") or item.get("from", "-")
-                                dst = item.get("dest") or item.get("target") or item.get("to", "-")
-                                dead_list.append({
-                                    "origin": orig,
-                                    "dest": dst,
-                                    "loss_pct": item.get("loss_pct", 100.0),
-                                    "avg_ms": item.get("avg") or item.get("rtt_avg_ms") or 0.0
-                                })
-                                if len(dead_list) >= 100:
-                                    break
-                    ping_summary["dead_pairs"] = dead_list
-
-                    # Compute global latency from metadata.node_stats or root node_stats
-                    node_stats = meta.get("node_stats") or p_data.get("node_stats", {})
-                    lats = [
-                        s.get("avg_global_latency", 0)
-                        for s in node_stats.values()
-                        if isinstance(s, dict) and s.get("avg_global_latency", -1) > 0
+                    # Dead / Unreachable pairs
+                    cur.execute("""
+                        SELECT origin, dest, loss_pct, avg_rtt
+                        FROM ping_tests
+                        WHERE run_id = ? AND (is_dead = 1 OR loss_pct >= 100)
+                        LIMIT 100
+                    """, (run_id,))
+                    dead_rows = cur.fetchall()
+                    ping_summary["dead_pairs"] = [
+                        {
+                            "origin": r["origin"],
+                            "dest": r["dest"],
+                            "loss_pct": r["loss_pct"],
+                            "avg_ms": r["avg_rtt"] or 0.0
+                        }
+                        for r in dead_rows
                     ]
-                    if lats:
-                        ping_summary["avg_latency_ms"] = round(sum(lats) / len(lats), 2)
             except Exception:
                 pass
 
-        # 3. Interfaces & Topology stats
+        # Fallback 1: ping_matrix_list.json on disk if not in DB
+        if not db_has_ping and has_dir:
+            ping_file = os.path.join(run_dir, "ping-matrix", "resume", "ping_matrix_list.json")
+            if not os.path.isfile(ping_file):
+                ping_file = os.path.join(run_dir, "resume", "ping_matrix_list.json")
+            if os.path.isfile(ping_file):
+                try:
+                    with open(ping_file, "r", encoding="utf-8", errors="ignore") as f:
+                        p_data = json.load(f)
+                        meta = p_data.get("metadata", {})
+                        health = meta.get("network_health", {})
+                        ping_summary["total"] = health.get("total_links", meta.get("total_pings", meta.get("total_tests", 0)))
+                        ping_summary["healthy"] = health.get("healthy", 0)
+                        ping_summary["warning"] = health.get("warning", 0)
+                        ping_summary["critical"] = health.get("critical", 0)
+                        ping_summary["dead"] = health.get("dead", 0)
+                        dead_list = []
+                        data_items = p_data.get("data", p_data.get("matrix", p_data.get("tests", [])))
+                        if isinstance(data_items, list):
+                            for item in data_items:
+                                if item.get("is_unreachable") or item.get("loss_pct", 0) >= 100.0 or item.get("status") in ("dead", "critical"):
+                                    orig = item.get("origin") or item.get("source") or item.get("from", "-")
+                                    dst = item.get("dest") or item.get("target") or item.get("to", "-")
+                                    dead_list.append({
+                                        "origin": orig,
+                                        "dest": dst,
+                                        "loss_pct": item.get("loss_pct", 100.0),
+                                        "avg_ms": item.get("avg") or item.get("rtt_avg_ms") or 0.0
+                                    })
+                                    if len(dead_list) >= 100:
+                                        break
+                        ping_summary["dead_pairs"] = dead_list
+                        node_stats = meta.get("node_stats") or p_data.get("node_stats", {})
+                        lats = [
+                            s.get("avg_global_latency", 0)
+                            for s in node_stats.values()
+                            if isinstance(s, dict) and s.get("avg_global_latency", -1) > 0
+                        ]
+                        if lats:
+                            ping_summary["avg_latency_ms"] = round(sum(lats) / len(lats), 2)
+                except Exception:
+                    pass
+
+        # 3. Interfaces & Topology Stats (DB-Primary)
         interface_count = 0
         int_up = 0
-        if os.path.isfile(interfaces_file):
+        db_has_interfaces = False
+        if conn:
             try:
-                with open(interfaces_file, "r", encoding="utf-8", errors="ignore") as f:
-                    for r in csv.DictReader(f, delimiter=";"):
-                        interface_count += 1
-                        if r.get("admin_status", "").lower() == "up":
-                            int_up += 1
+                cur = conn.cursor()
+                cur.execute("""
+                    SELECT COUNT(*) as total_int, SUM(CASE WHEN LOWER(admin_status) = 'up' THEN 1 ELSE 0 END) as up_int
+                    FROM interfaces
+                    WHERE run_id = ?
+                """, (run_id,))
+                i_row = cur.fetchone()
+                if i_row and i_row["total_int"] and i_row["total_int"] > 0:
+                    db_has_interfaces = True
+                    interface_count = i_row["total_int"]
+                    int_up = i_row["up_int"] or 0
             except Exception:
                 pass
 
+        if not db_has_interfaces and has_dir:
+            interfaces_file = os.path.join(run_dir, "resume", "interfaces_all.csv")
+            if os.path.isfile(interfaces_file):
+                try:
+                    with open(interfaces_file, "r", encoding="utf-8", errors="ignore") as f:
+                        for r in csv.DictReader(f, delimiter=";"):
+                            interface_count += 1
+                            if r.get("admin_status", "").lower() == "up":
+                                int_up += 1
+                except Exception:
+                    pass
+
         links_count = 0
-        if os.path.isfile(conn_file):
+        db_has_conn = False
+        if conn:
             try:
-                with open(conn_file, "r", encoding="utf-8", errors="ignore") as f:
-                    links_count = sum(1 for _ in csv.DictReader(f, delimiter=";"))
+                cur = conn.cursor()
+                cur.execute("SELECT COUNT(*) FROM topology_connections WHERE run_id = ?", (run_id,))
+                c_row = cur.fetchone()
+                if c_row and c_row[0] and c_row[0] > 0:
+                    db_has_conn = True
+                    links_count = c_row[0]
             except Exception:
                 pass
+
+        if not db_has_conn and has_dir:
+            conn_file = os.path.join(run_dir, "connections", "topology.connections.SUM.csv")
+            if os.path.isfile(conn_file):
+                try:
+                    with open(conn_file, "r", encoding="utf-8", errors="ignore") as f:
+                        links_count = sum(1 for _ in csv.DictReader(f, delimiter=";"))
+                except Exception:
+                    pass
 
         lldp_mismatches = 0
         lldp_mismatches_list = []
-        if os.path.isfile(lldp_file):
-            try:
-                with open(lldp_file, "r", encoding="utf-8", errors="ignore") as f:
-                    for r in csv.DictReader(f, delimiter=";"):
-                        lldp_mismatches += 1
-                        if len(lldp_mismatches_list) < 100:
-                            lldp_mismatches_list.append(dict(r))
-            except Exception:
-                pass
+        if has_dir:
+            lldp_file = os.path.join(run_dir, "resume", "lldp_mismatch_report.csv")
+            if os.path.isfile(lldp_file):
+                try:
+                    with open(lldp_file, "r", encoding="utf-8", errors="ignore") as f:
+                        for r in csv.DictReader(f, delimiter=";"):
+                            lldp_mismatches += 1
+                            if len(lldp_mismatches_list) < 100:
+                                lldp_mismatches_list.append(dict(r))
+                except Exception:
+                    pass
+
+        # Abort info
+        is_aborted = False
+        abort_info = None
+        if has_dir:
+            for cand in [
+                os.path.join(run_dir, "SYSTEMIC_FAILURE.json"),
+                os.path.join(run_dir, "resume", "SYSTEMIC_FAILURE.json"),
+                os.path.join(run_dir, "collect", "SYSTEMIC_FAILURE.json")
+            ]:
+                if os.path.isfile(cand):
+                    try:
+                        with open(cand, "r", encoding="utf-8") as f:
+                            abort_info = json.load(f)
+                            is_aborted = True
+                            break
+                    except Exception:
+                        is_aborted = True
+                        break
+
+        if conn:
+            conn.close()
 
         return {
             "run_id": run_id,
@@ -1532,22 +1678,68 @@ class NDXWebServer(ThreadingHTTPServer):
             return False, f"Failed to save file: {e}"
 
     def resolve_report_file(self, run_id: str, rep_type: str) -> Tuple[Optional[str], Optional[str]]:
-        """Maps download report request to physical file path."""
+        """Maps download report request to physical file path (with DB reconstruction fallback)."""
         run_dir = os.path.join(self.outbase, "runs", run_id)
-        if not os.path.isdir(run_dir):
-            return None, None
+        resume_dir = os.path.join(run_dir, "resume")
 
         if rep_type == "status_elements":
-            return os.path.join(run_dir, "resume", "status.elements.csv"), f"status_elements_{run_id}.csv"
+            f_path = os.path.join(resume_dir, "status.elements.csv")
+            if not os.path.isfile(f_path):
+                conn = self.get_db_connection()
+                if conn:
+                    try:
+                        cur = conn.cursor()
+                        cur.execute("SELECT element, status, details FROM elements_status WHERE run_id = ?", (run_id,))
+                        rows = cur.fetchall()
+                        if rows:
+                            os.makedirs(resume_dir, exist_ok=True)
+                            with open(f_path, "w", encoding="utf-8", newline="") as f:
+                                writer = csv.writer(f, delimiter=";")
+                                writer.writerow(["Element", "Status", "Details"])
+                                for r in rows:
+                                    writer.writerow([r["element"], r["status"], r["details"] or ""])
+                        conn.close()
+                    except Exception:
+                        pass
+            if os.path.isfile(f_path):
+                return f_path, f"status_elements_{run_id}.csv"
+
         elif rep_type == "interfaces":
-            return os.path.join(run_dir, "resume", "interfaces_all.csv"), f"interfaces_{run_id}.csv"
+            f_path = os.path.join(resume_dir, "interfaces_all.csv")
+            if not os.path.isfile(f_path):
+                conn = self.get_db_connection()
+                if conn:
+                    try:
+                        cur = conn.cursor()
+                        cur.execute("SELECT hostname, interface, admin_status, oper_status, description, ip_address, vrf FROM interfaces WHERE run_id = ?", (run_id,))
+                        rows = cur.fetchall()
+                        if rows:
+                            os.makedirs(resume_dir, exist_ok=True)
+                            with open(f_path, "w", encoding="utf-8", newline="") as f:
+                                writer = csv.writer(f, delimiter=";")
+                                writer.writerow(["Hostname", "Interface", "Admin_Status", "Oper_Status", "Description", "IP_Address", "VRF"])
+                                for r in rows:
+                                    writer.writerow([r[0], r[1], r[2], r[3], r[4] or "", r[5] or "", r[6] or ""])
+                        conn.close()
+                    except Exception:
+                        pass
+            if os.path.isfile(f_path):
+                return f_path, f"interfaces_{run_id}.csv"
+
         elif rep_type == "ping_matrix":
-            return os.path.join(run_dir, "resume", "ping_matrix_list.json"), f"ping_matrix_{run_id}.json"
+            f_path = os.path.join(run_dir, "ping-matrix", "resume", "ping_matrix_list.json")
+            if not os.path.isfile(f_path):
+                f_path = os.path.join(resume_dir, "ping_matrix_list.json")
+            if os.path.isfile(f_path):
+                return f_path, f"ping_matrix_{run_id}.json"
+
         elif rep_type == "lldp_mismatch":
-            return os.path.join(run_dir, "resume", "lldp_mismatch_report.csv"), f"lldp_mismatch_{run_id}.csv"
+            f_path = os.path.join(resume_dir, "lldp_mismatch_report.csv")
+            if os.path.isfile(f_path):
+                return f_path, f"lldp_mismatch_{run_id}.csv"
+
         elif rep_type == "shadow_network":
             # Dynamically produce shadow network report CSV
-            resume_dir = os.path.join(run_dir, "resume")
             os.makedirs(resume_dir, exist_ok=True)
             tmp_csv = os.path.join(resume_dir, "shadow_network_report.csv")
             try:
@@ -1571,21 +1763,6 @@ class NDXWebServer(ThreadingHTTPServer):
                 pass
 
         return None, None
-
-    def _get_db_path(self) -> Optional[str]:
-        """Resolves active SQLite database path if provisioned."""
-        env_path = os.environ.get("NDX_DATABASE_PATH")
-        if env_path and os.path.isfile(env_path):
-            return env_path
-        candidates = [
-            os.path.join(self.outbase, "database", "storage.db"),
-            os.path.join(self.outbase, "database", "network_data.db"),
-            os.path.join(self.repo_dir, "database", "network_data.db")
-        ]
-        for c in candidates:
-            if os.path.isfile(c):
-                return c
-        return None
 
     def get_system_capabilities(self) -> Dict[str, Any]:
         """Probes system storage capabilities and feature support."""

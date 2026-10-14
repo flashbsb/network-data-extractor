@@ -101,6 +101,8 @@ class SQLiteDriver(StorageDriver):
             cursor.execute(f"PRAGMA journal_mode = {self.journal_mode};")
             cursor.execute(f"PRAGMA synchronous = {self.synchronous};")
             cursor.execute(f"PRAGMA busy_timeout = {self.busy_timeout_ms};")
+            cursor.execute("PRAGMA cache_size = -64000;")
+            cursor.execute("PRAGMA temp_store = MEMORY;")
             cursor.close()
             self._local.conn = conn
         return self._local.conn

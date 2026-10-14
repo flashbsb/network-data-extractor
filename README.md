@@ -2,7 +2,7 @@
   <h1>🌐 Network Data Extractor</h1>
   <p><strong>The Ultimate Multivendor NOC Orchestrator & Autonomous Discovery Engine</strong></p>
   
-  ![Version](https://img.shields.io/badge/version-1.95.0-blue.svg)
+  ![Version](https://img.shields.io/badge/version-1.97.1-blue.svg)
   ![Python](https://img.shields.io/badge/python-3.8%2B-green.svg)
   [![Live Demo](https://img.shields.io/badge/Live_Demo-GitHub_Pages-0ea5e9?style=flat&logo=github)](https://flashbsb.github.io/network-data-extractor/)
 </div>
@@ -58,7 +58,7 @@ Beyond simple command execution, it acts as an **intelligence layer**—parsing 
 - **🛑 Systemic Failure Circuit Breaker**: Autonomous fail-fast engine detecting systemic credential expiry (`10` consecutive auth failures) or network disconnects (`20` consecutive unreachables), halting collection immediately with exit code `101`, preventing TACACS/AD account lockouts, suppressing downstream alert storms, and generating consolidated diagnostics. Override anytime via `--ignore-circuit-breaker`.
 - **🧭 Autonomous LLDP Discovery**: Recursively hops through the network, discovering missing devices and generating new inventory targets on the fly.
 - **⚙️ Modular Configuration Architecture**: Decomposed domain configs (`config/extractor.json`, `ssh.json`, `network.json`, `ping.json`, `storage.json`) with seamless deep-merge backward compatibility for monolithic `settings.json`. Zero hardcodes across extraction, parsing, and rendering engines.
-- **🗃️ Enterprise Storage Abstraction Layer (SAL)**: Decoupled three-mode persistence (`files_only`, `hybrid`, `db_only`) backed by zero-dependency SQLite with Write-Ahead Logging (`WAL`), compressed raw CLI blobs, and autonomous retention vacuuming.
+- **🗃️ Enterprise Storage Abstraction Layer (SAL) & DB-Primary Web Engine**: Decoupled three-mode persistence (`files_only`, `hybrid`, `db_only`) backed by zero-dependency SQLite with Write-Ahead Logging (`WAL`), 64 MB RAM cache, autonomous retention vacuuming, and DB-First web API query routing with transparent filesystem fallback.
 - **🧩 Universal Multivendor Parsing**: Regex-based "Blind Analyzer" bypasses human typos in descriptions to seamlessly map logical and physical topologies across different vendors.
 - **📊 Local-First Dashboards**: Generates High-Performance SPAs (Single Page Applications) embedded directly in HTML. Works 100% offline without CORS issues.
 - **🎨 Universal Visual Theming System**: Seamless one-click switching between **Dark (NOC Obsidian)**, **Light (Clean Enterprise / Day Mode)**, and **HighText (WCAG AAA High Contrast)** across all dashboards, with zero-FOUC pre-render initialization, cross-tab synchronization, and full iframe support.
