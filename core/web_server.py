@@ -645,8 +645,30 @@ class NDXWebServer(ThreadingHTTPServer):
     def list_runs(self) -> List[Dict[str, Any]]:
         """Scans and lists all snapshot runs ordered descending by date."""
         runs_dir = os.path.join(self.outbase, "runs")
-        if not os.path.isdir(runs_dir):
-            return []
+
+        # Load SQLite runs metadata
+        db_path = os.path.join(self.outbase, "database", "network_data.db")
+        if not os.path.isfile(db_path):
+            db_path = os.path.join(self.outbase, "network_data.db")
+        db_runs = {}
+        db_ping_runs = set()
+        if os.path.isfile(db_path):
+            try:
+                import sqlite3
+                conn = sqlite3.connect(db_path)
+                cur = conn.cursor()
+                cur.execute("SELECT run_id, total_elements, successful_elements, failed_elements FROM runs")
+                for r in cur.fetchall():
+                    db_runs[r[0]] = {
+                        "total": r[1] or 0,
+                        "success": r[2] or 0,
+                        "failed": r[3] or 0
+                    }
+                cur.execute("SELECT DISTINCT run_id FROM ping_tests")
+                db_ping_runs = set(r[0] for r in cur.fetchall())
+                conn.close()
+            except Exception:
+                pass
 
         entries = []
         for name in sorted(os.listdir(runs_dir), reverse=True):
@@ -671,9 +693,30 @@ class NDXWebServer(ThreadingHTTPServer):
                 except Exception:
                     pass
 
+            # Fallback 1: SQLite runs table
+            if node_cnt == 0 and name in db_runs:
+                node_cnt = db_runs[name].get("total", 0)
+
+            # Fallback 2: filtered_elements.cfg
+            if node_cnt == 0:
+                for cfg_cand in [
+                    os.path.join(r_path, "filtered_elements.cfg"),
+                    os.path.join(r_path, "ping-matrix", "filtered_elements.cfg"),
+                    os.path.join(r_path, "resume", "filtered_elements.cfg")
+                ]:
+                    if os.path.isfile(cfg_cand):
+                        try:
+                            with open(cfg_cand, "r", encoding="utf-8", errors="ignore") as f:
+                                node_cnt = sum(1 for line in f if line.strip() and not line.strip().startswith("#"))
+                            if node_cnt > 0:
+                                break
+                        except Exception:
+                            pass
+
             has_ping = (
                 os.path.isfile(os.path.join(r_path, "ping-matrix", "resume", "ping_matrix_list.json"))
                 or os.path.isfile(os.path.join(r_path, "resume", "ping_matrix_list.json"))
+                or (name in db_ping_runs)
             )
 
             sf_file = os.path.join(r_path, "SYSTEMIC_FAILURE.json")
@@ -702,6 +745,26 @@ class NDXWebServer(ThreadingHTTPServer):
                 "abort_info": abort_info
             })
 
+        # Also include runs preserved in DB if directory was archived
+        seen_ids = set(e["id"] for e in entries)
+        for r_id, r_info in db_runs.items():
+            if r_id not in seen_ids and re.match(r"^\d{8}_\d{6}$", r_id):
+                try:
+                    date_part, time_part = r_id.split("_")
+                    formatted_date = f"{date_part[:4]}-{date_part[4:6]}-{date_part[6:]} {time_part[:2]}:{time_part[2:4]}:{time_part[4:]}"
+                except Exception:
+                    formatted_date = r_id
+                entries.append({
+                    "id": r_id,
+                    "formatted_date": formatted_date,
+                    "node_count": r_info.get("total", 0),
+                    "has_ping": r_id in db_ping_runs,
+                    "has_topology": False,
+                    "is_aborted": False,
+                    "abort_info": None
+                })
+
+        entries.sort(key=lambda x: x["id"], reverse=True)
         return entries
 
     def get_run_summary(self, run_id: str) -> Optional[Dict[str, Any]]:
@@ -940,11 +1003,17 @@ class NDXWebServer(ThreadingHTTPServer):
 
     def _determine_tier(self, hostname: str, hierarchy: Dict[str, List[str]]) -> str:
         """Determines network tier using prefix matching."""
+        if not hostname:
+            return "other"
         name_clean = hostname.strip().upper()
         tokens = [t for t in re.split(r"[-_.]+", name_clean) if t]
         for tier_name, patterns in hierarchy.items():
+            if tier_name.startswith("_") or not isinstance(patterns, list):
+                continue
             for pat in patterns:
-                pat_upper = pat.upper()
+                if not isinstance(pat, str) or not pat.strip():
+                    continue
+                pat_upper = pat.strip().upper()
                 if tokens and tokens[0] == pat_upper:
                     return tier_name
                 if any(t == pat_upper for t in tokens):
@@ -955,51 +1024,70 @@ class NDXWebServer(ThreadingHTTPServer):
 
     def _get_catalogue_elements(self) -> Dict[str, Dict[str, str]]:
         """
-        Discovers configured elements from elements_*.csv or elements.csv.
+        Discovers configured elements from SQLite database elements table
+        or fallback to elements.cfg.
+        NEVER reads external elements_*.csv dumps.
         Returns a dict mapping hostname -> metadata (tier, function).
         """
+        catalogue: Dict[str, Dict[str, str]] = {}
+        hierarchy = self._get_routing_hierarchy()
+
+        # 1. Primary Source: SQLite database elements table
+        db_path = os.path.join(self.outbase, "database", "network_data.db")
+        if not os.path.isfile(db_path):
+            db_path = os.path.join(self.outbase, "network_data.db")
+
+        if os.path.isfile(db_path):
+            try:
+                import sqlite3
+                conn = sqlite3.connect(db_path)
+                cur = conn.cursor()
+                cur.execute("SELECT hostname, cmd_key FROM elements WHERE status != 'ignored' AND status != 'deleted'")
+                for row in cur.fetchall():
+                    hname = str(row[0]).strip()
+                    if hname and not hname.startswith("#"):
+                        cmd_k = str(row[1]).strip() if row[1] else ""
+                        tier = self._determine_tier(hname, hierarchy)
+                        catalogue[hname] = {"tier": tier, "function": cmd_k}
+                conn.close()
+            except Exception:
+                pass
+
+        if catalogue:
+            return catalogue
+
+        # 2. Resilient Fallback: Search candidate directories ONLY for elements.cfg
         candidate_dirs = [
             os.path.join(os.path.dirname(self.outbase), "config"),
             os.path.join(os.path.dirname(os.path.dirname(self.outbase)), "config"),
             os.path.join(self.outbase, "config"),
             os.path.join(self.repo_dir, "config")
         ]
-        best_csv = None
-        best_mtime = -1
         for cdir in candidate_dirs:
             if not os.path.isdir(cdir):
                 continue
-            try:
-                for fname in os.listdir(cdir):
-                    if re.match(r"^elements.*\.csv$", fname, re.IGNORECASE):
-                        fp = os.path.join(cdir, fname)
-                        mt = os.path.getmtime(fp)
-                        if mt > best_mtime:
-                            best_mtime = mt
-                            best_csv = fp
-            except Exception:
-                pass
+            cfg_file = os.path.join(cdir, "elements.cfg")
+            if os.path.isfile(cfg_file):
+                try:
+                    with open(cfg_file, "r", encoding="utf-8", errors="ignore") as f:
+                        for line in f:
+                            line = line.strip()
+                            if not line or line.startswith("#"):
+                                continue
+                            parts = [p.strip() for p in line.split(";")]
+                            if not parts:
+                                continue
+                            name = parts[0]
+                            if not name or name.lower() in ("element", "hostname", "name", "device"):
+                                continue
+                            func = parts[2] if len(parts) > 2 else (parts[1] if len(parts) > 1 and not re.match(r"^\d+\.\d+\.\d+\.\d+$", parts[1]) else "")
+                            tier = self._determine_tier(name, hierarchy)
+                            catalogue[name] = {"tier": tier, "function": func}
+                    if catalogue:
+                        break
+                except Exception:
+                    pass
 
-        catalogue: Dict[str, Dict[str, str]] = {}
-        hierarchy = self._get_routing_hierarchy()
-        if best_csv and os.path.isfile(best_csv):
-            try:
-                with open(best_csv, "r", encoding="utf-8", errors="ignore") as f:
-                    for line in f:
-                        line = line.strip()
-                        if not line or line.startswith("#"):
-                            continue
-                        parts = [p.strip() for p in line.split(";")]
-                        if not parts:
-                            continue
-                        name = parts[0]
-                        if not name or name.lower() in ("element", "hostname", "name", "device"):
-                            continue
-                        func = parts[1] if len(parts) > 1 else ""
-                        tier = self._determine_tier(name, hierarchy)
-                        catalogue[name] = {"tier": tier, "function": func}
-            except Exception:
-                pass
         return catalogue
 
     def get_element_reliability_analytics(
@@ -1177,7 +1265,9 @@ class NDXWebServer(ThreadingHTTPServer):
             "chronic_failure": 0,
             "flapping": 0,
             "stable": 0,
-            "total_monitored": len(element_stats)
+            "total_monitored": len(element_stats),
+            "configured_count": len(catalogue),
+            "discovered_unconfigured": 0
         }
 
         element_rows = []
@@ -1187,7 +1277,10 @@ class NDXWebServer(ThreadingHTTPServer):
             rate = round((suc / tot * 100.0), 1) if tot > 0 else 0.0
             rec["success_rate_pct"] = rate
 
-            if tot == 0:
+            if not rec.get("in_catalogue", True):
+                cat = "discovered"
+                summary["discovered_unconfigured"] += 1
+            elif tot == 0:
                 cat = "never_collected"
                 summary["never_collected"] += 1
             elif suc == 0:
@@ -1207,7 +1300,7 @@ class NDXWebServer(ThreadingHTTPServer):
             rec["status_category"] = cat
             element_rows.append(rec)
 
-        cat_order = {"never_collected": 0, "chronic_failure": 1, "flapping": 2, "stable": 3}
+        cat_order = {"never_collected": 0, "chronic_failure": 1, "flapping": 2, "stable": 3, "discovered": 4}
         element_rows.sort(key=lambda x: (cat_order.get(x["status_category"], 9), x["success_rate_pct"], x["element"]))
 
         timeout_culprits = sorted(

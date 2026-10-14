@@ -52,6 +52,102 @@ def generate_master_dashboard(outbase):
     except Exception as e:
         print(f"    {C_RED}[!] Failed to copy dashboard templates to outbase: {e}{C_RESET}")
     
+    # Reconcile historical runs from SQLite if available
+    db_path = os.path.join(abs_outbase, "database", "network_data.db")
+    if os.path.isfile(db_path):
+        try:
+            import sqlite3
+            from core.ping_matrix import render_ping_matrix_html
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+            cur.execute("SELECT DISTINCT run_id FROM ping_tests ORDER BY run_id DESC;")
+            db_runs = [row[0] for row in cur.fetchall() if row[0]]
+            for r_id in db_runs:
+                target_dir = os.path.join(abs_outbase, "runs", r_id, "ping-matrix", "resume")
+                j_file = os.path.join(target_dir, "ping_matrix_list.json")
+                h_file = os.path.join(target_dir, "ping_matrix_dashboard.html")
+                if not os.path.isfile(j_file):
+                    cur.execute(
+                        "SELECT origin, dest, tx, rx, loss_pct, min_rtt, avg_rtt, max_rtt, jitter, is_dead, is_asymmetric "
+                        "FROM ping_tests WHERE run_id = ?", (r_id,)
+                    )
+                    rows = cur.fetchall()
+                    if not rows:
+                        continue
+                    m_health = {"healthy": 0, "warning": 0, "critical": 0, "dead": 0}
+                    nodes_set = set()
+                    origins_set = set()
+                    records = []
+                    for r in rows:
+                        origins_set.add(r["origin"])
+                        nodes_set.add(r["origin"])
+                        nodes_set.add(r["dest"])
+                        is_dead = bool(r["is_dead"])
+                        loss_pct = float(r["loss_pct"])
+                        jitter_warn = bool(r["jitter"] and r["jitter"] > 20)
+                        asym_warn = bool(r["is_asymmetric"])
+                        if is_dead or loss_pct == 100:
+                            m_health["dead"] += 1
+                        elif loss_pct > 50:
+                            m_health["critical"] += 1
+                        elif loss_pct > 0 or jitter_warn or asym_warn:
+                            m_health["warning"] += 1
+                        else:
+                            m_health["healthy"] += 1
+                        records.append({
+                            "origin": r["origin"],
+                            "dest": r["dest"],
+                            "tx": r["tx"],
+                            "rx": r["rx"],
+                            "loss_pct": loss_pct,
+                            "min": r["min_rtt"],
+                            "avg": r["avg_rtt"],
+                            "max": r["max_rtt"],
+                            "jitter": r["jitter"],
+                            "is_unreachable": is_dead,
+                            "consistently_denied": False,
+                            "jitter_warning": jitter_warn,
+                            "asymmetric_warning": asym_warn
+                        })
+                    try:
+                        dt_label = f"{r_id[:4]}-{r_id[4:6]}-{r_id[6:8]} {r_id[9:11]}:{r_id[11:13]}:{r_id[13:15]}"
+                    except Exception:
+                        dt_label = r_id
+                    payload = {
+                        "metadata": {
+                            "datetime": dt_label,
+                            "nodes_connected": len(nodes_set),
+                            "config": {
+                                "count": 5,
+                                "datagram_size": 100,
+                                "timeout": 2,
+                                "threads": 20,
+                                "matrix_mode": "selective"
+                            },
+                            "execution_metrics": {
+                                "total_origins": len(origins_set),
+                                "pings_per_origin": len(nodes_set),
+                                "total_pings_expected": len(records),
+                                "total_possible_pings": len(records),
+                                "estimated_duration_seconds": 0,
+                                "actual_duration_seconds": 0
+                            },
+                            "network_health": m_health,
+                            "node_stats": {}
+                        },
+                        "data": records
+                    }
+                    os.makedirs(target_dir, exist_ok=True)
+                    with open(j_file, 'w', encoding='utf-8') as jf:
+                        json.dump(payload, jf, indent=2)
+                    rendered_html = render_ping_matrix_html(payload)
+                    with open(h_file, 'w', encoding='utf-8') as hf:
+                        hf.write(rendered_html)
+            conn.close()
+        except Exception as e:
+            print(f"    {C_YELLOW}[!] Warning reconciling ping runs from SQLite: {e}{C_RESET}")
+
     # Search for all timestamped run subfolders inside runs/
     run_dirs = sorted(glob(os.path.join(abs_outbase, "runs", "20*_*")), reverse=True)
     

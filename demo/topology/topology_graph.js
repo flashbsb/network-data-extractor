@@ -457,18 +457,134 @@
 
         applyOrganicLayout(nodes) {
             const count = nodes.length;
-            const spread = Math.max(300, Math.sqrt(count) * 60);
+            if (count === 0) return;
 
+            // 1. Hub-and-Spoke Seeded Positioning
+            // Identify high-degree and core nodes as primary anchors
+            const coreAndHubs = [];
+            const otherNodes = [];
             nodes.forEach(n => {
-                n.x = (Math.random() - 0.5) * spread;
-                n.y = (Math.random() - 0.5) * spread;
+                if (n.tier === 'core' || n.tier === 'core_agg' || (n.degree && n.degree >= 6)) {
+                    coreAndHubs.push(n);
+                } else {
+                    otherNodes.push(n);
+                }
+            });
+
+            // Seed primary hubs in a central circle
+            const hubCount = coreAndHubs.length || 1;
+            const hubRadius = Math.max(120, Math.min(350, hubCount * 28));
+            coreAndHubs.forEach((n, idx) => {
+                const angle = (2 * Math.PI * idx) / hubCount;
+                n.x = Math.cos(angle) * hubRadius;
+                n.y = Math.sin(angle) * hubRadius;
                 n.vx = 0;
                 n.vy = 0;
             });
 
-            this.physicsFrozen = false;
-            this.simulationSteps = 0;
-            this.energy = 1.0;
+            // Build neighbor mapping for quick lookup
+            const neighborMap = new Map();
+            this.edges.forEach(e => {
+                if (!neighborMap.has(e.source)) neighborMap.set(e.source, []);
+                if (!neighborMap.has(e.target)) neighborMap.set(e.target, []);
+                neighborMap.get(e.source).push(e.target);
+                neighborMap.get(e.target).push(e.source);
+            });
+
+            // Place remaining nodes in clusters around their primary hub or in outer orbital
+            otherNodes.forEach((n, idx) => {
+                const neighbors = neighborMap.get(n.id) || [];
+                let placed = false;
+                for (let neighborId of neighbors) {
+                    const hub = this.nodeMap.get(neighborId);
+                    if (hub && (hub.x !== undefined) && (hub.tier === 'core' || hub.tier === 'core_agg' || (hub.degree && hub.degree >= 4))) {
+                        const jitterAngle = (idx * 1.37) % (Math.PI * 2);
+                        const dist = 70 + (idx % 5) * 20;
+                        n.x = hub.x + Math.cos(jitterAngle) * dist;
+                        n.y = hub.y + Math.sin(jitterAngle) * dist;
+                        placed = true;
+                        break;
+                    }
+                }
+                if (!placed) {
+                    const outerRadius = hubRadius + 180 + Math.sqrt(otherNodes.length) * 12;
+                    const angle = (2 * Math.PI * idx) / (otherNodes.length || 1);
+                    n.x = Math.cos(angle) * outerRadius;
+                    n.y = Math.sin(angle) * outerRadius;
+                }
+                n.vx = 0;
+                n.vy = 0;
+            });
+
+            // 2. Synchronous Relaxation (70 iterations with cooling)
+            const visibleEdges = this.edges.filter(e => 
+                this.activeTiers.has(e.sourceNode.tier) && 
+                this.activeTiers.has(e.targetNode.tier)
+            );
+
+            const iterations = Math.min(80, Math.max(40, count));
+            for (let step = 0; step < iterations; step++) {
+                const cooling = 1.0 - (step / iterations);
+                const maxDisp = 18.0 * cooling;
+
+                // Repulsion (Coulomb) - bounded
+                for (let i = 0; i < count; i++) {
+                    const n1 = nodes[i];
+                    for (let j = i + 1; j < count; j++) {
+                        const n2 = nodes[j];
+                        const dx = n2.x - n1.x;
+                        const dy = n2.y - n1.y;
+                        const distSq = dx * dx + dy * dy + 150;
+                        const dist = Math.sqrt(distSq);
+                        if (dist < 320) {
+                            const force = Math.min(15, (22000 / distSq)) * cooling;
+                            const fx = (dx / dist) * force;
+                            const fy = (dy / dist) * force;
+                            n1.vx -= fx;
+                            n1.vy -= fy;
+                            n2.vx += fx;
+                            n2.vy += fy;
+                        }
+                    }
+                }
+
+                // Spring Attraction (Hooke)
+                for (let i = 0; i < visibleEdges.length; i++) {
+                    const e = visibleEdges[i];
+                    const n1 = e.sourceNode;
+                    const n2 = e.targetNode;
+                    const dx = n2.x - n1.x;
+                    const dy = n2.y - n1.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                    const force = (dist - 110) * 0.08 * cooling;
+                    const fx = (dx / dist) * force;
+                    const fy = (dy / dist) * force;
+                    n1.vx += fx;
+                    n1.vy += fy;
+                    n2.vx += fx;
+                    n2.vy += fy;
+                }
+
+                // Gravity & Position update with clamped max displacement
+                for (let i = 0; i < count; i++) {
+                    const n = nodes[i];
+                    n.vx -= n.x * 0.005;
+                    n.vy -= n.y * 0.005;
+
+                    const curDisp = Math.sqrt(n.vx * n.vx + n.vy * n.vy) || 1;
+                    const factor = Math.min(1, maxDisp / curDisp);
+                    n.x += n.vx * factor;
+                    n.y += n.vy * factor;
+                    n.vx = 0;
+                    n.vy = 0;
+                }
+            }
+
+            this.physicsFrozen = true;
+            this.energy = 0;
+            this.simulationSteps = iterations;
+            this.notifyPhysicsState();
+            this.fitToScreen();
         }
 
         applySiteLayout(nodes) {
@@ -1303,11 +1419,11 @@
                 } else if (isConnected) {
                     ctx.globalAlpha = 1.0;
                 } else {
-                    ctx.globalAlpha = 0.55;
+                    ctx.globalAlpha = 0.85;
                 }
 
                 let edgeColor = '#38bdf8';
-                let edgeWidth = isConnected ? 2.5 : (speed === '100G' ? 2.0 : 1.2);
+                let edgeWidth = isConnected ? 3.0 : (speed === '100G' ? 2.4 : 1.8);
                 let edgeDash = [];
 
                 if (isPathEdge) {

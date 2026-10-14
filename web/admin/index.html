@@ -962,19 +962,19 @@
                     </div>
                 </div>
 
-                <!-- 4 Severity Diagnostic Cards -->
-                <div class="metric-grid" style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));">
-                    <!-- Card 1: Never Collected -->
-                    <div class="metric-card clickable-card" onclick="filterHistoricalByCategory('never_collected')" title="Click to filter elements that never collected successfully">
-                        <div class="metric-title">Never Collected <span>🚫</span></div>
-                        <div class="metric-value" id="histNeverCount" style="color:var(--danger);">0</div>
-                        <div class="metric-subtitle">Configured elements with 0 successful collections</div>
+                <!-- 6 Diagnostic & Inventory Cards -->
+                <div class="metric-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+                    <!-- Card 1: Configured Elements -->
+                    <div class="metric-card clickable-card" onclick="filterHistoricalByCategory('configured')" title="Click to filter catalog elements configured in elements.cfg">
+                        <div class="metric-title">Configured Elements <span>📋</span></div>
+                        <div class="metric-value" id="histConfiguredCount" style="color:var(--accent);">0</div>
+                        <div class="metric-subtitle">Target inventory defined in elements.cfg</div>
                     </div>
-                    <!-- Card 2: Chronic Failures -->
-                    <div class="metric-card clickable-card" onclick="filterHistoricalByCategory('chronic_failure')" title="Click to filter chronic failure elements">
-                        <div class="metric-title">Chronic Failures <span>⚠️</span></div>
-                        <div class="metric-value" id="histChronicCount" style="color:var(--warning);">0</div>
-                        <div class="metric-subtitle">Failed 100% of attempted runs in period</div>
+                    <!-- Card 2: Fully Stable -->
+                    <div class="metric-card clickable-card" onclick="filterHistoricalByCategory('stable')" title="Click to filter stable elements">
+                        <div class="metric-title">Fully Stable <span>✅</span></div>
+                        <div class="metric-value" id="histStableCount" style="color:var(--success);">0</div>
+                        <div class="metric-subtitle">≥ 90% collection success rate in period</div>
                     </div>
                     <!-- Card 3: Flapping / Intermittent -->
                     <div class="metric-card clickable-card" onclick="filterHistoricalByCategory('flapping')" title="Click to filter unstable flapping elements">
@@ -982,11 +982,23 @@
                         <div class="metric-value" id="histFlappingCount" style="color:#38bdf8;">0</div>
                         <div class="metric-subtitle">Partial success (oscillation between runs)</div>
                     </div>
-                    <!-- Card 4: Fully Stable -->
-                    <div class="metric-card clickable-card" onclick="filterHistoricalByCategory('stable')" title="Click to filter stable elements">
-                        <div class="metric-title">Fully Stable <span>✅</span></div>
-                        <div class="metric-value" id="histStableCount" style="color:var(--success);">0</div>
-                        <div class="metric-subtitle">≥ 90% collection success rate in period</div>
+                    <!-- Card 4: Chronic Failures -->
+                    <div class="metric-card clickable-card" onclick="filterHistoricalByCategory('chronic_failure')" title="Click to filter chronic failure elements">
+                        <div class="metric-title">Chronic Failures <span>⚠️</span></div>
+                        <div class="metric-value" id="histChronicCount" style="color:var(--warning);">0</div>
+                        <div class="metric-subtitle">Failed 100% of attempted runs in period</div>
+                    </div>
+                    <!-- Card 5: Never Collected -->
+                    <div class="metric-card clickable-card" onclick="filterHistoricalByCategory('never_collected')" title="Click to filter elements that never collected successfully">
+                        <div class="metric-title">Never Collected <span>🚫</span></div>
+                        <div class="metric-value" id="histNeverCount" style="color:var(--danger);">0</div>
+                        <div class="metric-subtitle">Configured elements with 0 successful runs</div>
+                    </div>
+                    <!-- Card 6: Discovered / Unconfigured -->
+                    <div class="metric-card clickable-card" onclick="filterHistoricalByCategory('discovered')" title="Click to filter external/discovered nodes not in elements.cfg">
+                        <div class="metric-title">Discovered / External <span>🌐</span></div>
+                        <div class="metric-value" id="histDiscoveredCount" style="color:#a855f7;">0</div>
+                        <div class="metric-subtitle">Discovered nodes outside configured catalog</div>
                     </div>
                 </div>
 
@@ -1045,11 +1057,13 @@
                         </div>
                         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                             <select class="custom-select" id="histCategoryFilter" onchange="applyHistoricalFilter()" style="padding:5px 10px; font-size:0.8rem; height:32px;">
-                                <option value="">All Categories</option>
-                                <option value="never_collected">Never Collected</option>
-                                <option value="chronic_failure">Chronic Failures</option>
+                                <option value="">All Categories & Elements</option>
+                                <option value="configured">Configured Elements Only (elements.cfg)</option>
+                                <option value="discovered">Discovered / External Only</option>
+                                <option value="stable">Fully Stable (≥90%)</option>
                                 <option value="flapping">Flapping / Intermittent</option>
-                                <option value="stable">Fully Stable</option>
+                                <option value="chronic_failure">Chronic Failures</option>
+                                <option value="never_collected">Never Collected</option>
                             </select>
                             <div style="position:relative; display:flex; align-items:center;">
                                 <input type="text" class="form-input" id="histSearchInput" 
@@ -1895,16 +1909,18 @@
         }
 
         function renderHistoricalReliabilityView(data) {
-            // Update 4 HUD cards
+            // Update 6 HUD cards
             const s = data.summary || {};
+            document.getElementById('histConfiguredCount').innerText = s.configured_count || 0;
             document.getElementById('histNeverCount').innerText = s.never_collected || 0;
             document.getElementById('histChronicCount').innerText = s.chronic_failure || 0;
             document.getElementById('histFlappingCount').innerText = s.flapping || 0;
             document.getElementById('histStableCount').innerText = s.stable || 0;
+            document.getElementById('histDiscoveredCount').innerText = s.discovered_unconfigured || 0;
 
             const sub = document.getElementById('histTableSubtitle');
             if (sub) {
-                sub.innerText = `${data.total_runs_analyzed} run(s) analyzed · ${data.catalogue_total} configured elements`;
+                sub.innerText = `${data.total_runs_analyzed} run(s) analyzed · ${s.configured_count || data.catalogue_total || 0} configured catalog elements (${s.discovered_unconfigured || 0} external discovered)`;
             }
 
             // Pareto Root Cause Calculation
@@ -1968,7 +1984,11 @@
             const searchVal = (document.getElementById('histSearchInput')?.value || '').trim();
 
             currentFilteredHistElements = elements.filter(el => {
-                if (catSelect && el.status_category !== catSelect) return false;
+                if (catSelect) {
+                    if (catSelect === 'configured' && !el.is_configured) return false;
+                    if (catSelect === 'discovered' && el.is_configured) return false;
+                    if (catSelect !== 'configured' && catSelect !== 'discovered' && el.status_category !== catSelect) return false;
+                }
                 if (!searchVal) return true;
                 return evaluateBooleanFilter(el, searchVal);
             });
@@ -1986,7 +2006,8 @@
                 return;
             }
 
-            const catBadge = (cat) => {
+            const catBadge = (cat, isConf) => {
+                if (cat === 'discovered' || isConf === false) return `<span class="badge-cat" style="background:rgba(168,85,247,0.15); color:#c084fc; border:1px solid rgba(168,85,247,0.3);">🌐 Discovered</span>`;
                 if (cat === 'never_collected') return `<span class="badge-cat badge-cat-never">🚫 Never Collected</span>`;
                 if (cat === 'chronic_failure') return `<span class="badge-cat badge-cat-chronic">⚠️ Chronic Failure</span>`;
                 if (cat === 'flapping') return `<span class="badge-cat badge-cat-flapping">⚡ Flapping</span>`;
@@ -1999,7 +2020,7 @@
                     <tr>
                         <td style="font-family:'JetBrains Mono',monospace; font-weight:600;">${escapeHtml(el.element)}</td>
                         <td><span class="role-tag" style="font-size:0.65rem;">${escapeHtml((el.tier || 'other').toUpperCase())}</span></td>
-                        <td>${catBadge(el.status_category)}</td>
+                        <td>${catBadge(el.status_category, el.is_configured)}</td>
                         <td>${el.success_count} / ${el.total_attempts}</td>
                         <td style="font-weight:700; color:${rateColor};">${el.success_rate_pct}%</td>
                         <td>${escapeHtml((el.last_status || '-').toUpperCase())}</td>
