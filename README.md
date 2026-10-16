@@ -2,575 +2,139 @@
   <h1>🌐 Network Data Extractor</h1>
   <p><strong>The Ultimate Multivendor NOC Orchestrator & Autonomous Discovery Engine</strong></p>
   
-  ![Version](https://img.shields.io/badge/version-1.97.1-blue.svg)
+  ![Version](https://img.shields.io/badge/version-1.97.2-blue.svg)
   ![Python](https://img.shields.io/badge/python-3.8%2B-green.svg)
+  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
   [![Live Demo](https://img.shields.io/badge/Live_Demo-GitHub_Pages-0ea5e9?style=flat&logo=github)](https://flashbsb.github.io/network-data-extractor/)
 </div>
 
 <br />
+
+> **Turn multi-vendor CLI outputs into actionable network intelligence in seconds.**  
+> An asynchronous orchestration engine for Network Operations Centers (NOCs) and Network Engineers. It eliminates manual polling through high-concurrency SSH, parses unstructured CLI dumps into normalized datasets, autonomously discovers network topology, and compiles interactive, zero-dependency HTML dashboards for instant NOC diagnostics.
+
+---
 
 ## 🌐 Live Interactive Demo (Online & Offline)
 
 Explore the full Network Operations Center portal live in your browser without cloning or running Python:
 
 <div align="center">
+  <br />
   <a href="https://flashbsb.github.io/network-data-extractor/">
     <img src="https://img.shields.io/badge/🚀_LAUNCH_LIVE_DEMO-GitHub_Pages-38bdf8?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Launch Live Demo" />
   </a>
+  <br /><br />
 </div>
 
 The bundled **[demo/](demo/)** workspace provides an authentic nationwide Brazilian backbone scenario (30 elements across Core, Aggregation, Metro Distribution, Peering, and Optical DWDM) spanning 30 days and 10 chronological snapshot collections:
-- **📦 Global Inventory**: Multivendor hardware inventory, transceivers, and interface operational statuses.
-- **⚖️ Drift Analysis (Diff)**: Configuration drift, interface state changes, and BGP peering updates.
-- **⚡ Ping Monitoring**: SLA heatmaps, Chart.js 30-day degradation trends, and Dijkstra route analysis.
-- **🕸️ Native Interactive Topology & Graph Viewer**: High-performance HTML5 Canvas & Vector SVG interactive network graph with **Concentric Orbital**, **Organic**, and **Site-Grouped** layouts, live multi-tier filtering, **Advanced Boolean Search (`&`, `|`, `!`, `()`, `tier:`, `site:`, `model:`, `vendor:`)** with multi-match glowing halos, auto-fit camera framing, match cycling HUD pill, floating **Quick Summary Mini-Card** (`#nodeQuickSummaryCard`), sliding telemetry drawer with enriched hardware/OS specs, client-side **Topological Drift Comparator** (highlighting added/removed elements), and 1-click **Client-Side Draw.io (.drawio) Export**. Also includes backward-compatible Draw.io embedded view.
-
-### Exploring Locally
-To run the demo web portal locally on your workstation:
-```bash
-python3 -m http.server 8000 --directory demo
-# Open in your browser: http://localhost:8000
-```
-
-### Updating the Demo Portal
-When core engine templates or styles evolve, refresh the demo views in ~3 seconds:
-```bash
-python3 network-data-extractor.py --update-demo
-```
-Or rebuild the entire synthetic dataset from scratch:
-```bash
-python3 network-data-extractor.py --rebuild-demo
-```
+- **📦 Global Inventory:** Hardware inventory, transceivers, and interface operational statuses.
+- **⚖️ Drift Analysis (Diff):** Configuration drift, interface state changes, and BGP updates.
+- **⚡ Ping Monitoring:** ICMP heatmaps, Chart.js 30-day degradation trends, and Dijkstra route analysis.
+- **🕸️ Native Interactive Topology:** HTML5 Canvas graph with Concentric Orbital, Organic, and Site-Grouped layouts, boolean search (`&`, `|`, `!`, `()`), glowing halos, and 1-click **Draw.io (.drawio)** export.
+- **🛡️ Admin & Operations:** (Available in DB mode via `--serve`) Executive health cockpit, cron monitor, and in-browser config editor.
 
 ---
 
-## 📖 What is the Network Data Extractor?
+## ✨ Core Superpowers
 
-**Network Data Extractor** is a high-performance, asynchronous orchestration engine designed for Network Operations Centers (NOCs) and Network Engineers. It eliminates manual polling by performing massive, parallel SSH data extraction across multi-vendor topologies (Cisco, Datacom, Huawei, HP).
-
-Beyond simple command execution, it acts as an **intelligence layer**—parsing raw CLI outputs into structured CSV datasets, automatically mapping L2/L3 topologies, detecting network drifts, and generating fully portable, interactive HTML dashboards for instant NOC diagnostics.
-
----
-
-## ⚡ Core Capabilities & Power
-
-- **🚀 Massive Concurrency**: Multi-threaded SSH polling reduces collection windows from hours to seconds.
-- **🛑 Systemic Failure Circuit Breaker**: Autonomous fail-fast engine detecting systemic credential expiry (`10` consecutive auth failures) or network disconnects (`20` consecutive unreachables), halting collection immediately with exit code `101`, preventing TACACS/AD account lockouts, suppressing downstream alert storms, and generating consolidated diagnostics. Override anytime via `--ignore-circuit-breaker`.
-- **🧭 Autonomous LLDP Discovery**: Recursively hops through the network, discovering missing devices and generating new inventory targets on the fly.
-- **⚙️ Modular Configuration Architecture**: Decomposed domain configs (`config/extractor.json`, `ssh.json`, `network.json`, `ping.json`, `storage.json`) with seamless deep-merge backward compatibility for monolithic `settings.json`. Zero hardcodes across extraction, parsing, and rendering engines.
-- **🗃️ Enterprise Storage Abstraction Layer (SAL) & DB-Primary Web Engine**: Decoupled three-mode persistence (`files_only`, `hybrid`, `db_only`) backed by zero-dependency SQLite with Write-Ahead Logging (`WAL`), 64 MB RAM cache, autonomous retention vacuuming, and DB-First web API query routing with transparent filesystem fallback.
-- **🧩 Universal Multivendor Parsing**: Regex-based "Blind Analyzer" bypasses human typos in descriptions to seamlessly map logical and physical topologies across different vendors.
-- **📊 Local-First Dashboards**: Generates High-Performance SPAs (Single Page Applications) embedded directly in HTML. Works 100% offline without CORS issues.
-- **🎨 Universal Visual Theming System**: Seamless one-click switching between **Dark (NOC Obsidian)**, **Light (Clean Enterprise / Day Mode)**, and **HighText (WCAG AAA High Contrast)** across all dashboards, with zero-FOUC pre-render initialization, cross-tab synchronization, and full iframe support.
-- **🕸️ Native Interactive Topology & Boolean Search Engine**: Zero-CORS, high-performance HTML5 canvas graph engine with concentric orbital hierarchy mapping, advanced boolean filtering (`&`, `|`, `!`, `()`, `tier:`, `site:`, `model:`, `vendor:`), multi-match halos, auto-fit camera framing, HUD match cycling pill, floating node quick summary mini-cards (`#nodeQuickSummaryCard`), temporal snapshot diffing (+new/-removed elements highlight), and instantaneous client-side `.drawio` diagram export.
-- **🔍 Network Drift Analysis**: Instantly compares historical snapshots to detect port status changes, bandwidth variations, and missing links.
-- **🛡️ Selective ICMP Diagnostics (Ping Matrix)**: Architecture-aware rules engine (`mode: "selective"`) filters out non-routable cross-tier pings before SSH execution, reducing ICMP load by up to ~80% (including optimized metro-to-edge rules and `:same_site` scoping). Includes dynamic column pruning (`Hide Out-of-Scope 🚫`) in visual heatmaps.
-- **🩺 Pre-flight Dependency Diagnostics**: Proactively validates Python modules and system tools (`--check-deps`) prior to execution, halting with actionable guidance to prevent corrupted or interrupted runs.
-- **📈 Historical Telemetry (Ping History)**: Tracks latency, packet loss, jitter, and node availability over time to identify chronic degradation trends and trigger anomaly warnings.
-- **🗄️ Automated Data Lifecycle & Retention Management**: Enforces configurable sliding-window retention (default 30-day / 30-collection window) and dynamic ICMP history sanitization. Automatically purges unneeded out-of-scope link files and prunes obsolete snapshots, keeping storage lightweight without operator intervention.
-- **🗺️ Dijkstra Route Analysis**: State-expanded simulator that computes the shortest, hierarchically compliant (valley-free) path between network nodes based on active latency and loss telemetry.
-- **⚠️ Topology Fault Isolation**: Actively maps connection failures, proactively warning the operator when a router loses its logical LLDP adjacencies.
+| Superpower | Why It Matters |
+| :--- | :--- |
+| **⚡ Massive Concurrency** | Multi-threaded SSH polling reduces network collection windows from hours to seconds across Cisco, Datacom, Huawei, and HP. |
+| **🛑 Circuit Breaker** | Autonomous fail-fast engine halts collection on consecutive auth errors or disconnects, preventing TACACS/AD account lockouts. |
+| **🗄️ SQLite WAL Storage** | Enterprise Storage Abstraction Layer (SAL) supporting `files_only`, `hybrid`, and `db_only` modes with sub-5ms in-memory query caching. |
+| **🧭 Autonomous Discovery** | Recursively follows LLDP neighbors up to *N* hops, discovering missing devices and generating new inventory targets dynamically. |
+| **📊 Zero-CORS Dashboards** | Local-First Single Page Applications (SPAs) embedded in HTML. Opens in any browser via `file:///` without CORS issues or web servers. |
+| **🎨 Tri-Theme System** | One-click instant switching between **Dark (NOC Obsidian)**, **Light (Enterprise Clean)**, and **HighText (WCAG AAA)**. |
 
 ---
 
-## 🏗️ Operational Architecture
+## ⚡ 3-Step Quick Start
 
-The orchestrator operates through modular branches with integrated pre-flight validation, designed to handle everything from live extraction to offline post-mortem analysis:
+Get up and running with your first network extraction in under 3 minutes:
 
-```mermaid
-flowchart TB
-
-%% ==========================================================
-%% STYLE
-%% ==========================================================
-
-classDef engine fill:#2563EB,stroke:#1E3A8A,stroke-width:2px,color:#fff
-classDef decision fill:#6366F1,stroke:#4338CA,stroke-width:2px,color:#fff
-classDef process fill:#F59E0B,stroke:#B45309,stroke-width:2px,color:#fff
-classDef storage fill:#10B981,stroke:#065F46,stroke-width:2px,color:#fff
-classDef dataset fill:#F3F4F6,stroke:#9CA3AF,color:#374151
-classDef web fill:#0F172A,stroke:#06B6D4,stroke-width:2px,color:#67E8F9
-
-%% ==========================================================
-%% ENTRY
-%% ==========================================================
-
-CLI["🚀 CLI / Wizard"]:::engine
-PRECHECK{"🛡️ Pre-flight Check<br/>(--check-deps)"}:::decision
-MODE{"Execution<br/>Mode"}:::decision
-
-CLI --> PRECHECK
-PRECHECK -->|Dependencies OK| MODE
-
-%% ==========================================================
-%% COLLECTION
-%% ==========================================================
-
-subgraph L1["① Collection Layer"]
-
-SSH["SSH Engine"]:::engine
-
-DISC["Discovery Loop"]:::process
-
-PING["ICMP Engine"]:::engine
-
-SYNC["Topology Sync"]:::process
-
-MODE -->|Standard| SSH
-MODE -->|--discovery| DISC
-DISC --> SSH
-
-MODE -->|--ping-matrix| PING
-
-MODE -->|--topology| SYNC
-
-end
-
-%% ==========================================================
-%% STORAGE
-%% ==========================================================
-
-subgraph L2["② Storage Layer"]
-
-RUN["📁 runs/TIMESTAMP"]:::storage
-
-RET["Retention Engine"]:::process
-
-ACTIVE["📁 Active Runs"]:::storage
-
-SSH --> RUN
-PING --> RUN
-SYNC --> RUN
-
-RUN --> RET
-RET --> ACTIVE
-
-end
-
-%% ==========================================================
-%% PARSERS
-%% ==========================================================
-
-subgraph L3["③ Parsing Layer"]
-
-PARSE["Offline Parsers"]:::process
-
-DATA["Parsed Dataset
-
-• Interfaces
-
-• Status
-
-• LLDP
-
-• Warnings"]:::dataset
-
-MODE -->|--offline| PARSE
-
-ACTIVE --> PARSE
-
-PARSE --> DATA
-
-end
-
-%% ==========================================================
-%% ANALYSIS
-%% ==========================================================
-
-subgraph L4["④ Analysis Engines"]
-
-TOPO["Topology Engine"]:::process
-
-INV["Inventory Builder"]:::process
-
-DIFF["Drift Engine"]:::process
-
-PM["Ping Matrix Engine"]:::process
-
-DATA --> TOPO
-DATA --> INV
-DATA --> DIFF
-
-ACTIVE --> PM
-
-end
-
-%% ==========================================================
-%% MAINTENANCE
-%% ==========================================================
-
-subgraph L5["⑤ Maintenance & Demo"]
-
-REBUILD["Master Rebuild"]:::engine
-
-TASKS["Maintenance Tasks"]:::process
-
-DEMO["Demo Showcase Engine<br/>(--update-demo / --rebuild-demo)"]:::engine
-
-MODE -->|--rebuild-index| REBUILD
-MODE -->|--update-demo| DEMO
-
-REBUILD --> TASKS
-
-TASKS --> RET
-TASKS --> INV
-TASKS --> DIFF
-TASKS --> TOPO
-TASKS --> PM
-
-end
-
-%% ==========================================================
-%% VISUALIZATION
-%% ==========================================================
-
-subgraph L6["⑥ HTML Workspaces"]
-
-INVHTML["📊 inventory/index.html"]:::web
-
-DIFFHTML["📊 diff/index.html"]:::web
-
-TOPOHTML["🗺 topology/index.html"]:::web
-
-PINGHTML["📈 ping-matrix/index.html"]:::web
-
-HISTORY["📈 history.html"]:::web
-
-PATH["🧭 path.html"]:::web
-
-INV --> INVHTML
-
-DIFF --> DIFFHTML
-
-TOPO --> TOPOHTML
-
-PM --> PINGHTML
-PM --> HISTORY
-PM --> PATH
-
-end
-
-%% ==========================================================
-%% ROOT
-%% ==========================================================
-
-subgraph L7["⑦ Navigation & Live Demo"]
-
-ROOT["Root Navigation Portal"]:::process
-
-INDEX["🏠 infos/index.html"]:::web
-
-PAGES["🌐 GitHub Pages Live Demo<br/>(demo/index.html)"]:::web
-
-INVHTML --> ROOT
-DIFFHTML --> ROOT
-TOPOHTML --> ROOT
-PINGHTML --> ROOT
-
-ROOT --> INDEX
-
-DEMO --> PAGES
-
-end
-```
-
----
-
-## 🚀 Quick Start
-
-### 1. Requirements & Installation
-Ensure you have Python 3.8+ installed.
-
-**Linux (Debian/Ubuntu):**
+### 1. Install Dependencies
 ```bash
+git clone https://github.com/flashbsb/network-data-extractor.git
+cd network-data-extractor
+
+# Linux (Debian / Ubuntu / RHEL)
 sudo ./installdep.sh
-python3 network-data-extractor.py
+
+# Or cross-platform via pip
+pip install -r requirements.txt
 ```
 
-**Windows (PowerShell Admin):**
-```powershell
-pip install pandas paramiko
-python network-data-extractor.py
+### 2. Define Targets (`config/elements.cfg`)
+Add your network devices using `Hostname;IP;ProfileKey`:
+```text
+CORE-ROUTER-01;10.0.0.1;cisco02
+AGG-SWITCH-01;10.0.1.1;datacom01
+EDGE-ROUTER-01;10.0.2.1;huawei01
 ```
 
-### 2. Core Configuration Files (`config/`)
-The tool relies on two primary configuration files:
-
-- **`elements.cfg`** (The targets list). Syntax: `Hostname;IP;ProfileKey`. Lines starting with `#` are treated as comments and ignored.
-  ```text
-  # Core Network Elements
-  CORE-ROUTER-A;10.0.0.1;cisco02
-  # EDGE-SW-01;10.0.50.22;datacom01  <-- Commented element (ignored)
-  ```
-
-- **`commands.cfg`** (The SSH macros assigned). Syntax: `ProfileKey;Command`. Lines starting with `#` are treated as comments.
-  ```text
-  cisco02;show int status
-  cisco02;show lldp neighbors detail
-  datacom01;show system
-  ```
-
----
-
-## ⚙️ Modular Configuration Architecture (`config/*.json`)
-
-Starting in **v1.91.0**, the orchestrator decomposes configuration parameters into five dedicated, domain-specific JSON files under `config/`:
-
-| File | Domain Responsibility | Key Parameters |
-| :--- | :--- | :--- |
-| **`config/extractor.json`** | Polling Engine & Discovery | `workers`, `command_timeout`, `per_command_delay`, `discovery.default_hops`, `preferred_management_subnets` |
-| **`config/ssh.json`** | Multivendor SSH Layer | `auth_timeout`, `banner_timeout`, `retries`, `pager_markers`, `prompt_regex` |
-| **`config/network.json`** | Topology & Optical Mapping | `routing_hierarchy`, `tier_metadata`, `site_regex`, `interface_speed_inference`, `transceiver_speed_map`, `speed_colors` |
-| **`config/ping.json`** | ICMP Telemetry & SLA | `mode` (`selective`/`full`), `packet_size`, `timeout`, `canvas_sla_thresholds` (latency/loss colors), `architecture_matrix` |
-| **`config/storage.json`** | Storage Layer (SAL) & Retention | `mode` (`files_only`/`hybrid`/`db_only`), `database_path`, `retention.days`, `retention.max_runs`, `retention.auto_vacuum` |
-
-### Backward Compatibility & Deep-Merge Precedence
-The configuration loader (`core/utils_shared.py`) transparently loads domain files and performs a deep-merge with legacy `config/settings.json`:
-1. If domain-specific files (`extractor.json`, etc.) exist, they take precedence.
-2. If `config/settings.json` is modified directly or passed via `--settings custom.json`, all keys are safely preserved and deep-merged.
-3. Validate configuration integrity at any time with the built-in test suite:
-   ```bash
-   python3 tools/test_modular_configs.py
-   ```
-
----
-
-## 🛠️ Execution Modes
-
-You can run the orchestrator interactively via the terminal wizard, or fully automate it via CLI flags (perfect for CI/CD or Cron jobs).
-
-### [A] Standard Extraction (Live Data & Topology)
-Performs live multithreaded SSH polling and generates the base CSV tables and L2/L3 topology maps.
+### 3. Run & View Results
 ```bash
+# Run collection with SSH key authentication
 python3 network-data-extractor.py --skip-wizard --user "nocadmin" --key "~/.ssh/id_rsa"
-```
 
-### [B] Ping Matrix Diagnostics
-Executes a bidirectional ICMP sweep using selective routing rules (`mode: "selective"`), generating an interactive offline heatmap.
-```bash
-python3 network-data-extractor.py --ping-matrix --ping-commands config/commands.icmp.cfg --ping-format html
-```
-
-### [C] Autonomous Discovery
-Tells the engine to automatically follow LLDP neighbors for `N` hops, mapping uncharted territories and identifying new IP targets.
-```bash
-python3 network-data-extractor.py --discovery --hops 3
-```
-
-### [D] Workspace Generation (Offline Analytics)
-Re-processes historical snapshots to generate comparative UI dashboards without logging into the live network.
-```bash
-python3 network-data-extractor.py --diff                 # Detects drift between two snapshots
-python3 network-data-extractor.py --inventory            # Builds a cumulative global inventory UI
-python3 network-data-extractor.py --rebuild-index        # Rebuilds all dashboards (Root, Ping Matrix, Inventory, Diff, Topology) & upgrades run HTML files.
-```
-
-### [E] Offline Parsing
-If you have already collected raw data and simply want to rerun the parsing stack against an existing folder.
-```bash
-python3 network-data-extractor.py --offline infos/20261231_235959
-```
-
-### [F] Environment Pre-flight Diagnostics
-Audit your operating system, Python libraries, and tools before running collections.
-```bash
-python3 network-data-extractor.py --check-deps           # Validates core & topology packages
-```
-
-### [G] Data Retention & Storage Lifecycle
-Manage snapshot storage, enforce historical retention windows, and sanitize legacy datasets:
-```bash
-python3 network-data-extractor.py --retention-days 30    # Enforces a 30-day retention window on collection
-python3 tools/manage_runs_retention.py --days 30 --apply # Standalone run archiver & snapshot pruner
-python3 tools/sanitize_history.py --apply               # Standalone out-of-scope ICMP history link sanitizer
-```
-
-### [H] Enterprise Storage & Database Persistence (SQLite WAL)
-Configurable storage modes (`files_only`, `hybrid`, `db_only`) backed by zero-dependency SQLite with Write-Ahead Logging (`WAL`), compressed raw CLI blobs, and autonomous retention vacuuming:
-```bash
-# 1. Frictionless Onboarding Wizard
-python3 tools/setup_database.py                       # Interactive database setup wizard
-python3 tools/setup_database.py -y                    # Headless non-interactive setup
-
-# 2. CLI Storage Manager Utilities
-python3 tools/storage_manager.py init                 # Initialize SQLite schema and seed elements
-python3 tools/storage_manager.py import               # Ingest legacy filesystem runs into SQLite
-python3 tools/storage_manager.py export --run <RUN>   # Export run from DB to filesystem
-python3 tools/storage_manager.py sync                 # Bidirectional sync between files and database
-python3 tools/storage_manager.py audit --deep-verify  # Audit database integrity and row statistics
-python3 tools/storage_manager.py backup               # Create transactional compressed backup archive
-python3 tools/storage_manager.py purge --max-runs 90  # Prune old runs and vacuum SQLite space
-
-# 3. Running Extractor with Storage Flags
-python3 network-data-extractor.py --storage-mode hybrid  # Persist to filesystem and SQLite simultaneously
-python3 network-data-extractor.py --storage-mode db_only # Store exclusively in DB & reclaim raw text inodes
-```
-
-### [I] Web Administration & Operations Portal (`--serve`)
-Launch an embedded, zero-dependency HTTP server (`http.server.ThreadingHTTPServer`) hosting the authenticated Web Administration and Operations Portal:
-```bash
-# 1. Launch with default settings (port 8080, local bind)
-python3 network-data-extractor.py --serve
-
-# 2. Launch pointing to specific outbase directory and custom port
-python3 network-data-extractor.py --serve --port 8080 --outbase /var/network-data/infos
-
-# 3. Launch with remote access binding and custom users file
-python3 network-data-extractor.py --serve --host 0.0.0.0 --port 9090 --users-file config/users.json
-```
-
-#### Core Capabilities:
-* **Cryptographic Security & RBAC:** PBKDF2-HMAC-SHA256 credentials with sliding 4h session cookies (`HttpOnly; SameSite=Lax`) and strict CSRF tokens (`X-CSRF-Token`). Features 4 granular roles: `SuperAdmin`, `NetOps`, `Operator`, and `Auditor`.
-* **Default Credentials:** Initialized out-of-the-box with `admin` / `admin`. Passwords can be changed directly from the Web UI profile modal.
-* **Executive Telemetry Cockpit:** Deep snapshot selector (`[ 📅 Select Snapshot ▾ ]`) inspecting historical runs with real-time SSH success/failure stats, ICMP SLA metrics, interface up/down distribution, LLDP alerts, and 1-click drilldowns.
-* **Target Element Drilldown & Boolean Filter:** Interactive table filtering 5,700+ target nodes with advanced boolean queries (`&`, `|`, `!`, `()`, `"..."`, `status:ok`, `status:fail`, `host:`) and 1-click UTF-8 BOM CSV export for Excel.
-* **Cron Health Inspector:** Live monitoring of scheduled runs (`cron_execution.log`) with elapsed run hours, schedule delay warnings (> 96h), and real-time structured status tokens (`HEALTHY`, `RUNNING`, `DELAYED`, `ERROR`).
-* **In-Browser Configuration Management:** Integrated JSON validator for system settings (`extractor.json`, etc.) and `.cfg` editor with automated production directory prioritization and strict path-traversal isolation.
-* **Zero-Crash Public Showcase Sandbox:** Full GitHub Pages client simulation via `web/admin/admin_adapter.js`.
-
----
-
-## 🔗 Interactive Inter-Dashboard Navigation
-
-The workspace features a high-performance **contextual navigation network** starting from the central Root Portal (`infos/index.html`). When analyzing topology links, interfaces, heatmaps, or drifts, clicking on any element, cell, or link triggers an interactive context menu that lets you instantly jump across specialized diagnostic views with pre-filtered parameters.
-
-The dashboard routing supports URL parameter passing:
-- **`run`**: Timestamped snapshot selection (e.g. `20260630_090001`).
-- **`origin` / `dest`**: Pre-populates source and target fields in P2P latency history, heatmaps, and triggers automated Dijkstra shortest-path calculations.
-- **`device` / `interface` / `focus`**: Pre-filters interface listings, highlights nodes inside Draw.io topology maps, and jumps directly to interface timelines.
-
-This contextual linkage creates an integrated 4-level diagnostic flow:
-```mermaid
-flowchart LR
-
-%% ==========================================================
-%% STYLES (Cyber / NOC Theme)
-%% ==========================================================
-classDef root fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff,rx:8,ry:8
-classDef workspace fill:#0F172A,stroke:#06B6D4,stroke-width:2px,color:#67E8F9,rx:6,ry:6
-classDef menu fill:#D97706,stroke:#78350F,stroke-width:2px,color:#fff,rx:12,ry:12
-classDef subview fill:#059669,stroke:#064E3B,stroke-width:2px,color:#fff,rx:6,ry:6
-
-%% ==========================================================
-%% STEP 1: ENTRY PORTAL
-%% ==========================================================
-subgraph STEP1["🌐 STEP 1: ENTRY HUB"]
-    ROOT["🏠 Root Navigation Portal
-    (infos/index.html)"]:::root
-end
-
-%% ==========================================================
-%% STEP 2: NETWORK WORKSPACES
-%% ==========================================================
-subgraph STEP2["📊 STEP 2: WORKSPACES"]
-    INV["📦 Global Inventory
-    (inventory/index.html)"]:::workspace
-    DIFF["🔍 Drift Analysis
-    (diff/index.html)"]:::workspace
-    TOPO["🗺️ Network Topology
-    (topology/index.html)"]:::workspace
-    PM["⚡ Ping Matrix & Telemetry
-    (ping-matrix/index.html)"]:::workspace
-    ADMIN["🛡️ Admin & Operations
-    (admin/index.html)"]:::workspace
-end
-
-ROOT -->|Select| INV
-ROOT -->|Select| DIFF
-ROOT -->|Select| TOPO
-ROOT -->|Select| PM
-ROOT -->|Select| ADMIN
-
-%% ==========================================================
-%% STEP 3: CONTEXT ENGINE (CENTERED)
-%% ==========================================================
-subgraph STEP3["🖱️ STEP 3: CONTEXT ENGINE"]
-    MENU["👆 Context Popover Menu
-    (Cell / Node / Link / Event click)"]:::menu
-end
-
-INV -->|Click Link| MENU
-DIFF -->|Click Event| MENU
-TOPO -->|Click Node| MENU
-PM -->|Click Cell| MENU
-
-%% ==========================================================
-%% STEP 4: DIAGNOSTIC VIEWS
-%% ==========================================================
-subgraph STEP4["🔬 STEP 4: DIAGNOSTIC VIEWS"]
-    HIST["📈 P2P SLA History
-    (history.html)"]:::subview
-    PATH["🗺️ Dijkstra Path Simulator
-    (path.html)"]:::subview
-    TIME["⏱️ Interface Timeline
-    (diff/index.html#timeline)"]:::subview
-    MAP["🔍 Topology Highlight
-    (topology/index.html?focus=)"]:::subview
-end
-
-MENU -->|"?origin=X&dest=Y"| HIST
-MENU -->|"?origin=X&dest=Y&run=T"| PATH
-MENU -->|"?device=X&interface=Y"| TIME
-MENU -->|"?focus=DeviceName"| MAP
+# Open the central navigation portal
+xdg-open infos/index.html   # Linux
+open infos/index.html       # macOS
+start infos\index.html      # Windows
 ```
 
 ---
 
-## 📂 Output Directory Structure
+## 🖥️ The 5 Unified Workspaces
 
-Every execution run is unified and encapsulated inside a timestamped subfolder under `runs/`:
-* **`runs/YYYYMMDD_HHMMSS/`** → Root execution directory.
-  * `collect/` (or `collect.zip`) → Raw `.txt` command logs directly from the equipment (Audit Proof).
-  * `resume/` → Clean, parsed `.csv` & `.json` datasets (Interfaces, Licensing, Asset Matrix, Modules).
-  * `connections/` → Mathematically deduplicated L2/L3 physical topology links.
-  * `log/` (or `log.zip`) → Full audit trails of the execution and parsing errors.
-  * `ping-matrix/` → Asynchronous ICMP sweep telemetry and local dashboards.
-  * `topology/` → Draw.io geographical and logical network diagram definitions.
+Every collection run automatically compiles 5 specialized diagnostic workspaces accessible from the master Root Portal (`infos/index.html`):
 
-At the root of the output directory (e.g., `infos/`), you will find the static compiled index portals:
-* `infos/index.html` → The main Root Navigation Portal.
-* `infos/inventory/index.html` → Cumulative Global Inventory Dashboard (powered by cache).
-* `infos/diff/index.html` → Snapshot Drift Comparison Panel (powered by cache).
-* `infos/ping-matrix/index.html` → SLA Latency History & Dijkstra Routing (powered by cache).
-* `infos/topology/index.html` → Network Topology Draw.io Workspace.
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                      🏠 ROOT NAVIGATION PORTAL                        │
+│                         (infos/index.html)                             │
+└───────┬──────────────┬───────────────┬───────────────┬─────────────────┘
+        │              │               │               │
+        ▼              ▼               ▼               ▼
+   📦 INVENTORY    ⚖️ DRIFT        ⚡ ICMP MATRIX   🕸️ TOPOLOGY
+   Global ports,  Configuration   SLA heatmaps,   Interactive Canvas,
+   transceivers,  drift & delta   history trends, boolean search &
+   and inventory  event timelines Dijkstra path  Draw.io export
+        │              │               │               │
+        └──────────────┴───────┬───────┴───────────────┘
+                               │ (When served in DB Mode)
+                               ▼
+                    🛡️ ADMIN & OPERATIONS
+                    Executive telemetry cockpit, cron monitor,
+                    RBAC security & in-browser config editor
+```
 
 ---
 
-## 🛡️ Unified Retention & Storage Policies
+## 📚 Documentation Directory
 
-You can easily configure automatic data and dashboard pruning inside `config/settings.json` under the `"retention"` block. The engine automatically rotates obsolete runs and purges out-of-scope link history files during every collection or re-index cycle. Setting any parameter to `null` disables that specific limit.
+For in-depth guides, operational procedures, and developer blueprints, refer to the dedicated manuals:
 
-```json
-    "retention": {
-        "global": {
-            "max_collections": 30, // Retains up to 30 most recent runs (deletes older runs)
-            "max_days": 30         // Retains runs within the last 30 days
-        },
-        "ping_history": {
-            "auto_purge_out_of_scope": true // Automatically cleans out-of-scope link history files
-        },
-        "components": {
-            "collect": { "max_collections": 40, "max_days": 30 }, // Deletes raw commands
-            "log": { "max_collections": 40, "max_days": 30 },     // Deletes raw logs
-            "resume": { "max_collections": 40, "max_days": 30 },  // Deletes parsed spreadsheets
-            "connections": { "max_collections": 40, "max_days": 30 },
-            "inventory": { "max_collections": 40, "max_days": 30 }, // Deletes HTML inventory cache
-            "drift": { "max_collections": 40, "max_days": 30 },     // Deletes HTML drift cache
-            "ping-matrix": { "max_collections": 40, "max_days": 30 },
-            "topology": { "max_collections": 40, "max_days": 30 }
-        }
-    }
-```
-
-You can also dynamically override the retention window via CLI without modifying `settings.json`:
-```bash
-python3 network-data-extractor.py --retention-days 15
-```
+| Guide | Description |
+| :--- | :--- |
+| 🚀 **[Quick Start Guide](docs/QUICKSTART.md)** | Step-by-step onboarding tutorial from installation to your first collection. |
+| 🛠️ **[CLI Reference Manual](docs/CLI_REFERENCE.md)** | Exhaustive manual of all execution modes [A]-[I], CLI flags, and Cron automation. |
+| ⚙️ **[Configuration Architecture](docs/CONFIGURATION.md)** | Deep dive into `config/*.json`, inventory syntax, regex rules, and merge precedence. |
+| 🗄️ **[Database & Storage Layer](docs/STORAGE_AND_DB.md)** | SQLite WAL persistence, CLI `storage_manager.py`, backup, retention, and vacuuming. |
+| 🛡️ **[Web Administration Portal](docs/ADMIN_PORTAL.md)** | Embedded server (`--serve`), RBAC roles, security, cron inspector, and config editor. |
+| 🏗️ **[System Architecture](docs/ARCHITECTURE.md)** | Internal 7-layer pipeline blueprints, inter-dashboard URL routing, and SPA model. |
 
 ---
 
 ## 🤝 Ecosystem & Related Tools
 
 Expand your automation suite with related NOC tools:
-- [Network Topology Generator](https://github.com/flashbsb/network-topology-generator) - Generate physical topology visualisations dynamically.
-- [Backbone Network Topology Generator](https://github.com/flashbsb/backbone-network-topology-generator) - Dimension backbone topologies for testing.
+- [Network Topology Generator](https://github.com/flashbsb/network-topology-generator) — Generate physical topology visualizations dynamically.
+- [Backbone Network Topology Generator](https://github.com/flashbsb/backbone-network-topology-generator) — Dimension and simulate backbone topologies.
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.

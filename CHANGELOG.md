@@ -10,6 +10,15 @@ All notable changes to the **Network Data Extractor** project will be documented
   - The client capabilities handshake (`detectStorageCapabilities`) queries `/api/v1/system/capabilities`: only when backend database access is confirmed (`db_available: true` or `active_mode: 'db'`) does the card reveal itself (`display: flex`).
   - In Files Mode, static file browsing (`file:///`), or offline static servers without database access, the card remains completely hidden.
   - Added unit test suite `tools/test_root_portal_admin_visibility.py` verifying the visibility contract and allowed `/admin` as a recognized DB-mode exception in `tools/test_web_navigation.py`.
+- **Documentation Architecture Decoupling & Modularization (`README.md`, `docs/`)**:
+  - Restructured `README.md` from a 577-line monolith into a concise, high-impact storefront (157 lines) highlighting the value proposition, live interactive demo, 5 superpowers, a 3-step quick start, and the 5 unified diagnostic workspaces.
+  - Established dedicated `docs/` technical library with 6 comprehensive domain manuals:
+    - [`docs/QUICKSTART.md`](docs/QUICKSTART.md): Onboarding tutorial from zero to first collection in 5 minutes.
+    - [`docs/CLI_REFERENCE.md`](docs/CLI_REFERENCE.md): Complete reference of all execution modes [A]-[I], flags, and Cron automation.
+    - [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md): In-depth guide to domain JSONs, inventory syntax, and merge precedence.
+    - [`docs/STORAGE_AND_DB.md`](docs/STORAGE_AND_DB.md): Enterprise Storage Abstraction Layer (SAL), SQLite WAL, and retention.
+    - [`docs/ADMIN_PORTAL.md`](docs/ADMIN_PORTAL.md): Web Admin server (`--serve`), RBAC permissions, cockpit, and cron monitors.
+    - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): Internal 7-layer pipeline blueprints and inter-dashboard URL routing contracts.
 
 ## [1.97.1] - 2026-10-14
 ### Added & Optimized
