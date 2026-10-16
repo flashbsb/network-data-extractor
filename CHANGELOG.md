@@ -2,6 +2,15 @@
 
 All notable changes to the **Network Data Extractor** project will be documented in this file.
 
+## [1.97.2] - 2026-10-16
+### Added & Improved
+- **Conditional Admin & Operations Portal Navigation (`core/root_portal_engine.py`, `core/theme_system.py`, `demo/index.html`)**:
+  - Configured `#card-admin` ("Admin & Operations") on the master root portal to link directly to `/admin/index.html`.
+  - Conditioned visibility strictly to **DB Mode**: `#card-admin` is hidden by default in CSS and inline styles (`display: none;`).
+  - The client capabilities handshake (`detectStorageCapabilities`) queries `/api/v1/system/capabilities`: only when backend database access is confirmed (`db_available: true` or `active_mode: 'db'`) does the card reveal itself (`display: flex`).
+  - In Files Mode, static file browsing (`file:///`), or offline static servers without database access, the card remains completely hidden.
+  - Added unit test suite `tools/test_root_portal_admin_visibility.py` verifying the visibility contract and allowed `/admin` as a recognized DB-mode exception in `tools/test_web_navigation.py`.
+
 ## [1.97.1] - 2026-10-14
 ### Added & Optimized
 - **DB-Primary Web Architecture & Transparent Fallback (`core/web_server.py`, `core/storage/sqlite_driver.py`)**:

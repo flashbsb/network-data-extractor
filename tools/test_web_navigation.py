@@ -53,7 +53,7 @@ def audit_relative_paths(demo_dir: Path):
             f_path = Path(root) / f
             try:
                 content = f_path.read_text(encoding="utf-8", errors="ignore")
-                matches = root_rel_pattern.findall(content)
+                matches = [m for m in root_rel_pattern.findall(content) if not m.startswith("admin")]
                 if matches:
                     violations.append((f_path.relative_to(demo_dir), matches[:3]))
             except Exception:

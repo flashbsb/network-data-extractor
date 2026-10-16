@@ -462,24 +462,40 @@ THEME_SCRIPT_JS = """
         // Storage capabilities detector
         async function detectStorageCapabilities() {
             var badge = document.getElementById('storageModeBadge');
-            if (!badge) return;
+            var adminCard = document.getElementById('card-admin');
+            if (!badge && !adminCard) return;
             try {
                 var res = await fetch('/api/v1/system/capabilities', { method: 'GET' });
                 if (res.ok) {
                     var data = await res.json();
-                    if (data && data.db_available) {
-                        badge.className = 'storage-mode-badge badge-db';
-                        badge.innerHTML = '🗄️ DB Mode';
-                        badge.title = 'Active Backend: SQLite Relational Database';
+                    var isDb = Boolean(data && (data.db_available || data.active_mode === 'db'));
+                    if (isDb) {
+                        if (badge) {
+                            badge.className = 'storage-mode-badge badge-db';
+                            badge.innerHTML = '🗄️ DB Mode';
+                            badge.title = 'Active Backend: SQLite Relational Database';
+                        }
+                        if (adminCard) {
+                            adminCard.style.display = 'flex';
+                        }
                         return;
                     }
                 }
             } catch(e) {}
-            badge.className = 'storage-mode-badge badge-files';
-            badge.innerHTML = '📁 Files Mode';
-            badge.title = 'Active Backend: Static JSON & Flat Files';
+            if (badge) {
+                badge.className = 'storage-mode-badge badge-files';
+                badge.innerHTML = '📁 Files Mode';
+                badge.title = 'Active Backend: Static JSON & Flat Files';
+            }
+            if (adminCard) {
+                adminCard.style.display = 'none';
+            }
         }
         if (typeof window !== 'undefined') {
-            window.addEventListener('DOMContentLoaded', detectStorageCapabilities);
+            if (document.readyState === 'loading') {
+                window.addEventListener('DOMContentLoaded', detectStorageCapabilities);
+            } else {
+                detectStorageCapabilities();
+            }
         }
 """

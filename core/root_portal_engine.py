@@ -51,11 +51,11 @@ def generate_root_portal(outbase):
     topo_status_text = '🟢 AVAILABLE' if has_topo else '🔴 UNAVAILABLE'
     topo_hint = '' if has_topo else '<span class="cmd-hint">Run with --topology</span>'
 
-    admin_href = 'href="admin/index.html"' if has_admin else ''
-    admin_class = 'active' if has_admin else 'disabled'
-    admin_status_class = 'avail' if has_admin else 'unavail'
-    admin_status_text = '🟢 AVAILABLE' if has_admin else '🔴 UNAVAILABLE'
-    admin_hint = '' if has_admin else '<span class="cmd-hint">Run with --serve</span>'
+    admin_href = 'href="/admin/index.html"'
+    admin_class = 'active'
+    admin_status_class = 'avail'
+    admin_status_text = '🟢 AVAILABLE'
+    admin_hint = ''
     
     ping_heatmaps_href = 'href="ping-matrix/index.html"' if has_ping else ''
     ping_history_href = 'href="ping-matrix/history.html"' if has_ping else ''
@@ -100,6 +100,9 @@ def generate_root_portal(outbase):
         .card.active.diff::before {{ background: #f59e0b; }}
         .card.active.topology::before {{ background: #06b6d4; }}
         .card.ping::before {{ background: #10b981; }}
+        .card.active.admin::before {{ background: #ef4444; }}
+        
+        #card-admin {{ display: none; }}
         
         .card.disabled {{ opacity: 0.5; filter: grayscale(1); cursor: not-allowed; }}
         
@@ -199,8 +202,8 @@ def generate_root_portal(outbase):
                 {topo_hint}
             </a>
 
-            <!-- ADMIN & OPERATIONS PORTAL -->
-            <a {admin_href} class="card {admin_class} admin" aria-label="Admin and Operations Portal">
+            <!-- ADMIN & OPERATIONS PORTAL (Visible only in DB Mode) -->
+            <a {admin_href} class="card {admin_class} admin" id="card-admin" aria-label="Admin and Operations Portal" style="display: none;">
                 <span class="icon">🛡️</span>
                 <div class="title">Admin & Operations</div>
                 <div class="desc">Executive cockpits, deep telemetry summaries, automated cron monitors, and granular role-based configuration editor.</div>
